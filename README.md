@@ -141,13 +141,29 @@ src/
 
 ## 🚀 Despliegue
 
-### Build de Producción
+### Despliegue en Heroku (Recomendado)
+
+#### Opción 1: Despliegue Automatizado
+```bash
+# Ejecutar script de despliegue
+./deploy.sh
+```
+
+#### Opción 2: Despliegue Manual
+Sigue las instrucciones detalladas en [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+### Build de Producción Local
 ```bash
 npm run build
 ```
 
 ### Servir Archivos Estáticos
 Los archivos generados en `build/` pueden ser servidos por cualquier servidor web estático.
+
+### Despliegue en Otros Servicios
+- **Vercel**: Conecta tu repositorio Git
+- **Netlify**: Arrastra la carpeta `build/`
+- **GitHub Pages**: Configura GitHub Actions
 
 ## 🤝 Contribución
 
