@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Exit on error
+set -e
+
+# Install static buildpack
+curl -s https://buildpack-registry.s3.amazonaws.com/buildpacks/heroku/static.tgz | tar -xz
+
+# Start the static server
+./bin/static $PORT

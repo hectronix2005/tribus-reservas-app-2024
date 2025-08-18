@@ -1,0 +1,27 @@
+{
+  "name": "TRIBUS - Sistema de Reservas",
+  "description": "Sistema de reservas de puestos de trabajo y salas de juntas",
+  "repository": "https://github.com/tu-usuario/tribus-reservas",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["react", "typescript", "reservas", "tribus"],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-static"
+    }
+  ],
+  "env": {
+    "NODE_ENV": {
+      "description": "Environment for the application",
+      "value": "production"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  }
+}
