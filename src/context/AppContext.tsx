@@ -176,6 +176,15 @@ const initialState: AppState = {
 // Variable global para mantener usuarios durante la sesión
 let sessionUsers: User[] = [...defaultUsers];
 
+// Función para debuggear usuarios
+const debugUsers = () => {
+  console.log('=== DEBUG USUARIOS ===');
+  console.log('sessionUsers:', sessionUsers);
+  console.log('defaultUsers:', defaultUsers);
+  console.log('localStorage:', localStorage.getItem('tribus-app-state'));
+  console.log('=====================');
+};
+
 function appReducer(state: AppState, action: AppAction): AppState {
   let newState: AppState;
 
@@ -244,20 +253,27 @@ function appReducer(state: AppState, action: AppAction): AppState {
       break;
     case 'SET_USERS':
       sessionUsers = action.payload;
+      console.log('SET_USERS - sessionUsers actualizado:', sessionUsers);
       newState = { ...state, users: action.payload };
       break;
     case 'ADD_USER':
       sessionUsers = [...sessionUsers, action.payload];
+      console.log('ADD_USER - Usuario agregado:', action.payload);
+      console.log('ADD_USER - sessionUsers actualizado:', sessionUsers);
       newState = { ...state, users: sessionUsers };
       break;
     case 'UPDATE_USER':
       sessionUsers = sessionUsers.map(user =>
         user.id === action.payload.id ? action.payload : user
       );
+      console.log('UPDATE_USER - Usuario actualizado:', action.payload);
+      console.log('UPDATE_USER - sessionUsers actualizado:', sessionUsers);
       newState = { ...state, users: sessionUsers };
       break;
     case 'DELETE_USER':
       sessionUsers = sessionUsers.filter(user => user.id !== action.payload);
+      console.log('DELETE_USER - Usuario eliminado ID:', action.payload);
+      console.log('DELETE_USER - sessionUsers actualizado:', sessionUsers);
       newState = { ...state, users: sessionUsers };
       break;
     case 'SET_CURRENT_USER':
@@ -354,7 +370,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (state.users.length === 0) {
       dispatch({ type: 'SET_USERS', payload: sessionUsers });
     }
-  }, []);
+    
+    // Exponer la variable global en window para acceso directo
+    (window as any).sessionUsers = sessionUsers;
+    
+    // Debug inicial
+    console.log('AppProvider - Usuarios iniciales:', sessionUsers);
+  }, [state.users.length]);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
     const reservationsForDate = state.reservations.filter(

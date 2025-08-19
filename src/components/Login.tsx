@@ -20,10 +20,14 @@ export function Login() {
     setError(null);
 
     console.log('Intentando login con:', credentials);
-    console.log('Usuarios disponibles:', state.users);
+    console.log('Usuarios en state:', state.users);
+
+    // Obtener usuarios de la variable global (más confiable)
+    const allUsers = (window as any).sessionUsers || state.users;
+    console.log('Todos los usuarios disponibles:', allUsers);
 
     // Buscar usuario por username
-    const user = state.users.find(u => 
+    const user = allUsers.find((u: any) => 
       u.username === credentials.username && 
       u.password === credentials.password &&
       u.isActive
@@ -41,7 +45,7 @@ export function Login() {
       dispatch({ type: 'SET_AUTHENTICATED', payload: true });
     } else {
       // Verificar qué está fallando
-      const userByUsername = state.users.find(u => u.username === credentials.username);
+      const userByUsername = allUsers.find((u: any) => u.username === credentials.username);
       if (!userByUsername) {
         setError('Usuario no encontrado');
       } else if (userByUsername.password !== credentials.password) {
@@ -155,8 +159,15 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => {
-                  console.log('Usuarios disponibles:', state.users);
-                  alert(`Usuarios disponibles: ${state.users.map(u => `${u.username} (${u.role})`).join(', ')}`);
+                  const allUsers = (window as any).sessionUsers || state.users;
+                  console.log('=== DEBUG COMPLETO ===');
+                  console.log('State users:', state.users);
+                  console.log('Session users:', (window as any).sessionUsers);
+                  console.log('All users:', allUsers);
+                  console.log('=====================');
+                  
+                  const userList = allUsers.map((u: any) => `${u.username} (${u.role})`).join(', ');
+                  alert(`Usuarios disponibles: ${userList}\n\nTotal: ${allUsers.length} usuarios`);
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
