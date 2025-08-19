@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
+import { userService, authService } from '../services/api';
 
 interface AppState {
   areas: Area[];
@@ -41,43 +42,7 @@ type AppAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null };
 
-// Usuarios predefinidos
-const defaultUsers: User[] = [
-  {
-    id: '1',
-    name: 'Administrador del Sistema',
-    email: 'admin@tribus.com',
-    username: 'admin',
-    password: 'admin123',
-    role: 'admin',
-    department: 'IT',
-    isActive: true,
-    createdAt: getCurrentDateString()
-  },
-  {
-    id: '2',
-    name: 'Usuario General',
-    email: 'usuario@tribus.com',
-    username: 'usuario',
-    password: 'user123',
-    role: 'user',
-    department: 'General',
-    isActive: true,
-    createdAt: getCurrentDateString()
-  },
-  {
-    id: '3',
-    name: 'Hector Neira',
-    email: 'dneira@tribus.com',
-    username: 'Dneira',
-    password: 'dneira123',
-    role: 'user',
-    department: 'Desarrollo',
-    isActive: true,
-    createdAt: getCurrentDateString()
-  }
-];
-
+// Estado inicial sin usuarios locales - se cargarán desde MongoDB
 const initialState: AppState = {
   areas: [
     {
@@ -152,7 +117,7 @@ const initialState: AppState = {
       createdAt: getCurrentDateString()
     }
   ],
-  users: defaultUsers,
+  users: [], // Se cargarán desde MongoDB
   auth: {
     currentUser: null,
     isAuthenticated: false,
@@ -173,14 +138,13 @@ const initialState: AppState = {
   error: null
 };
 
-// Variable global para mantener usuarios durante la sesión
-let sessionUsers: User[] = [...defaultUsers];
+// Variable global para mantener usuarios durante la sesión - se cargarán desde MongoDB
+let sessionUsers: User[] = [];
 
 // Función para debuggear usuarios
 const debugUsers = () => {
   console.log('=== DEBUG USUARIOS ===');
   console.log('sessionUsers:', sessionUsers);
-  console.log('defaultUsers:', defaultUsers);
   console.log('localStorage:', localStorage.getItem('tribus-app-state'));
   console.log('=====================');
 };
@@ -315,12 +279,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = state;
   }
 
-  // Guardar en localStorage después de cada cambio
-  try {
-    localStorage.setItem('tribus-app-state', JSON.stringify(newState));
-  } catch (error) {
-    console.error('Error saving to localStorage:', error);
-  }
+  // Ya no guardamos en localStorage - todo se maneja desde MongoDB
 
   return newState;
 }
@@ -339,37 +298,34 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Cargar estado inicial
+  // Cargar estado inicial - sin localStorage, solo estado inicial
   const loadInitialState = (): AppState => {
-    try {
-      const savedState = localStorage.getItem('tribus-app-state');
-      if (savedState) {
-        const parsedState = JSON.parse(savedState);
-        // Asegurar que los usuarios de sesión estén disponibles
-        sessionUsers = parsedState.users || defaultUsers;
-        return {
-          ...parsedState,
-          users: sessionUsers,
-          auth: {
-            currentUser: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null
-          }
-        };
-      }
-    } catch (error) {
-      console.error('Error loading from localStorage:', error);
-    }
     return initialState;
   };
 
   const [state, dispatch] = useReducer(appReducer, loadInitialState());
 
-  // Asegurar que los usuarios de sesión estén siempre disponibles
+  // Cargar usuarios desde MongoDB al inicializar
   useEffect(() => {
-    if (state.users.length === 0) {
-      dispatch({ type: 'SET_USERS', payload: sessionUsers });
+    const loadUsersFromBackend = async () => {
+      try {
+        console.log('🔄 Cargando usuarios desde MongoDB...');
+        const users = await userService.getAllUsers();
+        dispatch({ type: 'SET_USERS', payload: users });
+        sessionUsers = users;
+        console.log('✅ Usuarios cargados desde MongoDB:', users.length);
+      } catch (error) {
+        console.error('❌ Error cargando usuarios desde MongoDB:', error);
+        // Si falla, mantener array vacío
+        dispatch({ type: 'SET_USERS', payload: [] });
+        sessionUsers = [];
+      }
+    };
+
+    // Solo cargar si no hay usuarios y hay un token de autenticación
+    const token = localStorage.getItem('authToken');
+    if (state.users.length === 0 && token) {
+      loadUsersFromBackend();
     }
     
     // Exponer la variable global en window para acceso directo

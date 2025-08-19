@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 import { ForgotPassword } from './ForgotPassword';
-import { authService, ApiError } from '../services/api';
+import { authService, userService, ApiError } from '../services/api';
 
 export function Login() {
   const { state, dispatch } = useApp();
@@ -21,19 +21,27 @@ export function Login() {
     setError(null);
 
     try {
-      console.log('Intentando login con backend:', credentials);
-      
-      // Intentar login con el backend
-      const response = await authService.login(credentials.username, credentials.password);
-      
-      // Guardar token en localStorage
-      localStorage.setItem('authToken', response.token);
-      
-      // Establecer usuario autenticado
-      dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
-      dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-      
-      console.log('Login exitoso:', response.user);
+          console.log('Intentando login con backend:', credentials);
+    
+    // Intentar login con el backend
+    const response = await authService.login(credentials.username, credentials.password);
+    
+    // Guardar token en localStorage
+    localStorage.setItem('authToken', response.token);
+    
+    // Establecer usuario autenticado
+    dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
+    dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+    
+    // Cargar usuarios desde MongoDB después del login exitoso
+    try {
+      const users = await userService.getAllUsers();
+      dispatch({ type: 'SET_USERS', payload: users });
+    } catch (error) {
+      console.error('Error cargando usuarios después del login:', error);
+    }
+    
+    console.log('Login exitoso:', response.user);
       
     } catch (error) {
       console.error('Error en login:', error);
