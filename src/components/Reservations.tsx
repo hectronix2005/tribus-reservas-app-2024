@@ -10,6 +10,7 @@ import {
   generateTimeSlots,
   getCurrentDateString
 } from '../utils/dateUtils';
+import { saveReservationToGoogleSheets, isGoogleSheetsConfigured } from '../utils/googleSheets';
 
 export function Reservations() {
   const { state, dispatch, getDailyCapacity, isTimeSlotAvailable } = useApp();
@@ -137,6 +138,18 @@ export function Reservations() {
     };
 
     dispatch({ type: 'ADD_RESERVATION', payload: newReservation });
+    
+    // Guardar respaldo en Google Sheets
+    try {
+      const sheetsBackup = await saveReservationToGoogleSheets(newReservation);
+      if (sheetsBackup) {
+        console.log('✅ Reserva guardada en Google Sheets');
+      } else {
+        console.log('⚠️ No se pudo guardar en Google Sheets (no configurado o error)');
+      }
+    } catch (error) {
+      console.error('❌ Error al guardar en Google Sheets:', error);
+    }
     
     // Reset form
     setFormData({

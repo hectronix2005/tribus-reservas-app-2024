@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download } from 'lucide-react';
+import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Database } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReservationTemplate, User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
+import { GoogleSheetsConfig } from './GoogleSheetsConfig';
 
 export function Admin() {
   const { state, dispatch } = useApp();
@@ -15,6 +16,7 @@ export function Admin() {
     { id: 'templates', label: 'Plantillas', icon: FileText },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'reports', label: 'Reportes', icon: BarChart3 },
+    { id: 'sheets', label: 'Google Sheets', icon: Database },
   ];
 
   const handleSettingsUpdate = (settings: typeof state.adminSettings) => {
@@ -682,6 +684,13 @@ export function Admin() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Google Sheets Tab */}
+        {activeTab === 'sheets' && (
+          <div className="space-y-6">
+            <GoogleSheetsConfig />
           </div>
         )}
       </div>
