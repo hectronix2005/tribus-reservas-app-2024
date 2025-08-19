@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 
@@ -282,7 +282,90 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  // Cargar estado inicial desde localStorage si existe
+  const loadInitialState = (): AppState => {
+    try {
+      const savedState = localStorage.getItem('tribus-app-state');
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        // Asegurar que los usuarios predefinidos siempre estén disponibles
+        const defaultUsers = [
+          {
+            id: '1',
+            name: 'Administrador del Sistema',
+            email: 'admin@tribus.com',
+            username: 'admin',
+            password: 'admin123',
+            role: 'admin' as const,
+            department: 'IT',
+            isActive: true,
+            createdAt: getCurrentDateString()
+          },
+          {
+            id: '2',
+            name: 'Usuario General',
+            email: 'usuario@tribus.com',
+            username: 'usuario',
+            password: 'user123',
+            role: 'user' as const,
+            department: 'General',
+            isActive: true,
+            createdAt: getCurrentDateString()
+          },
+          {
+            id: '3',
+            name: 'Hector Neira',
+            email: 'dneira@tribus.com',
+            username: 'Dneira',
+            password: 'dneira123',
+            role: 'user' as const,
+            department: 'Desarrollo',
+            isActive: true,
+            createdAt: getCurrentDateString()
+          }
+        ];
+
+        // Combinar usuarios predefinidos con usuarios guardados
+        const savedUsers = parsedState.users || [];
+        const mergedUsers = [...defaultUsers];
+        
+        // Agregar usuarios guardados que no sean los predefinidos
+        savedUsers.forEach((savedUser: any) => {
+          const isDefaultUser = defaultUsers.some(defaultUser => 
+            defaultUser.username === savedUser.username
+          );
+          if (!isDefaultUser) {
+            mergedUsers.push(savedUser);
+          }
+        });
+
+        return {
+          ...parsedState,
+          users: mergedUsers,
+          auth: {
+            currentUser: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error loading state from localStorage:', error);
+    }
+    return initialState;
+  };
+
+  const [state, dispatch] = useReducer(appReducer, loadInitialState());
+
+  // Guardar estado en localStorage cada vez que cambie
+  useEffect(() => {
+    try {
+      localStorage.setItem('tribus-app-state', JSON.stringify(state));
+    } catch (error) {
+      console.error('Error saving state to localStorage:', error);
+    }
+  }, [state]);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
     const reservationsForDate = state.reservations.filter(

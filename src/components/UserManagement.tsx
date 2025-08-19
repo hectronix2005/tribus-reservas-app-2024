@@ -22,6 +22,28 @@ export function UserManagement() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validar que el username no esté duplicado
+    const existingUser = state.users.find(u => 
+      u.username === formData.username && 
+      (!editingUser || u.id !== editingUser.id)
+    );
+    
+    if (existingUser) {
+      alert('El nombre de usuario ya existe. Por favor, elige otro.');
+      return;
+    }
+
+    // Validar que el email no esté duplicado
+    const existingEmail = state.users.find(u => 
+      u.email === formData.email && 
+      (!editingUser || u.id !== editingUser.id)
+    );
+    
+    if (existingEmail) {
+      alert('El email ya está registrado. Por favor, usa otro email.');
+      return;
+    }
+    
     if (editingUser) {
       // Update existing user
       const updatedUser: UserType = {
@@ -38,7 +60,7 @@ export function UserManagement() {
     } else {
       // Create new user
       const newUser: UserType = {
-        id: Date.now().toString(),
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name: formData.name,
         email: formData.email,
         username: formData.username,
