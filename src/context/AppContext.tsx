@@ -137,6 +137,17 @@ const initialState: AppState = {
       department: 'General',
       isActive: true,
       createdAt: getCurrentDateString()
+    },
+    {
+      id: '3',
+      name: 'Hector Neira',
+      email: 'dneira@tribus.com',
+      username: 'Dneira',
+      password: 'dneira123',
+      role: 'user',
+      department: 'Desarrollo',
+      isActive: true,
+      createdAt: getCurrentDateString()
     }
   ],
   auth: {
