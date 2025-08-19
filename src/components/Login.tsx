@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 import { ForgotPassword } from './ForgotPassword';
+import { authService, ApiError } from '../services/api';
 
 export function Login() {
   const { state, dispatch } = useApp();
@@ -15,45 +16,38 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    console.log('Intentando login con:', credentials);
-    console.log('Usuarios en state:', state.users);
-
-    // Obtener usuarios de la variable global (más confiable)
-    const allUsers = (window as any).sessionUsers || state.users;
-    console.log('Todos los usuarios disponibles:', allUsers);
-
-    // Buscar usuario por username
-    const user = allUsers.find((u: any) => 
-      u.username === credentials.username && 
-      u.password === credentials.password &&
-      u.isActive
-    );
-
-    console.log('Usuario encontrado:', user);
-
-    if (user) {
-      // Actualizar último login
-      const updatedUser = { ...user, lastLogin: getCurrentDateString() };
-      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+    try {
+      console.log('Intentando login con backend:', credentials);
+      
+      // Intentar login con el backend
+      const response = await authService.login(credentials.username, credentials.password);
+      
+      // Guardar token en localStorage
+      localStorage.setItem('authToken', response.token);
       
       // Establecer usuario autenticado
-      dispatch({ type: 'SET_CURRENT_USER', payload: user });
+      dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
       dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-    } else {
-      // Verificar qué está fallando
-      const userByUsername = allUsers.find((u: any) => u.username === credentials.username);
-      if (!userByUsername) {
-        setError('Usuario no encontrado');
-      } else if (userByUsername.password !== credentials.password) {
-        setError('Contraseña incorrecta');
-      } else if (!userByUsername.isActive) {
-        setError('Usuario inactivo');
+      
+      console.log('Login exitoso:', response.user);
+      
+    } catch (error) {
+      console.error('Error en login:', error);
+      
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError('Usuario o contraseña incorrectos');
+        } else if (error.status === 404) {
+          setError('Usuario no encontrado');
+        } else {
+          setError(error.message || 'Error de autenticación');
+        }
       } else {
-        setError('Usuario o contraseña incorrectos');
+        setError('Error de conexión con el servidor');
       }
     }
   };

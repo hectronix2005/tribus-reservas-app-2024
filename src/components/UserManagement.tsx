@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Eye, EyeOff, Shield, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User as UserType } from '../types';
 import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
+import { userService, ApiError } from '../services/api';
 
 export function UserManagement() {
   const { state, dispatch } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,73 +22,94 @@ export function UserManagement() {
     isActive: true
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Cargar usuarios del backend al montar el componente
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setIsLoading(true);
+      const users = await userService.getAllUsers();
+      dispatch({ type: 'SET_USERS', payload: users });
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+      setError('Error cargando usuarios del servidor');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
-    // Validar que el username no esté duplicado
-    const existingUser = state.users.find(u => 
-      u.username === formData.username && 
-      (!editingUser || u.id !== editingUser.id)
-    );
-    
-    if (existingUser) {
-      alert('El nombre de usuario ya existe. Por favor, elige otro.');
-      return;
-    }
+    try {
+      setIsLoading(true);
+      
+      if (editingUser) {
+        // Update existing user
+        const userData = {
+          name: formData.name,
+          email: formData.email,
+          username: formData.username,
+          role: formData.role,
+          department: formData.department,
+          isActive: formData.isActive
+        };
+        
+        // Solo incluir password si se cambió
+        if (formData.password) {
+          (userData as any).password = formData.password;
+        }
+        
+        const response = await userService.updateUser(editingUser.id, userData);
+        dispatch({ type: 'UPDATE_USER', payload: response.user });
+      } else {
+        // Create new user
+        const userData = {
+          name: formData.name,
+          email: formData.email,
+          username: formData.username,
+          password: formData.password,
+          role: formData.role,
+          department: formData.department,
+          isActive: formData.isActive
+        };
+        
+        const response = await userService.createUser(userData);
+        dispatch({ type: 'ADD_USER', payload: response.user });
+      }
 
-    // Validar que el email no esté duplicado
-    const existingEmail = state.users.find(u => 
-      u.email === formData.email && 
-      (!editingUser || u.id !== editingUser.id)
-    );
-    
-    if (existingEmail) {
-      alert('El email ya está registrado. Por favor, usa otro email.');
-      return;
+      // Reset form
+      setFormData({
+        name: '',
+        email: '',
+        username: '',
+        password: '',
+        role: 'user',
+        department: '',
+        isActive: true
+      });
+      setShowForm(false);
+      setEditingUser(null);
+      setShowPassword(false);
+      
+    } catch (error) {
+      console.error('Error guardando usuario:', error);
+      
+      if (error instanceof ApiError) {
+        if (error.status === 409) {
+          setError('El nombre de usuario o email ya existe');
+        } else {
+          setError(error.message || 'Error guardando usuario');
+        }
+      } else {
+        setError('Error de conexión con el servidor');
+      }
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (editingUser) {
-      // Update existing user
-      const updatedUser: UserType = {
-        ...editingUser,
-        name: formData.name,
-        email: formData.email,
-        username: formData.username,
-        password: formData.password || editingUser.password, // Mantener contraseña si no se cambia
-        role: formData.role,
-        department: formData.department,
-        isActive: formData.isActive
-      };
-      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-    } else {
-      // Create new user
-      const newUser: UserType = {
-        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: formData.name,
-        email: formData.email,
-        username: formData.username,
-        password: formData.password,
-        role: formData.role,
-        department: formData.department,
-        isActive: formData.isActive,
-        createdAt: getCurrentDateString()
-      };
-      dispatch({ type: 'ADD_USER', payload: newUser });
-    }
-
-    // Reset form
-    setFormData({
-      name: '',
-      email: '',
-      username: '',
-      password: '',
-      role: 'user',
-      department: '',
-      isActive: true
-    });
-    setShowForm(false);
-    setEditingUser(null);
-    setShowPassword(false);
   };
 
   const handleEdit = (user: UserType) => {

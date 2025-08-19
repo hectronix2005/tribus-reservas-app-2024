@@ -333,6 +333,7 @@ interface AppContextType {
   getReservationsByDate: (date: string) => Reservation[];
   getTemplateById: (id: string) => ReservationTemplate | undefined;
   isTimeSlotAvailable: (areaId: string, date: string, time: string, duration: number) => boolean;
+  logout: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -476,6 +477,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true; // No hay conflictos
   };
 
+  const logout = () => {
+    // Limpiar token del localStorage
+    localStorage.removeItem('authToken');
+    
+    // Resetear estado de autenticación
+    dispatch({ type: 'LOGOUT' });
+  };
+
   const value: AppContextType = {
     state,
     dispatch,
@@ -483,7 +492,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getAreaById,
     getReservationsByDate,
     getTemplateById,
-    isTimeSlotAvailable
+    isTimeSlotAvailable,
+    logout
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

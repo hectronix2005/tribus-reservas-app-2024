@@ -8,11 +8,11 @@ interface HeaderProps {
 }
 
 export function Header({ currentView, onViewChange }: HeaderProps) {
-  const { state, dispatch } = useApp();
+  const { state, logout } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    dispatch({ type: 'LOGOUT' });
+    logout();
   };
 
   const navigationItems = [
