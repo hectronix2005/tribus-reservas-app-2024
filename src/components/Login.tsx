@@ -149,6 +149,20 @@ export function Login() {
                 Iniciar Sesión
               </button>
             </div>
+
+            {/* Botón temporal para debug */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Usuarios disponibles:', state.users);
+                  alert(`Usuarios disponibles: ${state.users.map(u => `${u.username} (${u.role})`).join(', ')}`);
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Ver usuarios disponibles (Debug)
+              </button>
+            </div>
           </form>
 
           {/* Información de usuarios de prueba */}
