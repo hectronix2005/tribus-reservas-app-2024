@@ -86,7 +86,7 @@ export const authService = {
   },
 };
 
-// Servicios de usuarios
+// Servicios de usuarios con protocolo automático
 export const userService = {
   async getAllUsers() {
     return apiRequest<any[]>('/users');
@@ -97,24 +97,77 @@ export const userService = {
   },
 
   async createUser(userData: any) {
-    return apiRequest<{ user: any }>('/users/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
+    console.log('🔄 Creando usuario en MongoDB Atlas...', userData);
+    
+    try {
+      const response = await apiRequest<{ user: any }>('/users/register', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      
+      console.log('✅ Usuario creado exitosamente en MongoDB Atlas:', response.user);
+      
+      // Verificar que el usuario se creó correctamente
+      const verificationResponse = await this.getUserById(response.user.id);
+      console.log('✅ Verificación de usuario creado:', verificationResponse);
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error creando usuario:', error);
+      throw error;
+    }
   },
 
   async updateUser(id: string, userData: any) {
-    return apiRequest<{ user: any }>(`/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
+    console.log('🔄 Actualizando usuario en MongoDB Atlas...', { id, userData });
+    
+    try {
+      const response = await apiRequest<{ user: any }>(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+      });
+      
+      console.log('✅ Usuario actualizado exitosamente en MongoDB Atlas:', response.user);
+      
+      // Verificar que el usuario se actualizó correctamente
+      const verificationResponse = await this.getUserById(id);
+      console.log('✅ Verificación de usuario actualizado:', verificationResponse);
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error actualizando usuario:', error);
+      throw error;
+    }
   },
 
   async deleteUser(id: string) {
-    return apiRequest<{ message: string }>(`/users/${id}`, {
-      method: 'DELETE',
-    });
+    console.log('🔄 Eliminando usuario de MongoDB Atlas...', id);
+    
+    try {
+      const response = await apiRequest<{ message: string }>(`/users/${id}`, {
+        method: 'DELETE',
+      });
+      
+      console.log('✅ Usuario eliminado exitosamente de MongoDB Atlas:', response.message);
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error eliminando usuario:', error);
+      throw error;
+    }
   },
+
+  // Función para verificar la sincronización con MongoDB
+  async verifyUserSync(userId: string) {
+    try {
+      const user = await this.getUserById(userId);
+      console.log('✅ Usuario sincronizado correctamente:', user);
+      return user;
+    } catch (error) {
+      console.error('❌ Error verificando sincronización:', error);
+      throw error;
+    }
+  }
 };
 
 // Servicios de reservas (placeholder para futuras implementaciones)

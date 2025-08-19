@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { User as UserType } from '../types';
 import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
 import { userService, ApiError } from '../services/api';
+import { ProtocolNotification } from './ProtocolNotification';
 
 export function UserManagement() {
   const { state, dispatch } = useApp();
@@ -12,6 +13,17 @@ export function UserManagement() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: ''
+  });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -46,9 +58,12 @@ export function UserManagement() {
     
     try {
       setIsLoading(true);
+      console.log('🚀 Iniciando protocolo de creación/actualización de usuario...');
       
       if (editingUser) {
-        // Update existing user
+        // PROTOCOLO: Actualizar usuario existente
+        console.log('📝 Protocolo: Actualizando usuario existente');
+        
         const userData = {
           name: formData.name,
           email: formData.email,
@@ -63,10 +78,21 @@ export function UserManagement() {
           (userData as any).password = formData.password;
         }
         
+        // Paso 1: Actualizar en MongoDB Atlas
         const response = await userService.updateUser(editingUser.id, userData);
+        
+        // Paso 2: Actualizar estado local
         dispatch({ type: 'UPDATE_USER', payload: response.user });
+        
+        // Paso 3: Verificar sincronización
+        await userService.verifyUserSync(response.user.id);
+        
+        console.log('✅ Protocolo completado: Usuario actualizado en MongoDB Atlas y estado local');
+        
       } else {
-        // Create new user
+        // PROTOCOLO: Crear nuevo usuario
+        console.log('🆕 Protocolo: Creando nuevo usuario');
+        
         const userData = {
           name: formData.name,
           email: formData.email,
@@ -77,8 +103,16 @@ export function UserManagement() {
           isActive: formData.isActive
         };
         
+        // Paso 1: Crear en MongoDB Atlas
         const response = await userService.createUser(userData);
+        
+        // Paso 2: Actualizar estado local
         dispatch({ type: 'ADD_USER', payload: response.user });
+        
+        // Paso 3: Verificar sincronización
+        await userService.verifyUserSync(response.user.id);
+        
+        console.log('✅ Protocolo completado: Usuario creado en MongoDB Atlas y estado local');
       }
 
       // Reset form
@@ -95,8 +129,18 @@ export function UserManagement() {
       setEditingUser(null);
       setShowPassword(false);
       
+      // Mostrar notificación de éxito
+      setNotification({
+        show: true,
+        type: 'success',
+        title: editingUser ? 'Usuario Actualizado' : 'Usuario Creado',
+        message: editingUser 
+          ? 'Usuario actualizado exitosamente en MongoDB Atlas' 
+          : 'Usuario creado exitosamente en MongoDB Atlas'
+      });
+      
     } catch (error) {
-      console.error('Error guardando usuario:', error);
+      console.error('❌ Error en protocolo de usuario:', error);
       
       if (error instanceof ApiError) {
         if (error.status === 409) {
@@ -126,15 +170,60 @@ export function UserManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = (userId: string) => {
+  const handleDelete = async (userId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
-      dispatch({ type: 'DELETE_USER', payload: userId });
+      try {
+        console.log('🗑️ Protocolo: Eliminando usuario de MongoDB Atlas...');
+        
+        // Paso 1: Eliminar de MongoDB Atlas
+        await userService.deleteUser(userId);
+        
+        // Paso 2: Actualizar estado local
+        dispatch({ type: 'DELETE_USER', payload: userId });
+        
+        console.log('✅ Protocolo completado: Usuario eliminado de MongoDB Atlas y estado local');
+        setNotification({
+          show: true,
+          type: 'success',
+          title: 'Usuario Eliminado',
+          message: 'Usuario eliminado exitosamente de MongoDB Atlas'
+        });
+        
+      } catch (error) {
+        console.error('❌ Error eliminando usuario:', error);
+        setNotification({
+          show: true,
+          type: 'error',
+          title: 'Error al Eliminar',
+          message: 'Error eliminando usuario. Verifica la conexión con el servidor.'
+        });
+      }
     }
   };
 
-  const handleToggleActive = (user: UserType) => {
-    const updatedUser = { ...user, isActive: !user.isActive };
-    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+  const handleToggleActive = async (user: UserType) => {
+    try {
+      console.log('🔄 Protocolo: Cambiando estado activo del usuario...');
+      
+      const updatedUser = { ...user, isActive: !user.isActive };
+      
+      // Paso 1: Actualizar en MongoDB Atlas
+      await userService.updateUser(user.id, { isActive: updatedUser.isActive });
+      
+      // Paso 2: Actualizar estado local
+      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      
+      console.log('✅ Protocolo completado: Estado activo actualizado en MongoDB Atlas');
+      
+    } catch (error) {
+      console.error('❌ Error cambiando estado activo:', error);
+              setNotification({
+          show: true,
+          type: 'error',
+          title: 'Error al Cambiar Estado',
+          message: 'Error cambiando estado del usuario. Verifica la conexión con el servidor.'
+        });
+    }
   };
 
   const handleCancel = () => {
@@ -437,6 +526,15 @@ export function UserManagement() {
           </button>
         </div>
       )}
+
+      {/* Protocol Notification */}
+      <ProtocolNotification
+        show={notification.show}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
+        onClose={() => setNotification(prev => ({ ...prev, show: false }))}
+      />
     </div>
   );
 }
