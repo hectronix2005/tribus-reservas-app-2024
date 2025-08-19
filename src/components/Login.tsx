@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Users, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Users, Eye, EyeOff, LogIn, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
+import { ForgotPassword } from './ForgotPassword';
 
 export function Login() {
   const { state, dispatch } = useApp();
@@ -12,6 +13,7 @@ export function Login() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +38,10 @@ export function Login() {
       setError('Usuario o contraseña incorrectos');
     }
   };
+
+  if (showForgotPassword) {
+    return <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -105,6 +111,16 @@ export function Login() {
                   ) : (
                     <Eye className="h-5 w-5 text-gray-400" />
                   )}
+                </button>
+              </div>
+              <div className="mt-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary-600 hover:text-primary-500 flex items-center justify-end ml-auto"
+                >
+                  <Mail className="w-4 h-4 mr-1" />
+                  ¿Olvidaste tu contraseña?
                 </button>
               </div>
             </div>
