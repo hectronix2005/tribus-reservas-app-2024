@@ -3,7 +3,7 @@ const GOOGLE_SHEETS_CONFIG = {
   // En producción, estos valores deberían venir de variables de entorno
   SPREADSHEET_ID: process.env.REACT_APP_GOOGLE_SHEETS_ID || '',
   API_KEY: process.env.REACT_APP_GOOGLE_API_KEY || '',
-  SHEET_NAME: 'Reservas_TRIBUS'
+  SHEET_NAME: 'Sheet1' // Usar la hoja principal por defecto
 };
 
 export interface GoogleSheetsReservation {
@@ -50,13 +50,21 @@ export const formatReservationForSheets = (reservation: any): GoogleSheetsReserv
 // Función para guardar una reserva en Google Sheets
 export const saveReservationToGoogleSheets = async (reservation: any): Promise<boolean> => {
   try {
+    console.log('🔍 Iniciando guardado en Google Sheets...');
+    console.log('📋 Configuración:', {
+      SPREADSHEET_ID: GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID,
+      API_KEY: GOOGLE_SHEETS_CONFIG.API_KEY ? 'Configurada' : 'No configurada',
+      SHEET_NAME: GOOGLE_SHEETS_CONFIG.SHEET_NAME
+    });
+    
     // Verificar configuración
     if (!GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID || !GOOGLE_SHEETS_CONFIG.API_KEY) {
-      console.warn('Google Sheets no configurado. Saltando respaldo.');
+      console.warn('❌ Google Sheets no configurado. Saltando respaldo.');
       return false;
     }
 
     const formattedReservation = formatReservationForSheets(reservation);
+    console.log('📝 Reserva formateada:', formattedReservation);
     
     // Preparar datos para Google Sheets
     const rowData = [
@@ -77,6 +85,9 @@ export const saveReservationToGoogleSheets = async (reservation: any): Promise<b
 
     // URL de la API de Google Sheets
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID}/values/${GOOGLE_SHEETS_CONFIG.SHEET_NAME}!A:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_CONFIG.API_KEY}`;
+    
+    console.log('🌐 URL de la API:', url);
+    console.log('📊 Datos a enviar:', rowData);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -88,11 +99,21 @@ export const saveReservationToGoogleSheets = async (reservation: any): Promise<b
       })
     });
 
+    console.log('📡 Respuesta de la API:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (response.ok) {
+      const responseData = await response.json();
       console.log('✅ Reserva guardada en Google Sheets:', formattedReservation.id);
+      console.log('📋 Respuesta completa:', responseData);
       return true;
     } else {
+      const errorText = await response.text();
       console.error('❌ Error al guardar en Google Sheets:', response.statusText);
+      console.error('📄 Detalles del error:', errorText);
       return false;
     }
   } catch (error) {
@@ -162,4 +183,55 @@ export const getGoogleSheetsUrl = (): string => {
     return '';
   }
   return `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID}/edit#gid=0`;
+};
+
+// Función para probar la conexión con Google Sheets
+export const testGoogleSheetsConnection = async (): Promise<{success: boolean, message: string, details?: any}> => {
+  try {
+    console.log('🧪 Probando conexión con Google Sheets...');
+    
+    if (!GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID || !GOOGLE_SHEETS_CONFIG.API_KEY) {
+      return {
+        success: false,
+        message: '❌ Google Sheets no configurado'
+      };
+    }
+
+    // Intentar leer la hoja para verificar permisos
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.SPREADSHEET_ID}?key=${GOOGLE_SHEETS_CONFIG.API_KEY}`;
+    
+    console.log('🌐 URL de prueba:', url);
+    
+    const response = await fetch(url);
+    
+    console.log('📡 Respuesta de prueba:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Conexión exitosa:', data);
+      return {
+        success: true,
+        message: '✅ Conexión exitosa con Google Sheets',
+        details: data
+      };
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Error de conexión:', errorText);
+      return {
+        success: false,
+        message: `❌ Error de conexión: ${response.status} ${response.statusText}`,
+        details: errorText
+      };
+    }
+  } catch (error) {
+    console.error('❌ Error al probar conexión:', error);
+    return {
+      success: false,
+      message: `❌ Error de conexión: ${error}`
+    };
+  }
 };

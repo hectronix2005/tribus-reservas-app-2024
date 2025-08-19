@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Settings, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
-import { initializeGoogleSheets, isGoogleSheetsConfigured, getGoogleSheetsUrl } from '../utils/googleSheets';
+import { initializeGoogleSheets, isGoogleSheetsConfigured, getGoogleSheetsUrl, testGoogleSheetsConnection } from '../utils/googleSheets';
 
 export function GoogleSheetsConfig() {
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [configStatus, setConfigStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
   const [message, setMessage] = useState('');
 
   const handleInitializeSheets = async () => {
@@ -26,6 +28,23 @@ export function GoogleSheetsConfig() {
       setMessage('Error de conexión con Google Sheets');
     } finally {
       setIsConfiguring(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await testGoogleSheetsConnection();
+      setTestResult(result);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: `Error al probar conexión: ${error}`
+      });
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -67,6 +86,24 @@ export function GoogleSheetsConfig() {
         {/* Botones de acción */}
         <div className="flex space-x-3">
           <button
+            onClick={handleTestConnection}
+            disabled={!isConfigured || isTesting}
+            className="btn-secondary flex items-center space-x-2 disabled:opacity-50"
+          >
+            {isTesting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Probando...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                <span>Probar Conexión</span>
+              </>
+            )}
+          </button>
+
+          <button
             onClick={handleInitializeSheets}
             disabled={!isConfigured || isConfiguring}
             className="btn-primary flex items-center space-x-2 disabled:opacity-50"
@@ -105,6 +142,23 @@ export function GoogleSheetsConfig() {
             'bg-blue-50 text-blue-700'
           }`}>
             {message}
+          </div>
+        )}
+
+        {/* Resultado de prueba de conexión */}
+        {testResult && (
+          <div className={`p-3 rounded-md ${
+            testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}>
+            <div className="font-medium">{testResult.message}</div>
+            {testResult.details && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-sm">Ver detalles</summary>
+                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto">
+                  {JSON.stringify(testResult.details, null, 2)}
+                </pre>
+              </details>
+            )}
           </div>
         )}
 
