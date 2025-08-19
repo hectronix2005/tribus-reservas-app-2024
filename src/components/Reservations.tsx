@@ -82,7 +82,7 @@ export function Reservations() {
     setShowReservationForm(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const area = state.areas.find(a => a.id === formData.areaId);
