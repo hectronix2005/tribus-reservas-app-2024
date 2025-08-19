@@ -41,6 +41,43 @@ type AppAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null };
 
+// Usuarios predefinidos
+const defaultUsers: User[] = [
+  {
+    id: '1',
+    name: 'Administrador del Sistema',
+    email: 'admin@tribus.com',
+    username: 'admin',
+    password: 'admin123',
+    role: 'admin',
+    department: 'IT',
+    isActive: true,
+    createdAt: getCurrentDateString()
+  },
+  {
+    id: '2',
+    name: 'Usuario General',
+    email: 'usuario@tribus.com',
+    username: 'usuario',
+    password: 'user123',
+    role: 'user',
+    department: 'General',
+    isActive: true,
+    createdAt: getCurrentDateString()
+  },
+  {
+    id: '3',
+    name: 'Hector Neira',
+    email: 'dneira@tribus.com',
+    username: 'Dneira',
+    password: 'dneira123',
+    role: 'user',
+    department: 'Desarrollo',
+    isActive: true,
+    createdAt: getCurrentDateString()
+  }
+];
+
 const initialState: AppState = {
   areas: [
     {
@@ -115,41 +152,7 @@ const initialState: AppState = {
       createdAt: getCurrentDateString()
     }
   ],
-  users: [
-    {
-      id: '1',
-      name: 'Administrador del Sistema',
-      email: 'admin@tribus.com',
-      username: 'admin',
-      password: 'admin123',
-      role: 'admin',
-      department: 'IT',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    },
-    {
-      id: '2',
-      name: 'Usuario General',
-      email: 'usuario@tribus.com',
-      username: 'usuario',
-      password: 'user123',
-      role: 'user',
-      department: 'General',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    },
-    {
-      id: '3',
-      name: 'Hector Neira',
-      email: 'dneira@tribus.com',
-      username: 'Dneira',
-      password: 'dneira123',
-      role: 'user',
-      department: 'Desarrollo',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    }
-  ],
+  users: defaultUsers,
   auth: {
     currentUser: null,
     isAuthenticated: false,
@@ -170,103 +173,140 @@ const initialState: AppState = {
   error: null
 };
 
+// Variable global para mantener usuarios durante la sesión
+let sessionUsers: User[] = [...defaultUsers];
+
 function appReducer(state: AppState, action: AppAction): AppState {
+  let newState: AppState;
+
   switch (action.type) {
     case 'SET_AREAS':
-      return { ...state, areas: action.payload };
+      newState = { ...state, areas: action.payload };
+      break;
     case 'ADD_AREA':
-      return { ...state, areas: [...state.areas, action.payload] };
+      newState = { ...state, areas: [...state.areas, action.payload] };
+      break;
     case 'UPDATE_AREA':
-      return {
+      newState = {
         ...state,
         areas: state.areas.map(area =>
           area.id === action.payload.id ? action.payload : area
         )
       };
+      break;
     case 'DELETE_AREA':
-      return {
+      newState = {
         ...state,
         areas: state.areas.filter(area => area.id !== action.payload)
       };
+      break;
     case 'SET_RESERVATIONS':
-      return { ...state, reservations: action.payload };
+      newState = { ...state, reservations: action.payload };
+      break;
     case 'ADD_RESERVATION':
-      return { ...state, reservations: [...state.reservations, action.payload] };
+      newState = { ...state, reservations: [...state.reservations, action.payload] };
+      break;
     case 'UPDATE_RESERVATION':
-      return {
+      newState = {
         ...state,
         reservations: state.reservations.map(reservation =>
           reservation.id === action.payload.id ? action.payload : reservation
         )
       };
+      break;
     case 'DELETE_RESERVATION':
-      return {
+      newState = {
         ...state,
         reservations: state.reservations.filter(
           reservation => reservation.id !== action.payload
         )
       };
+      break;
     case 'SET_TEMPLATES':
-      return { ...state, templates: action.payload };
+      newState = { ...state, templates: action.payload };
+      break;
     case 'ADD_TEMPLATE':
-      return { ...state, templates: [...state.templates, action.payload] };
+      newState = { ...state, templates: [...state.templates, action.payload] };
+      break;
     case 'UPDATE_TEMPLATE':
-      return {
+      newState = {
         ...state,
         templates: state.templates.map(template =>
           template.id === action.payload.id ? action.payload : template
         )
       };
-          case 'DELETE_TEMPLATE':
-        return {
-          ...state,
-          templates: state.templates.filter(template => template.id !== action.payload)
-        };
-      case 'SET_USERS':
-        return { ...state, users: action.payload };
-      case 'ADD_USER':
-        return { ...state, users: [...state.users, action.payload] };
-      case 'UPDATE_USER':
-        return {
-          ...state,
-          users: state.users.map(user =>
-            user.id === action.payload.id ? action.payload : user
-          )
-        };
-      case 'DELETE_USER':
-        return {
-          ...state,
-          users: state.users.filter(user => user.id !== action.payload)
-        };
-      case 'SET_CURRENT_USER':
-        return { ...state, auth: { ...state.auth, currentUser: action.payload } };
-      case 'SET_AUTHENTICATED':
-        return { ...state, auth: { ...state.auth, isAuthenticated: action.payload } };
-      case 'SET_AUTH_LOADING':
-        return { ...state, auth: { ...state.auth, isLoading: action.payload } };
-      case 'SET_AUTH_ERROR':
-        return { ...state, auth: { ...state.auth, error: action.payload } };
-      case 'LOGOUT':
-        return { 
-          ...state, 
-          auth: { 
-            currentUser: null, 
-            isAuthenticated: false, 
-            isLoading: false, 
-            error: null 
-          } 
-        };
-      case 'SET_ADMIN_SETTINGS':
-        return { ...state, adminSettings: action.payload };
+      break;
+    case 'DELETE_TEMPLATE':
+      newState = {
+        ...state,
+        templates: state.templates.filter(template => template.id !== action.payload)
+      };
+      break;
+    case 'SET_USERS':
+      sessionUsers = action.payload;
+      newState = { ...state, users: action.payload };
+      break;
+    case 'ADD_USER':
+      sessionUsers = [...sessionUsers, action.payload];
+      newState = { ...state, users: sessionUsers };
+      break;
+    case 'UPDATE_USER':
+      sessionUsers = sessionUsers.map(user =>
+        user.id === action.payload.id ? action.payload : user
+      );
+      newState = { ...state, users: sessionUsers };
+      break;
+    case 'DELETE_USER':
+      sessionUsers = sessionUsers.filter(user => user.id !== action.payload);
+      newState = { ...state, users: sessionUsers };
+      break;
+    case 'SET_CURRENT_USER':
+      newState = { ...state, auth: { ...state.auth, currentUser: action.payload } };
+      break;
+    case 'SET_AUTHENTICATED':
+      newState = { ...state, auth: { ...state.auth, isAuthenticated: action.payload } };
+      break;
+    case 'SET_AUTH_LOADING':
+      newState = { ...state, auth: { ...state.auth, isLoading: action.payload } };
+      break;
+    case 'SET_AUTH_ERROR':
+      newState = { ...state, auth: { ...state.auth, error: action.payload } };
+      break;
+    case 'LOGOUT':
+      newState = { 
+        ...state, 
+        auth: { 
+          currentUser: null, 
+          isAuthenticated: false, 
+          isLoading: false, 
+          error: null 
+        } 
+      };
+      break;
+    case 'SET_ADMIN_SETTINGS':
+      newState = { ...state, adminSettings: action.payload };
+      break;
     case 'SET_SELECTED_DATE':
-      return { ...state, selectedDate: action.payload };
+      newState = { ...state, selectedDate: action.payload };
+      break;
     case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
+      newState = { ...state, isLoading: action.payload };
+      break;
     case 'SET_ERROR':
-      return { ...state, error: action.payload };
+      newState = { ...state, error: action.payload };
+      break;
     default:
-      return state;
+      newState = state;
   }
+
+  // Guardar en localStorage después de cada cambio
+  try {
+    localStorage.setItem('tribus-app-state', JSON.stringify(newState));
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
+
+  return newState;
 }
 
 interface AppContextType {
@@ -282,66 +322,17 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Cargar estado inicial desde localStorage si existe
+  // Cargar estado inicial
   const loadInitialState = (): AppState => {
     try {
       const savedState = localStorage.getItem('tribus-app-state');
       if (savedState) {
         const parsedState = JSON.parse(savedState);
-        // Asegurar que los usuarios predefinidos siempre estén disponibles
-        const defaultUsers = [
-          {
-            id: '1',
-            name: 'Administrador del Sistema',
-            email: 'admin@tribus.com',
-            username: 'admin',
-            password: 'admin123',
-            role: 'admin' as const,
-            department: 'IT',
-            isActive: true,
-            createdAt: getCurrentDateString()
-          },
-          {
-            id: '2',
-            name: 'Usuario General',
-            email: 'usuario@tribus.com',
-            username: 'usuario',
-            password: 'user123',
-            role: 'user' as const,
-            department: 'General',
-            isActive: true,
-            createdAt: getCurrentDateString()
-          },
-          {
-            id: '3',
-            name: 'Hector Neira',
-            email: 'dneira@tribus.com',
-            username: 'Dneira',
-            password: 'dneira123',
-            role: 'user' as const,
-            department: 'Desarrollo',
-            isActive: true,
-            createdAt: getCurrentDateString()
-          }
-        ];
-
-        // Combinar usuarios predefinidos con usuarios guardados
-        const savedUsers = parsedState.users || [];
-        const mergedUsers = [...defaultUsers];
-        
-        // Agregar usuarios guardados que no sean los predefinidos
-        savedUsers.forEach((savedUser: any) => {
-          const isDefaultUser = defaultUsers.some(defaultUser => 
-            defaultUser.username === savedUser.username
-          );
-          if (!isDefaultUser) {
-            mergedUsers.push(savedUser);
-          }
-        });
-
+        // Asegurar que los usuarios de sesión estén disponibles
+        sessionUsers = parsedState.users || defaultUsers;
         return {
           ...parsedState,
-          users: mergedUsers,
+          users: sessionUsers,
           auth: {
             currentUser: null,
             isAuthenticated: false,
@@ -351,21 +342,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
       }
     } catch (error) {
-      console.error('Error loading state from localStorage:', error);
+      console.error('Error loading from localStorage:', error);
     }
     return initialState;
   };
 
   const [state, dispatch] = useReducer(appReducer, loadInitialState());
 
-  // Guardar estado en localStorage cada vez que cambie
+  // Asegurar que los usuarios de sesión estén siempre disponibles
   useEffect(() => {
-    try {
-      localStorage.setItem('tribus-app-state', JSON.stringify(state));
-    } catch (error) {
-      console.error('Error saving state to localStorage:', error);
+    if (state.users.length === 0) {
+      dispatch({ type: 'SET_USERS', payload: sessionUsers });
     }
-  }, [state]);
+  }, []);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
     const reservationsForDate = state.reservations.filter(
@@ -418,8 +407,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getTemplateById = (id: string): ReservationTemplate | undefined => {
     return state.templates.find(template => template.id === id);
   };
-
-
 
   const isTimeSlotAvailable = (areaId: string, date: string, time: string, duration: number): boolean => {
     // Debug temporal para verificar el problema
