@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 import { ForgotPassword } from './ForgotPassword';
-import { UserDebug } from './UserDebug';
 
 export function Login() {
   const { state, dispatch } = useApp();
@@ -78,7 +77,6 @@ export function Login() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleLogin}>
-            <UserDebug />
             {error && (
               <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-md">
                 {error}
