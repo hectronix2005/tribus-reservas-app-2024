@@ -249,6 +249,23 @@ export function UserManagement() {
     return null;
   };
 
+  const isFormValid = () => {
+    // Validar campos requeridos
+    if (!formData.name.trim()) return false;
+    if (!formData.email.trim()) return false;
+    if (!formData.username.trim()) return false;
+    if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
+    
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) return false;
+    
+    // Validar contraseña si se está creando un nuevo usuario
+    if (!editingUser && formData.password && validatePassword(formData.password)) return false;
+    
+    return true;
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -376,56 +393,68 @@ export function UserManagement() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo
+                    Nombre Completo <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="input-field"
+                    className={`input-field ${!formData.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                     placeholder="Nombre completo"
                     required
                   />
+                  {!formData.name.trim() && (
+                    <p className="text-xs text-red-600 mt-1">El nombre es requerido</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="input-field"
+                    className={`input-field ${!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'border-red-300 focus:border-red-500' : ''}`}
                     placeholder="email@empresa.com"
                     required
                   />
+                  {!formData.email.trim() && (
+                    <p className="text-xs text-red-600 mt-1">El email es requerido</p>
+                  )}
+                  {formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
+                    <p className="text-xs text-red-600 mt-1">El email no es válido</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre de Usuario
+                    Nombre de Usuario <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={formData.username}
                     onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    className="input-field"
+                    className={`input-field ${!formData.username.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                     placeholder="usuario"
                     required
                   />
+                  {!formData.username.trim() && (
+                    <p className="text-xs text-red-600 mt-1">El nombre de usuario es requerido</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingUser ? 'Nueva Contraseña (dejar en blanco para mantener)' : 'Contraseña'}
+                    {editingUser ? 'Nueva Contraseña (dejar en blanco para mantener)' : 'Contraseña <span className="text-red-500">*</span>'}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className="input-field pr-10"
+                      className={`input-field pr-10 ${!editingUser && !formData.password.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                       placeholder={editingUser ? 'Nueva contraseña' : 'Contraseña'}
                       required={!editingUser}
                     />
@@ -441,6 +470,9 @@ export function UserManagement() {
                       )}
                     </button>
                   </div>
+                  {!editingUser && !formData.password.trim() && (
+                    <p className="text-xs text-red-600 mt-1">La contraseña es requerida para nuevos usuarios</p>
+                  )}
                   {formData.password && validatePassword(formData.password) && (
                     <p className="text-xs text-danger-600 mt-1">
                       {validatePassword(formData.password)}
@@ -493,15 +525,26 @@ export function UserManagement() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="btn-secondary flex-1"
+                    disabled={isLoading}
+                    className={`btn-secondary flex-1 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="btn-success flex-1"
+                    disabled={isLoading || !isFormValid()}
+                    className={`btn-success flex-1 ${
+                      isLoading || !isFormValid() ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
-                    {editingUser ? 'Actualizar' : 'Crear'} Usuario
+                    {isLoading ? (
+                      <span className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Procesando...</span>
+                      </span>
+                    ) : (
+                      <span>{editingUser ? 'Actualizar' : 'Crear'} Usuario</span>
+                    )}
                   </button>
                 </div>
               </form>
