@@ -6,7 +6,7 @@ export function GoogleSheetsConfig() {
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [configStatus, setConfigStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
+  const [testResult, setTestResult] = useState<{success: boolean, message: string, details?: any} | null>(null);
   const [message, setMessage] = useState('');
 
   const handleInitializeSheets = async () => {
