@@ -19,12 +19,17 @@ export function Login() {
     e.preventDefault();
     setError(null);
 
+    console.log('Intentando login con:', credentials);
+    console.log('Usuarios disponibles:', state.users);
+
     // Buscar usuario por username
     const user = state.users.find(u => 
       u.username === credentials.username && 
       u.password === credentials.password &&
       u.isActive
     );
+
+    console.log('Usuario encontrado:', user);
 
     if (user) {
       // Actualizar último login
@@ -35,7 +40,17 @@ export function Login() {
       dispatch({ type: 'SET_CURRENT_USER', payload: user });
       dispatch({ type: 'SET_AUTHENTICATED', payload: true });
     } else {
-      setError('Usuario o contraseña incorrectos');
+      // Verificar qué está fallando
+      const userByUsername = state.users.find(u => u.username === credentials.username);
+      if (!userByUsername) {
+        setError('Usuario no encontrado');
+      } else if (userByUsername.password !== credentials.password) {
+        setError('Contraseña incorrecta');
+      } else if (!userByUsername.isActive) {
+        setError('Usuario inactivo');
+      } else {
+        setError('Usuario o contraseña incorrectos');
+      }
     }
   };
 
