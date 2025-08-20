@@ -26,10 +26,8 @@ export function Login() {
     // Intentar login con el backend
     const response = await authService.login(credentials.username, credentials.password);
     
-    // Guardar token en localStorage
-    localStorage.setItem('authToken', response.token);
-    
-    // Establecer usuario autenticado
+    // Establecer usuario autenticado directamente en el estado de la aplicación
+    // Sin usar localStorage
     dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
     dispatch({ type: 'SET_AUTHENTICATED', payload: true });
     

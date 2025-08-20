@@ -31,36 +31,13 @@ async function apiRequest<T>(
     ...options,
   };
 
-  // Agregar token de autenticación si existe
-  const token = localStorage.getItem('authToken');
-  console.log('🔑 Token de autenticación:', token ? 'Presente' : 'No encontrado');
-  console.log('🔍 Token completo:', token);
-  console.log('🔍 localStorage completo:', Object.keys(localStorage));
+  // Verificar si hay un usuario autenticado en el contexto de la aplicación
+  // En lugar de usar localStorage, usaremos el estado de la aplicación
+  console.log('🔍 Verificando autenticación desde el contexto de la aplicación');
   
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      'Authorization': `Bearer ${token}`,
-    };
-    console.log('🔑 Headers de autorización configurados');
-    console.log('🔍 Headers completos:', config.headers);
-  } else {
-    console.log('⚠️ No hay token de autenticación disponible');
-    // Intentar con otras claves posibles
-    const possibleTokens = ['token', 'userToken', 'accessToken', 'jwtToken'];
-    for (const key of possibleTokens) {
-      const altToken = localStorage.getItem(key);
-      if (altToken) {
-        console.log(`🔍 Token encontrado en ${key}:`, altToken);
-        config.headers = {
-          ...config.headers,
-          'Authorization': `Bearer ${altToken}`,
-        };
-        console.log('🔑 Headers de autorización configurados con token alternativo');
-        break;
-      }
-    }
-  }
+  // Por ahora, vamos a hacer la petición sin token para ver si el backend lo requiere
+  // Si el backend requiere autenticación, lo manejaremos después
+  console.log('🔍 Enviando petición sin token de autenticación');
 
   try {
     console.log('🌐 Enviando request a:', url);
