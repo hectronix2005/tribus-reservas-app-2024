@@ -27,6 +27,7 @@ interface ReservationFormData {
 
 export function Reservations() {
   const { state } = useApp();
+  const currentUser = state.auth.currentUser;
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
@@ -75,7 +76,7 @@ export function Reservations() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!state.currentUser) {
+    if (!currentUser) {
       setError('Debe iniciar sesión para crear una reservación');
       return;
     }
@@ -85,8 +86,8 @@ export function Reservations() {
       setError(null);
 
       const reservationData = {
-        userId: state.currentUser.id,
-        userName: state.currentUser.name,
+        userId: currentUser.id,
+        userName: currentUser.name,
         ...formData
       };
 
@@ -121,13 +122,13 @@ export function Reservations() {
   };
 
   const handleDelete = async (reservation: Reservation) => {
-    if (!state.currentUser) {
+    if (!currentUser) {
       setError('Debe iniciar sesión para eliminar una reservación');
       return;
     }
 
     // Verificar permisos: solo el creador o admin puede eliminar
-    const canDelete = state.currentUser.id === reservation.userId || state.currentUser.role === 'admin';
+    const canDelete = currentUser.id === reservation.userId || currentUser.role === 'admin';
     
     if (!canDelete) {
       setError('Solo el creador de la reservación o un administrador puede eliminarla');
@@ -142,7 +143,7 @@ export function Reservations() {
       setIsLoading(true);
       setError(null);
 
-      await reservationService.deleteReservation(reservation._id, state.currentUser.id);
+      await reservationService.deleteReservation(reservation._id, currentUser.id);
       await loadReservations();
 
     } catch (error: any) {
@@ -179,13 +180,13 @@ export function Reservations() {
   };
 
   const canEditReservation = (reservation: Reservation) => {
-    if (!state.currentUser) return false;
-    return state.currentUser.id === reservation.userId || state.currentUser.role === 'admin';
+    if (!currentUser) return false;
+    return currentUser.id === reservation.userId || currentUser.role === 'admin';
   };
 
   const canDeleteReservation = (reservation: Reservation) => {
-    if (!state.currentUser) return false;
-    return state.currentUser.id === reservation.userId || state.currentUser.role === 'admin';
+    if (!currentUser) return false;
+    return currentUser.id === reservation.userId || currentUser.role === 'admin';
   };
 
   const formatDate = (dateString: string) => {
