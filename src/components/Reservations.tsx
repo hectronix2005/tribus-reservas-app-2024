@@ -134,7 +134,7 @@ export function Reservations() {
       return;
     }
 
-    if (!confirm('¿Está seguro de que desea eliminar esta reservación?')) {
+    if (!window.confirm('¿Está seguro de que desea eliminar esta reservación?')) {
       return;
     }
 
