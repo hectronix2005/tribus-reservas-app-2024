@@ -33,14 +33,25 @@ async function apiRequest<T>(
 
   // Agregar token de autenticación si existe
   const token = localStorage.getItem('authToken');
+  console.log('🔑 Token de autenticación:', token ? 'Presente' : 'No encontrado');
   if (token) {
     config.headers = {
       ...config.headers,
       'Authorization': `Bearer ${token}`,
     };
+    console.log('🔑 Headers de autorización configurados');
+  } else {
+    console.log('⚠️ No hay token de autenticación disponible');
   }
 
   try {
+    console.log('🌐 Enviando request a:', url);
+    console.log('📤 Configuración del request:', {
+      method: config.method || 'GET',
+      headers: config.headers,
+      body: config.body ? JSON.parse(config.body as string) : undefined
+    });
+    
     const response = await fetch(url, config);
     
     if (!response.ok) {
