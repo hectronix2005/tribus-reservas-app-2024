@@ -146,6 +146,7 @@ export function UserManagement() {
       setShowForm(false);
       setEditingUser(null);
       setShowPassword(false);
+      setShowValidation(false); // Resetear validaciones al completar exitosamente
       
       // Mostrar notificación de éxito
       setNotification({
@@ -353,7 +354,10 @@ export function UserManagement() {
           <p className="text-gray-600">Administra usuarios y permisos del sistema</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setShowForm(true);
+            setShowValidation(false); // Resetear validaciones al abrir formulario
+          }}
           className="btn-primary flex items-center space-x-2"
         >
           <Plus className="w-4 h-4" />
