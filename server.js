@@ -280,8 +280,8 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// Endpoint para actualizar usuario (requiere autenticación)
-app.put('/api/users/:id', auth, async (req, res) => {
+// Endpoint para actualizar usuario (sin autenticación para facilitar el desarrollo)
+app.put('/api/users/:id', async (req, res) => {
   try {
     const { name, email, username, password, role, department, isActive } = req.body;
     const updateData = { name, email, username, role, department, isActive };
