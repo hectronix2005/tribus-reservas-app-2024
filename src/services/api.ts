@@ -222,30 +222,75 @@ export const userService = {
   }
 };
 
-// Servicios de reservas (placeholder para futuras implementaciones)
+// Servicios de reservas con protocolo automático
 export const reservationService = {
   async getAllReservations() {
-    return apiRequest<any[]>('/reservations');
+    console.log('🔄 Obteniendo todas las reservaciones de MongoDB Atlas...');
+    try {
+      const reservations = await apiRequest<any[]>('/reservations');
+      console.log('✅ Reservaciones obtenidas exitosamente:', reservations.length);
+      return reservations;
+    } catch (error) {
+      console.error('❌ Error obteniendo reservaciones:', error);
+      throw error;
+    }
+  },
+
+  async getReservationsByUser(userId: string) {
+    console.log('🔄 Obteniendo reservaciones del usuario:', userId);
+    try {
+      const reservations = await apiRequest<any[]>(`/reservations/user/${userId}`);
+      console.log('✅ Reservaciones del usuario obtenidas exitosamente:', reservations.length);
+      return reservations;
+    } catch (error) {
+      console.error('❌ Error obteniendo reservaciones del usuario:', error);
+      throw error;
+    }
   },
 
   async createReservation(reservationData: any) {
-    return apiRequest<{ reservation: any }>('/reservations', {
-      method: 'POST',
-      body: JSON.stringify(reservationData),
-    });
+    console.log('🔄 Creando reservación en MongoDB Atlas...', reservationData);
+    try {
+      const response = await apiRequest<any>('/reservations', {
+        method: 'POST',
+        body: JSON.stringify(reservationData),
+      });
+      console.log('✅ Reservación creada exitosamente:', response.reservation);
+      return response;
+    } catch (error) {
+      console.error('❌ Error creando reservación:', error);
+      throw error;
+    }
   },
 
   async updateReservation(id: string, reservationData: any) {
-    return apiRequest<{ reservation: any }>(`/reservations/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(reservationData),
-    });
+    console.log('🔄 Actualizando reservación en MongoDB Atlas...', { id, reservationData });
+    try {
+      const response = await apiRequest<any>(`/reservations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(reservationData),
+      });
+      console.log('✅ Reservación actualizada exitosamente:', response.reservation);
+      return response;
+    } catch (error) {
+      console.error('❌ Error actualizando reservación:', error);
+      throw error;
+    }
   },
 
-  async deleteReservation(id: string) {
-    return apiRequest<{ message: string }>(`/reservations/${id}`, {
-      method: 'DELETE',
-    });
+  async deleteReservation(id: string, userId: string) {
+    console.log('🔄 Eliminando reservación de MongoDB Atlas...', { id, userId });
+    try {
+      const response = await apiRequest<any>(`/reservations/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ userId }),
+      });
+      console.log('✅ Reservación eliminada exitosamente:', response.message);
+      return response;
+    } catch (error) {
+      console.error('❌ Error eliminando reservación:', error);
+      throw error;
+    }
   },
 };
 

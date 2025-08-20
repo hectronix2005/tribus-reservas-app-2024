@@ -51,6 +51,54 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// Modelo de Reservación
+const reservationSchema = new mongoose.Schema({
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true 
+  },
+  userName: { 
+    type: String, 
+    required: true 
+  },
+  area: { 
+    type: String, 
+    required: true 
+  },
+  date: { 
+    type: Date, 
+    required: true 
+  },
+  startTime: { 
+    type: String, 
+    required: true 
+  },
+  endTime: { 
+    type: String, 
+    required: true 
+  },
+  status: { 
+    type: String, 
+    enum: ['active', 'cancelled', 'completed'], 
+    default: 'active' 
+  },
+  notes: { 
+    type: String, 
+    default: '' 
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+  updatedAt: { 
+    type: Date, 
+    default: Date.now 
+  }
+});
+
+const Reservation = mongoose.model('Reservation', reservationSchema);
+
 // Middleware de autenticación
 const auth = (req, res, next) => {
   try {
@@ -291,6 +339,178 @@ app.get('/api/users/profile', auth, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Error obteniendo perfil:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ===== ENDPOINTS DE RESERVACIONES =====
+
+// Obtener todas las reservaciones (sin autenticación para facilitar el desarrollo)
+app.get('/api/reservations', async (req, res) => {
+  try {
+    const reservations = await Reservation.find().populate('userId', 'name username');
+    res.json(reservations);
+  } catch (error) {
+    console.error('Error obteniendo reservaciones:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener reservaciones de un usuario específico
+app.get('/api/reservations/user/:userId', async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ userId: req.params.userId })
+      .populate('userId', 'name username');
+    res.json(reservations);
+  } catch (error) {
+    console.error('Error obteniendo reservaciones del usuario:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Crear nueva reservación (sin autenticación para facilitar el desarrollo)
+app.post('/api/reservations', async (req, res) => {
+  try {
+    const { userId, userName, area, date, startTime, endTime, notes } = req.body;
+
+    // Validar campos requeridos
+    if (!userId || !userName || !area || !date || !startTime || !endTime) {
+      return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+
+    // Verificar que el usuario existe
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar que no hay conflicto de horarios para la misma área y fecha
+    const conflictingReservation = await Reservation.findOne({
+      area,
+      date: new Date(date),
+      status: 'active',
+      $or: [
+        {
+          startTime: { $lt: endTime },
+          endTime: { $gt: startTime }
+        }
+      ]
+    });
+
+    if (conflictingReservation) {
+      return res.status(409).json({ 
+        error: 'Ya existe una reservación para este horario en esta área' 
+      });
+    }
+
+    // Crear la reservación
+    const reservation = new Reservation({
+      userId,
+      userName,
+      area,
+      date: new Date(date),
+      startTime,
+      endTime,
+      notes: notes || ''
+    });
+
+    await reservation.save();
+
+    // Retornar la reservación con datos del usuario
+    const populatedReservation = await Reservation.findById(reservation._id)
+      .populate('userId', 'name username');
+
+    res.status(201).json({
+      message: 'Reservación creada exitosamente',
+      reservation: populatedReservation
+    });
+
+  } catch (error) {
+    console.error('Error creando reservación:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Actualizar reservación (solo el creador o admin)
+app.put('/api/reservations/:id', async (req, res) => {
+  try {
+    const { userId, userName, area, date, startTime, endTime, notes, status } = req.body;
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservación no encontrada' });
+    }
+
+    // Verificar permisos: solo el creador o un admin puede actualizar
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (reservation.userId.toString() !== userId && user.role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Solo el creador de la reservación o un administrador puede modificarla' 
+      });
+    }
+
+    // Actualizar campos
+    if (userName) reservation.userName = userName;
+    if (area) reservation.area = area;
+    if (date) reservation.date = new Date(date);
+    if (startTime) reservation.startTime = startTime;
+    if (endTime) reservation.endTime = endTime;
+    if (notes !== undefined) reservation.notes = notes;
+    if (status) reservation.status = status;
+    
+    reservation.updatedAt = new Date();
+
+    await reservation.save();
+
+    // Retornar la reservación actualizada
+    const updatedReservation = await Reservation.findById(reservation._id)
+      .populate('userId', 'name username');
+
+    res.json({
+      message: 'Reservación actualizada exitosamente',
+      reservation: updatedReservation
+    });
+
+  } catch (error) {
+    console.error('Error actualizando reservación:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Eliminar reservación (solo el creador o admin)
+app.delete('/api/reservations/:id', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    const reservation = await Reservation.findById(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reservación no encontrada' });
+    }
+
+    // Verificar permisos: solo el creador o un admin puede eliminar
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (reservation.userId.toString() !== userId && user.role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Solo el creador de la reservación o un administrador puede eliminarla' 
+      });
+    }
+
+    await Reservation.findByIdAndDelete(req.params.id);
+
+    res.json({
+      message: 'Reservación eliminada exitosamente'
+    });
+
+  } catch (error) {
+    console.error('Error eliminando reservación:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
