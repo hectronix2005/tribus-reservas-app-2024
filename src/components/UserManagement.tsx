@@ -24,6 +24,7 @@ export function UserManagement() {
     title: '',
     message: ''
   });
+  const [showValidation, setShowValidation] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -55,6 +56,23 @@ export function UserManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    // Activar validaciones solo cuando se intenta enviar
+    setShowValidation(true);
+    
+    // Verificar si el formulario es válido antes de continuar
+    const isValid = isFormValid();
+    console.log('🔍 Validación del formulario:', {
+      isValid,
+      formData,
+      editingUser: !!editingUser,
+      validationErrors: getValidationErrors()
+    });
+    
+    if (!isValid) {
+      setIsLoading(false);
+      return;
+    }
     
     try {
       setIsLoading(true);
@@ -182,6 +200,7 @@ export function UserManagement() {
       isActive: user.isActive
     });
     setShowForm(true);
+    setShowValidation(false); // Resetear validaciones al editar
   };
 
   const handleDelete = async (userId: string) => {
@@ -253,6 +272,7 @@ export function UserManagement() {
     setShowForm(false);
     setEditingUser(null);
     setShowPassword(false);
+    setShowValidation(false); // Resetear validaciones
   };
 
   const validatePassword = (password: string) => {
@@ -274,8 +294,10 @@ export function UserManagement() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) return false;
     
-    // Validar contraseña si se está creando un nuevo usuario
-    if (!editingUser && formData.password && validatePassword(formData.password)) return false;
+    // Validar contraseña si se está creando un nuevo usuario y se ingresó una contraseña
+    if (!editingUser && formData.password.trim() && validatePassword(formData.password)) {
+      return false;
+    }
     
     // Verificar que el username y email no existan ya (solo para nuevos usuarios)
     if (!editingUser) {
@@ -447,8 +469,8 @@ export function UserManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Mostrar errores de validación */}
-                {getValidationErrors().length > 0 && (
+                {/* Mostrar errores de validación solo cuando se intenta enviar */}
+                {showValidation && getValidationErrors().length > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-md p-3">
                     <h4 className="text-sm font-medium text-red-800 mb-2">Errores de validación:</h4>
                     <ul className="text-sm text-red-700 space-y-1">
@@ -467,11 +489,11 @@ export function UserManagement() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={`input-field ${!formData.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    className={`input-field ${showValidation && !formData.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                     placeholder="Nombre completo"
                     required
                   />
-                  {!formData.name.trim() && (
+                  {showValidation && !formData.name.trim() && (
                     <p className="text-xs text-red-600 mt-1">El nombre es requerido</p>
                   )}
                 </div>
