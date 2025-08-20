@@ -58,7 +58,7 @@ async function apiRequest<T>(
         bodyRaw: config.body,
         bodyParsed: JSON.parse(config.body as string),
         bodyType: typeof config.body,
-        bodyLength: config.body.length
+        bodyLength: (config.body as string).length
       });
     }
     
