@@ -155,6 +155,15 @@ export function UserManagement() {
           isActive: formData.isActive
         });
         
+        // Verificación adicional antes del envío
+        console.log('🔍 Verificación final antes de enviar:', {
+          userDataKeys: Object.keys(userData),
+          userDataValues: Object.values(userData),
+          userDataStringified: JSON.stringify(userData),
+          formDataKeys: Object.keys(formData),
+          formDataValues: Object.values(formData)
+        });
+        
         // Paso 1: Crear en MongoDB Atlas
         const response = await userService.createUser(userData);
         
