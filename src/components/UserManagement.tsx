@@ -8,6 +8,7 @@ import { ProtocolNotification } from './ProtocolNotification';
 
 export function UserManagement() {
   const { state, dispatch } = useApp();
+  const currentUser = state.auth.currentUser;
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [showPassword, setShowPassword] = useState(false);
