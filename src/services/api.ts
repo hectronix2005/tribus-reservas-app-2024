@@ -52,6 +52,16 @@ async function apiRequest<T>(
       body: config.body ? JSON.parse(config.body as string) : undefined
     });
     
+    // Logging adicional para debugging
+    if (config.body) {
+      console.log('🔍 BODY DEL REQUEST:', {
+        bodyRaw: config.body,
+        bodyParsed: JSON.parse(config.body as string),
+        bodyType: typeof config.body,
+        bodyLength: config.body.length
+      });
+    }
+    
     const response = await fetch(url, config);
     
     if (!response.ok) {
@@ -148,6 +158,14 @@ export const userService = {
     });
     
     try {
+      console.log('🔍 ANTES DE ENVIAR AL BACKEND:', {
+        userData,
+        userDataStringified: JSON.stringify(userData),
+        userDataLength: JSON.stringify(userData).length,
+        userDataKeys: Object.keys(userData),
+        userDataValues: Object.values(userData)
+      });
+      
       const response = await apiRequest<{ user: any }>('/users/register', {
         method: 'POST',
         body: JSON.stringify(userData),
