@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { User as UserType } from '../types';
 import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
 import { userService, ApiError } from '../services/api';
-import { ProtocolNotification } from './ProtocolNotification';
 
 export function UserManagement() {
   const { state, dispatch } = useApp();
@@ -13,17 +12,6 @@ export function UserManagement() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{
-    show: boolean;
-    type: 'success' | 'error' | 'info';
-    title: string;
-    message: string;
-  }>({
-    show: false,
-    type: 'info',
-    title: '',
-    message: ''
-  });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -58,12 +46,9 @@ export function UserManagement() {
     
     try {
       setIsLoading(true);
-      console.log('🚀 Iniciando protocolo de creación/actualización de usuario...');
       
       if (editingUser) {
-        // PROTOCOLO: Actualizar usuario existente
-        console.log('📝 Protocolo: Actualizando usuario existente');
-        
+        // Update existing user
         const userData = {
           name: formData.name,
           email: formData.email,
@@ -78,21 +63,10 @@ export function UserManagement() {
           (userData as any).password = formData.password;
         }
         
-        // Paso 1: Actualizar en MongoDB Atlas
         const response = await userService.updateUser(editingUser.id, userData);
-        
-        // Paso 2: Actualizar estado local
         dispatch({ type: 'UPDATE_USER', payload: response.user });
-        
-        // Paso 3: Verificar sincronización
-        await userService.verifyUserSync(response.user.id);
-        
-        console.log('✅ Protocolo completado: Usuario actualizado en MongoDB Atlas y estado local');
-        
       } else {
-        // PROTOCOLO: Crear nuevo usuario
-        console.log('🆕 Protocolo: Creando nuevo usuario');
-        
+        // Create new user
         const userData = {
           name: formData.name,
           email: formData.email,
@@ -103,16 +77,8 @@ export function UserManagement() {
           isActive: formData.isActive
         };
         
-        // Paso 1: Crear en MongoDB Atlas
         const response = await userService.createUser(userData);
-        
-        // Paso 2: Actualizar estado local
         dispatch({ type: 'ADD_USER', payload: response.user });
-        
-        // Paso 3: Verificar sincronización
-        await userService.verifyUserSync(response.user.id);
-        
-        console.log('✅ Protocolo completado: Usuario creado en MongoDB Atlas y estado local');
       }
 
       // Reset form
@@ -129,18 +95,8 @@ export function UserManagement() {
       setEditingUser(null);
       setShowPassword(false);
       
-      // Mostrar notificación de éxito
-      setNotification({
-        show: true,
-        type: 'success',
-        title: editingUser ? 'Usuario Actualizado' : 'Usuario Creado',
-        message: editingUser 
-          ? 'Usuario actualizado exitosamente en MongoDB Atlas' 
-          : 'Usuario creado exitosamente en MongoDB Atlas'
-      });
-      
     } catch (error) {
-      console.error('❌ Error en protocolo de usuario:', error);
+      console.error('Error guardando usuario:', error);
       
       if (error instanceof ApiError) {
         if (error.status === 409) {
@@ -170,60 +126,15 @@ export function UserManagement() {
     setShowForm(true);
   };
 
-  const handleDelete = async (userId: string) => {
+  const handleDelete = (userId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
-      try {
-        console.log('🗑️ Protocolo: Eliminando usuario de MongoDB Atlas...');
-        
-        // Paso 1: Eliminar de MongoDB Atlas
-        await userService.deleteUser(userId);
-        
-        // Paso 2: Actualizar estado local
-        dispatch({ type: 'DELETE_USER', payload: userId });
-        
-        console.log('✅ Protocolo completado: Usuario eliminado de MongoDB Atlas y estado local');
-        setNotification({
-          show: true,
-          type: 'success',
-          title: 'Usuario Eliminado',
-          message: 'Usuario eliminado exitosamente de MongoDB Atlas'
-        });
-        
-      } catch (error) {
-        console.error('❌ Error eliminando usuario:', error);
-        setNotification({
-          show: true,
-          type: 'error',
-          title: 'Error al Eliminar',
-          message: 'Error eliminando usuario. Verifica la conexión con el servidor.'
-        });
-      }
+      dispatch({ type: 'DELETE_USER', payload: userId });
     }
   };
 
-  const handleToggleActive = async (user: UserType) => {
-    try {
-      console.log('🔄 Protocolo: Cambiando estado activo del usuario...');
-      
-      const updatedUser = { ...user, isActive: !user.isActive };
-      
-      // Paso 1: Actualizar en MongoDB Atlas
-      await userService.updateUser(user.id, { isActive: updatedUser.isActive });
-      
-      // Paso 2: Actualizar estado local
-      dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-      
-      console.log('✅ Protocolo completado: Estado activo actualizado en MongoDB Atlas');
-      
-    } catch (error) {
-      console.error('❌ Error cambiando estado activo:', error);
-              setNotification({
-          show: true,
-          type: 'error',
-          title: 'Error al Cambiar Estado',
-          message: 'Error cambiando estado del usuario. Verifica la conexión con el servidor.'
-        });
-    }
+  const handleToggleActive = (user: UserType) => {
+    const updatedUser = { ...user, isActive: !user.isActive };
+    dispatch({ type: 'UPDATE_USER', payload: updatedUser });
   };
 
   const handleCancel = () => {
@@ -247,23 +158,6 @@ export function UserManagement() {
     if (!/[a-z]/.test(password)) return 'La contraseña debe contener al menos una minúscula';
     if (!/[0-9]/.test(password)) return 'La contraseña debe contener al menos un número';
     return null;
-  };
-
-  const isFormValid = () => {
-    // Validar campos requeridos
-    if (!formData.name.trim()) return false;
-    if (!formData.email.trim()) return false;
-    if (!formData.username.trim()) return false;
-    if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
-    
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) return false;
-    
-    // Validar contraseña si se está creando un nuevo usuario
-    if (!editingUser && formData.password && validatePassword(formData.password)) return false;
-    
-    return true;
   };
 
   return (
@@ -393,74 +287,56 @@ export function UserManagement() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo <span className="text-red-500">*</span>
+                    Nombre Completo
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={`input-field ${!formData.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    className="input-field"
                     placeholder="Nombre completo"
                     required
                   />
-                  {!formData.name.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El nombre es requerido</p>
-                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-red-500">*</span>
+                    Email
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className={`input-field ${!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'border-red-300 focus:border-red-500' : ''}`}
+                    className="input-field"
                     placeholder="email@empresa.com"
                     required
                   />
-                  {!formData.email.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El email es requerido</p>
-                  )}
-                  {formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
-                    <p className="text-xs text-red-600 mt-1">El email no es válido</p>
-                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre de Usuario <span className="text-red-500">*</span>
+                    Nombre de Usuario
                   </label>
                   <input
                     type="text"
                     value={formData.username}
                     onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    className={`input-field ${!formData.username.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    className="input-field"
                     placeholder="usuario"
                     required
                   />
-                  {!formData.username.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El nombre de usuario es requerido</p>
-                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingUser ? (
-                      'Nueva Contraseña (dejar en blanco para mantener)'
-                    ) : (
-                      <>
-                        Contraseña <span className="text-red-500">*</span>
-                      </>
-                    )}
+                    {editingUser ? 'Nueva Contraseña (dejar en blanco para mantener)' : 'Contraseña'}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className={`input-field pr-10 ${!editingUser && !formData.password.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                      className="input-field pr-10"
                       placeholder={editingUser ? 'Nueva contraseña' : 'Contraseña'}
                       required={!editingUser}
                     />
@@ -476,9 +352,6 @@ export function UserManagement() {
                       )}
                     </button>
                   </div>
-                  {!editingUser && !formData.password.trim() && (
-                    <p className="text-xs text-red-600 mt-1">La contraseña es requerida para nuevos usuarios</p>
-                  )}
                   {formData.password && validatePassword(formData.password) && (
                     <p className="text-xs text-danger-600 mt-1">
                       {validatePassword(formData.password)}
@@ -531,26 +404,15 @@ export function UserManagement() {
                   <button
                     type="button"
                     onClick={handleCancel}
-                    disabled={isLoading}
-                    className={`btn-secondary flex-1 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className="btn-secondary flex-1"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    disabled={isLoading || !isFormValid()}
-                    className={`btn-success flex-1 ${
-                      isLoading || !isFormValid() ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    className="btn-success flex-1"
                   >
-                    {isLoading ? (
-                      <span className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Procesando...</span>
-                      </span>
-                    ) : (
-                      <span>{editingUser ? 'Actualizar' : 'Crear'} Usuario</span>
-                    )}
+                    {editingUser ? 'Actualizar' : 'Crear'} Usuario
                   </button>
                 </div>
               </form>
@@ -575,15 +437,6 @@ export function UserManagement() {
           </button>
         </div>
       )}
-
-      {/* Protocol Notification */}
-      <ProtocolNotification
-        show={notification.show}
-        type={notification.type}
-        title={notification.title}
-        message={notification.message}
-        onClose={() => setNotification(prev => ({ ...prev, show: false }))}
-      />
     </div>
   );
 }
