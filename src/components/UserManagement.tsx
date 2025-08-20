@@ -121,6 +121,17 @@ export function UserManagement() {
           isActive: formData.isActive
         };
         
+        console.log('📤 Datos que se van a enviar al backend:', userData);
+        console.log('🔍 Validación de datos antes del envío:', {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          username: formData.username.trim(),
+          password: formData.password.trim(),
+          role: formData.role,
+          department: formData.department,
+          isActive: formData.isActive
+        });
+        
         // Paso 1: Crear en MongoDB Atlas
         const response = await userService.createUser(userData);
         
@@ -163,7 +174,8 @@ export function UserManagement() {
       
       if (error instanceof ApiError) {
         if (error.status === 400) {
-          setError('Error en los datos del usuario. Verifica que todos los campos sean válidos y que el email/nombre de usuario no exista.');
+          // Usar el mensaje específico del backend en lugar del genérico
+          setError(error.message || 'Error en los datos del usuario. Verifica que todos los campos sean válidos.');
         } else if (error.status === 409) {
           setError('El nombre de usuario o email ya existe en el sistema');
         } else if (error.status === 401) {
