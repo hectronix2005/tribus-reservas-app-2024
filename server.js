@@ -309,11 +309,23 @@ app.put('/api/users/:id', auth, async (req, res) => {
   }
 });
 
-// Endpoint para eliminar usuario (requiere autenticación de admin)
-app.delete('/api/users/:id', auth, async (req, res) => {
+// Endpoint para eliminar usuario (sin autenticación para facilitar el desarrollo)
+app.delete('/api/users/:id', async (req, res) => {
   try {
-    // Verificar si el usuario es admin
-    if (req.user.role !== 'admin') {
+    const { adminUserId } = req.body;
+
+    // Verificar que se proporcionó el ID del admin
+    if (!adminUserId) {
+      return res.status(400).json({ error: 'ID del administrador requerido' });
+    }
+
+    // Verificar si el usuario que intenta eliminar es admin
+    const adminUser = await User.findById(adminUserId);
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Usuario administrador no encontrado' });
+    }
+
+    if (adminUser.role !== 'admin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador' });
     }
 

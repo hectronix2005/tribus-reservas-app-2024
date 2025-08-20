@@ -258,12 +258,32 @@ export function UserManagement() {
   };
 
   const handleDelete = async (userId: string) => {
+    if (!currentUser) {
+      setNotification({
+        show: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Debe iniciar sesión para eliminar usuarios'
+      });
+      return;
+    }
+
+    if (currentUser.role !== 'admin') {
+      setNotification({
+        show: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Solo los administradores pueden eliminar usuarios'
+      });
+      return;
+    }
+
     if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
       try {
         console.log('🗑️ Protocolo: Eliminando usuario de MongoDB Atlas...');
         
         // Paso 1: Eliminar de MongoDB Atlas
-        await userService.deleteUser(userId);
+        await userService.deleteUser(userId, currentUser.id);
         
         // Paso 2: Actualizar estado local
         dispatch({ type: 'DELETE_USER', payload: userId });

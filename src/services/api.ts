@@ -192,12 +192,13 @@ export const userService = {
     }
   },
 
-  async deleteUser(id: string) {
-    console.log('🔄 Eliminando usuario de MongoDB Atlas...', id);
+  async deleteUser(id: string, adminUserId: string) {
+    console.log('🔄 Eliminando usuario de MongoDB Atlas...', { id, adminUserId });
     
     try {
       const response = await apiRequest<{ message: string }>(`/users/${id}`, {
         method: 'DELETE',
+        body: JSON.stringify({ adminUserId }),
       });
       
       console.log('✅ Usuario eliminado exitosamente de MongoDB Atlas:', response.message);
