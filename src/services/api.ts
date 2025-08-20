@@ -44,8 +44,28 @@ async function apiRequest<T>(
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, errorData.message || `HTTP error! status: ${response.status}`);
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      
+      try {
+        const errorData = await response.json();
+        console.log('🔍 Error response data:', errorData);
+        
+        // Extraer mensaje de error del backend
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.details) {
+          errorMessage = errorData.details;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } catch (parseError) {
+        console.log('⚠️ No se pudo parsear la respuesta de error:', parseError);
+      }
+      
+      console.log('🚨 API Error:', { status: response.status, message: errorMessage });
+      throw new ApiError(response.status, errorMessage);
     }
 
     const data = await response.json();
@@ -54,6 +74,7 @@ async function apiRequest<T>(
     if (error instanceof ApiError) {
       throw error;
     }
+    console.log('🚨 Network Error:', error);
     throw new ApiError(500, 'Error de conexión con el servidor');
   }
 }
