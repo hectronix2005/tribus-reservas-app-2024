@@ -143,14 +143,28 @@ export function UserManagement() {
       console.error('❌ Error en protocolo de usuario:', error);
       
       if (error instanceof ApiError) {
-        if (error.status === 409) {
-          setError('El nombre de usuario o email ya existe');
+        if (error.status === 400) {
+          setError('Error en los datos del usuario. Verifica que todos los campos sean válidos y que el email/nombre de usuario no exista.');
+        } else if (error.status === 409) {
+          setError('El nombre de usuario o email ya existe en el sistema');
+        } else if (error.status === 401) {
+          setError('No tienes permisos para realizar esta acción');
+        } else if (error.status === 403) {
+          setError('Acceso denegado. Verifica tus permisos de administrador');
         } else {
-          setError(error.message || 'Error guardando usuario');
+          setError(error.message || 'Error guardando usuario en el servidor');
         }
       } else {
-        setError('Error de conexión con el servidor');
+        setError('Error de conexión con el servidor. Verifica tu conexión a internet.');
       }
+      
+      // Mostrar notificación de error
+      setNotification({
+        show: true,
+        type: 'error',
+        title: 'Error al Guardar Usuario',
+        message: error instanceof ApiError ? error.message : 'Error de conexión con el servidor'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -263,7 +277,49 @@ export function UserManagement() {
     // Validar contraseña si se está creando un nuevo usuario
     if (!editingUser && formData.password && validatePassword(formData.password)) return false;
     
+    // Verificar que el username y email no existan ya (solo para nuevos usuarios)
+    if (!editingUser) {
+      const existingUser = state.users.find(user => 
+        user.username.toLowerCase() === formData.username.toLowerCase() ||
+        user.email.toLowerCase() === formData.email.toLowerCase()
+      );
+      if (existingUser) return false;
+    }
+    
     return true;
+  };
+
+  const getValidationErrors = () => {
+    const errors: string[] = [];
+    
+    if (!formData.name.trim()) errors.push('El nombre es requerido');
+    if (!formData.email.trim()) errors.push('El email es requerido');
+    if (!formData.username.trim()) errors.push('El nombre de usuario es requerido');
+    if (!editingUser && !formData.password.trim()) errors.push('La contraseña es requerida para nuevos usuarios');
+    
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email.trim() && !emailRegex.test(formData.email)) {
+      errors.push('El email no tiene un formato válido');
+    }
+    
+    // Validar contraseña
+    if (!editingUser && formData.password && validatePassword(formData.password)) {
+      errors.push(validatePassword(formData.password)!);
+    }
+    
+    // Verificar duplicados
+    if (!editingUser) {
+      const existingUser = state.users.find(user => 
+        user.username.toLowerCase() === formData.username.toLowerCase() ||
+        user.email.toLowerCase() === formData.email.toLowerCase()
+      );
+      if (existingUser) {
+        errors.push('El nombre de usuario o email ya existe en el sistema');
+      }
+    }
+    
+    return errors;
   };
 
   return (
@@ -391,6 +447,18 @@ export function UserManagement() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Mostrar errores de validación */}
+                {getValidationErrors().length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <h4 className="text-sm font-medium text-red-800 mb-2">Errores de validación:</h4>
+                    <ul className="text-sm text-red-700 space-y-1">
+                      {getValidationErrors().map((error, index) => (
+                        <li key={index}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nombre Completo <span className="text-red-500">*</span>
