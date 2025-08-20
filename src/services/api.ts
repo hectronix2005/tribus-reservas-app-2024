@@ -130,6 +130,22 @@ export const userService = {
 
   async createUser(userData: any) {
     console.log('🔄 Creando usuario en MongoDB Atlas...', userData);
+    console.log('🔍 Detalle de userData:', {
+      name: userData.name,
+      email: userData.email,
+      username: userData.username,
+      password: userData.password ? '***' : 'undefined',
+      role: userData.role,
+      department: userData.department,
+      isActive: userData.isActive
+    });
+    console.log('🔍 Verificación de campos vacíos:', {
+      nameEmpty: !userData.name || userData.name.trim() === '',
+      emailEmpty: !userData.email || userData.email.trim() === '',
+      usernameEmpty: !userData.username || userData.username.trim() === '',
+      passwordEmpty: !userData.password || userData.password.trim() === '',
+      roleEmpty: !userData.role
+    });
     
     try {
       const response = await apiRequest<{ user: any }>('/users/register', {
