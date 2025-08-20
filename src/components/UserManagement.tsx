@@ -40,6 +40,11 @@ export function UserManagement() {
     loadUsers();
   }, []);
 
+  // Monitorear cambios en formData para debugging
+  useEffect(() => {
+    console.log('📝 Estado actual del formulario:', formData);
+  }, [formData]);
+
   const loadUsers = async () => {
     try {
       setIsLoading(true);
@@ -70,9 +75,19 @@ export function UserManagement() {
     });
     
     if (!isValid) {
+      console.log('❌ Formulario no válido, deteniendo envío');
       setIsLoading(false);
       return;
     }
+    
+    // Verificar que los datos no estén vacíos
+    console.log('🔍 Verificación final de datos:', {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      username: formData.username.trim(),
+      password: formData.password.trim(),
+      role: formData.role
+    });
     
     try {
       setIsLoading(true);
@@ -111,13 +126,21 @@ export function UserManagement() {
         // PROTOCOLO: Crear nuevo usuario
         console.log('🆕 Protocolo: Creando nuevo usuario');
         
+        // Verificar que los datos no estén vacíos antes de enviar
+        if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim()) {
+          console.error('❌ Error: Datos vacíos detectados antes del envío');
+          setError('Todos los campos requeridos deben estar llenos');
+          setIsLoading(false);
+          return;
+        }
+        
         const userData = {
-          name: formData.name,
-          email: formData.email,
-          username: formData.username,
-          password: formData.password,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          username: formData.username.trim(),
+          password: formData.password.trim(),
           role: formData.role,
-          department: formData.department,
+          department: formData.department.trim(),
           isActive: formData.isActive
         };
         
@@ -128,7 +151,7 @@ export function UserManagement() {
           username: formData.username.trim(),
           password: formData.password.trim(),
           role: formData.role,
-          department: formData.department,
+          department: formData.department.trim(),
           isActive: formData.isActive
         });
         
