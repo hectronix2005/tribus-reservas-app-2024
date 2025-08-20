@@ -191,18 +191,7 @@ export function Reservations() {
     if (!currentUser) return false;
     // Verificar si userId es un objeto (con _id) o un string
     const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
-    const canDelete = currentUser.id === reservationUserId || currentUser.role === 'admin';
-    
-    // Debug: mostrar información de permisos
-    console.log('🔍 Verificando permisos de eliminación:', {
-      currentUserId: currentUser.id,
-      currentUserRole: currentUser.role,
-      reservationUserId: reservationUserId,
-      reservationUserIdType: typeof reservation.userId,
-      canDelete: canDelete
-    });
-    
-    return canDelete;
+    return currentUser.id === reservationUserId || currentUser.role === 'admin';
   };
 
   const formatDate = (dateString: string) => {
