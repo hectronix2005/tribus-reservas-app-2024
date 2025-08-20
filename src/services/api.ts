@@ -125,11 +125,21 @@ export const authService = {
 // Servicios de usuarios con protocolo automático
 export const userService = {
   async getAllUsers() {
-    return apiRequest<any[]>('/users');
+    const users = await apiRequest<any[]>('/users');
+    // Transformar _id a id para compatibilidad con el frontend
+    return users.map(user => ({
+      ...user,
+      id: user._id || user.id
+    }));
   },
 
   async getUserById(id: string) {
-    return apiRequest<any>(`/users/${id}`);
+    const user = await apiRequest<any>(`/users/${id}`);
+    // Transformar _id a id para compatibilidad con el frontend
+    return {
+      ...user,
+      id: user._id || user.id
+    };
   },
 
   async createUser(userData: any) {
@@ -167,7 +177,13 @@ export const userService = {
       
       console.log('✅ Usuario creado exitosamente en MongoDB Atlas:', response.user);
       
-      return response;
+      // Transformar _id a id para compatibilidad con el frontend
+      const transformedUser = {
+        ...response.user,
+        id: response.user._id || response.user.id
+      };
+      
+      return { user: transformedUser };
     } catch (error) {
       console.error('❌ Error creando usuario:', error);
       throw error;
@@ -185,7 +201,13 @@ export const userService = {
       
       console.log('✅ Usuario actualizado exitosamente en MongoDB Atlas:', response.user);
       
-      return response;
+      // Transformar _id a id para compatibilidad con el frontend
+      const transformedUser = {
+        ...response.user,
+        id: response.user._id || response.user.id
+      };
+      
+      return { user: transformedUser };
     } catch (error) {
       console.error('❌ Error actualizando usuario:', error);
       throw error;
