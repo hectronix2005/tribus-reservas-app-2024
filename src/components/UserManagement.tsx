@@ -259,10 +259,6 @@ export function UserManagement() {
   };
 
   const handleDelete = async (userId: string) => {
-    console.log('🔍 handleDelete llamado con userId:', userId);
-    console.log('🔍 Tipo de userId:', typeof userId);
-    console.log('🔍 currentUser:', currentUser);
-    
     if (!userId || userId === 'undefined') {
       setNotification({
         show: true,
