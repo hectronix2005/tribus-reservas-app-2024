@@ -61,6 +61,13 @@ export function UserManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     console.log('🚀 INICIO: handleSubmit ejecutándose');
     console.log('📝 Estado actual del formulario al inicio:', formData);
+    console.log('🔍 Verificación de campos al inicio:', {
+      name: formData.name,
+      email: formData.email,
+      username: formData.username,
+      password: formData.password,
+      role: formData.role
+    });
     e.preventDefault();
     setError(null);
     
@@ -679,7 +686,12 @@ export function UserManagement() {
                   <button
                     type="submit"
                     disabled={isLoading || !isFormValid()}
-                    onClick={() => console.log('🔘 CLICK: Botón Crear Usuario clickeado')}
+                    onClick={() => {
+                      console.log('🔘 CLICK: Botón Crear Usuario clickeado');
+                      console.log('🔍 Estado del formulario al hacer clic:', formData);
+                      console.log('🔍 isFormValid():', isFormValid());
+                      console.log('🔍 isLoading:', isLoading);
+                    }}
                     className={`btn-success flex-1 ${
                       isLoading || !isFormValid() ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
