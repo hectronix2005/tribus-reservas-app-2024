@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://tribus-backend-api-2024-c417f649c911.herokuapp.com/api';
+const API_BASE_URL = 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com/api';
 
 // Interfaz para las respuestas de la API
 interface ApiResponse<T> {
@@ -31,13 +31,9 @@ async function apiRequest<T>(
     ...options,
   };
 
-  // Verificar si hay un usuario autenticado en el contexto de la aplicación
-  // En lugar de usar localStorage, usaremos el estado de la aplicación
-  console.log('🔍 Verificando autenticación desde el contexto de la aplicación');
-  
-  // Por ahora, vamos a hacer la petición sin token para ver si el backend lo requiere
-  // Si el backend requiere autenticación, lo manejaremos después
-  console.log('🔍 Enviando petición sin token de autenticación');
+  // El nuevo backend no requiere autenticación para crear usuarios
+  // Los datos se guardan directamente en MongoDB
+  console.log('🔍 Enviando petición al nuevo backend sin autenticación');
 
   try {
     console.log('🌐 Enviando request a:', url);
