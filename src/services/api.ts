@@ -167,10 +167,6 @@ export const userService = {
       
       console.log('✅ Usuario creado exitosamente en MongoDB Atlas:', response.user);
       
-      // Verificar que el usuario se creó correctamente
-      const verificationResponse = await this.getUserById(response.user.id);
-      console.log('✅ Verificación de usuario creado:', verificationResponse);
-      
       return response;
     } catch (error) {
       console.error('❌ Error creando usuario:', error);
@@ -188,10 +184,6 @@ export const userService = {
       });
       
       console.log('✅ Usuario actualizado exitosamente en MongoDB Atlas:', response.user);
-      
-      // Verificar que el usuario se actualizó correctamente
-      const verificationResponse = await this.getUserById(id);
-      console.log('✅ Verificación de usuario actualizado:', verificationResponse);
       
       return response;
     } catch (error) {

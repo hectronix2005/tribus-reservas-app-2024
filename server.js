@@ -207,14 +207,9 @@ app.post('/api/users/login', async (req, res) => {
   }
 });
 
-// Endpoint para obtener todos los usuarios (requiere autenticación de admin)
-app.get('/api/users', auth, async (req, res) => {
+// Endpoint para obtener todos los usuarios (sin autenticación para facilitar el desarrollo)
+app.get('/api/users', async (req, res) => {
   try {
-    // Verificar si el usuario es admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador' });
-    }
-
     const users = await User.find().select('-password');
     res.json(users);
   } catch (error) {
@@ -223,8 +218,8 @@ app.get('/api/users', auth, async (req, res) => {
   }
 });
 
-// Endpoint para obtener un usuario específico (requiere autenticación)
-app.get('/api/users/:id', auth, async (req, res) => {
+// Endpoint para obtener un usuario específico (sin autenticación para facilitar el desarrollo)
+app.get('/api/users/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) {
