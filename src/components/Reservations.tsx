@@ -5,7 +5,7 @@ import { reservationService } from '../services/api';
 
 interface Reservation {
   _id: string;
-  userId: string;
+  userId: string | { _id: string; name: string; username: string };
   userName: string;
   area: string;
   date: string;
@@ -128,7 +128,8 @@ export function Reservations() {
     }
 
     // Verificar permisos: solo el creador o admin puede eliminar
-    const canDelete = currentUser.id === reservation.userId || currentUser.role === 'admin';
+    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
+    const canDelete = currentUser.id === reservationUserId || currentUser.role === 'admin';
     
     if (!canDelete) {
       setError('Solo el creador de la reservación o un administrador puede eliminarla');
@@ -181,12 +182,27 @@ export function Reservations() {
 
   const canEditReservation = (reservation: Reservation) => {
     if (!currentUser) return false;
-    return currentUser.id === reservation.userId || currentUser.role === 'admin';
+    // Verificar si userId es un objeto (con _id) o un string
+    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
+    return currentUser.id === reservationUserId || currentUser.role === 'admin';
   };
 
   const canDeleteReservation = (reservation: Reservation) => {
     if (!currentUser) return false;
-    return currentUser.id === reservation.userId || currentUser.role === 'admin';
+    // Verificar si userId es un objeto (con _id) o un string
+    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
+    const canDelete = currentUser.id === reservationUserId || currentUser.role === 'admin';
+    
+    // Debug: mostrar información de permisos
+    console.log('🔍 Verificando permisos de eliminación:', {
+      currentUserId: currentUser.id,
+      currentUserRole: currentUser.role,
+      reservationUserId: reservationUserId,
+      reservationUserIdType: typeof reservation.userId,
+      canDelete: canDelete
+    });
+    
+    return canDelete;
   };
 
   const formatDate = (dateString: string) => {
