@@ -34,14 +34,32 @@ async function apiRequest<T>(
   // Agregar token de autenticación si existe
   const token = localStorage.getItem('authToken');
   console.log('🔑 Token de autenticación:', token ? 'Presente' : 'No encontrado');
+  console.log('🔍 Token completo:', token);
+  console.log('🔍 localStorage completo:', Object.keys(localStorage));
+  
   if (token) {
     config.headers = {
       ...config.headers,
       'Authorization': `Bearer ${token}`,
     };
     console.log('🔑 Headers de autorización configurados');
+    console.log('🔍 Headers completos:', config.headers);
   } else {
     console.log('⚠️ No hay token de autenticación disponible');
+    // Intentar con otras claves posibles
+    const possibleTokens = ['token', 'userToken', 'accessToken', 'jwtToken'];
+    for (const key of possibleTokens) {
+      const altToken = localStorage.getItem(key);
+      if (altToken) {
+        console.log(`🔍 Token encontrado en ${key}:`, altToken);
+        config.headers = {
+          ...config.headers,
+          'Authorization': `Bearer ${altToken}`,
+        };
+        console.log('🔑 Headers de autorización configurados con token alternativo');
+        break;
+      }
+    }
   }
 
   try {
@@ -63,6 +81,9 @@ async function apiRequest<T>(
     }
     
     const response = await fetch(url, config);
+    
+    console.log('🔍 Response status:', response.status);
+    console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
