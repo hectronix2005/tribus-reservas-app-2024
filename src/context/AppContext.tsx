@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
-import { userService, areaService, templateService } from '../services/api';
+import { userService, areaService, templateService, authService } from '../services/api';
 
 interface AppState {
   areas: Area[];
@@ -203,9 +203,31 @@ function appReducer(state: AppState, action: AppAction): AppState {
       break;
     case 'SET_CURRENT_USER':
       newState = { ...state, auth: { ...state.auth, currentUser: action.payload } };
+      // Guardar estado de autenticación en sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('tribus-auth', JSON.stringify({
+            currentUser: action.payload,
+            isAuthenticated: newState.auth.isAuthenticated
+          }));
+        }
+      } catch (error) {
+        console.error('❌ Error guardando sesión:', error);
+      }
       break;
     case 'SET_AUTHENTICATED':
       newState = { ...state, auth: { ...state.auth, isAuthenticated: action.payload } };
+      // Guardar estado de autenticación en sessionStorage
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('tribus-auth', JSON.stringify({
+            currentUser: newState.auth.currentUser,
+            isAuthenticated: action.payload
+          }));
+        }
+      } catch (error) {
+        console.error('❌ Error guardando sesión:', error);
+      }
       break;
     case 'SET_AUTH_LOADING':
       newState = { ...state, auth: { ...state.auth, isLoading: action.payload } };
@@ -223,6 +245,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
           error: null 
         } 
       };
+      // Limpiar sessionStorage al hacer logout
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('tribus-auth');
+        }
+      } catch (error) {
+        console.error('❌ Error limpiando sesión:', error);
+      }
       break;
     case 'SET_ADMIN_SETTINGS':
       newState = { ...state, adminSettings: action.payload };
@@ -265,12 +295,64 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Cargar estado inicial desde MongoDB
+  // Cargar estado inicial desde MongoDB y restaurar sesión
   const loadInitialState = (): AppState => {
+    // Intentar restaurar el estado de autenticación desde sessionStorage
+    try {
+      if (typeof window !== 'undefined') {
+        const savedAuth = sessionStorage.getItem('tribus-auth');
+        if (savedAuth) {
+          const authData = JSON.parse(savedAuth);
+          console.log('🔄 Restaurando sesión desde sessionStorage:', authData);
+          return {
+            ...initialState,
+            auth: {
+              ...initialState.auth,
+              currentUser: authData.currentUser,
+              isAuthenticated: authData.isAuthenticated,
+              isLoading: false,
+              error: null
+            }
+          };
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error restaurando sesión:', error);
+    }
+    
     return initialState;
   };
 
   const [state, dispatch] = useReducer(appReducer, loadInitialState());
+
+  // Verificar y restaurar sesión al inicializar
+  useEffect(() => {
+    const checkAndRestoreSession = async () => {
+      try {
+        // Si hay un usuario autenticado en el estado, verificar que sigue siendo válido
+        if (state.auth.isAuthenticated && state.auth.currentUser) {
+          console.log('🔄 Verificando sesión existente...');
+          
+          // Intentar obtener el perfil del usuario para verificar que la sesión sigue siendo válida
+          try {
+            const profile = await authService.getProfile();
+            console.log('✅ Sesión válida, usuario:', profile);
+            
+            // Actualizar el usuario actual con la información más reciente
+            dispatch({ type: 'SET_CURRENT_USER', payload: profile });
+          } catch (error) {
+            console.log('❌ Sesión expirada o inválida, limpiando...');
+            // Si la sesión no es válida, limpiar
+            dispatch({ type: 'LOGOUT' });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error verificando sesión:', error);
+      }
+    };
+
+    checkAndRestoreSession();
+  }, []);
 
   // Cargar datos desde MongoDB al inicializar
   useEffect(() => {
@@ -423,6 +505,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Limpiar token de autenticación si existe
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.removeItem('authToken');
+    }
+    
+    // Limpiar sessionStorage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('tribus-auth');
     }
     
     // Resetear estado de autenticación

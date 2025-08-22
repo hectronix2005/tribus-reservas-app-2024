@@ -16,6 +16,15 @@ class ApiError extends Error {
   }
 }
 
+// Función para obtener el token de autenticación
+const getAuthToken = (): string | null => {
+  if (typeof window !== 'undefined') {
+    // Intentar obtener token de sessionStorage primero, luego de localStorage
+    return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  }
+  return null;
+};
+
 // Función para hacer requests HTTP
 async function apiRequest<T>(
   endpoint: string,
@@ -23,9 +32,13 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  // Obtener token de autenticación si está disponible
+  const token = getAuthToken();
+  
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
