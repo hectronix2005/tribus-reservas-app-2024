@@ -42,17 +42,26 @@ export function Reservations() {
     notes: ''
   });
 
-  // Áreas disponibles
-  const areas = [
-    'Sala de Juntas A',
-    'Sala de Juntas B', 
-    'Sala de Juntas C',
-    'Puesto de Trabajo 1',
-    'Puesto de Trabajo 2',
-    'Puesto de Trabajo 3',
-    'Área de Colaboración',
-    'Oficina Privada'
-  ];
+  // Función para manejar el cambio de área
+  const handleAreaChange = (areaName: string) => {
+    const selectedArea = areas.find(area => area.name === areaName);
+    const isFullDay = selectedArea?.isFullDayReservation || false;
+    
+    setFormData(prev => ({
+      ...prev,
+      area: areaName,
+      // Si es reserva por día completo, establecer horarios por defecto
+      startTime: isFullDay ? '00:00' : '09:00',
+      endTime: isFullDay ? '23:59' : '10:00'
+    }));
+  };
+
+  // Obtener áreas del contexto
+  const areas = state.areas;
+  
+  // Verificar si el área seleccionada requiere reserva por día completo
+  const selectedArea = areas.find(area => area.name === formData.area);
+  const isFullDayReservation = selectedArea?.isFullDayReservation || false;
 
   // Cargar reservaciones al montar el componente
   useEffect(() => {
@@ -259,13 +268,15 @@ export function Reservations() {
                 </label>
                 <select
                   value={formData.area}
-                  onChange={(e) => setFormData({...formData, area: e.target.value})}
+                  onChange={(e) => handleAreaChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   required
                 >
                   <option value="">Seleccionar área</option>
                   {areas.map(area => (
-                    <option key={area} value={area}>{area}</option>
+                    <option key={area.id} value={area.name}>
+                      {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -283,31 +294,50 @@ export function Reservations() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hora de Inicio
-                </label>
-                <input
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => setFormData({...formData, startTime: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
+              {!isFullDayReservation && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora de Inicio
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hora de Fin
-                </label>
-                <input
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora de Fin
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {isFullDayReservation && (
+                <div className="col-span-2">
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium text-blue-800">
+                        Esta área se reserva por día completo (00:00 - 23:59)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -388,7 +418,12 @@ export function Reservations() {
                       
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        <span>{reservation.startTime} - {reservation.endTime}</span>
+                        <span>
+                          {reservation.startTime === '00:00' && reservation.endTime === '23:59' 
+                            ? 'Día completo' 
+                            : `${reservation.startTime} - ${reservation.endTime}`
+                          }
+                        </span>
                       </div>
                       
                       <div className="flex items-center gap-2">

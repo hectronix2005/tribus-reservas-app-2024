@@ -397,22 +397,40 @@ app.post('/api/reservations', async (req, res) => {
     }
 
     // Verificar que no hay conflicto de horarios para la misma área y fecha
-    const conflictingReservation = await Reservation.findOne({
-      area,
-      date: new Date(date),
-      status: 'active',
-      $or: [
-        {
-          startTime: { $lt: endTime },
-          endTime: { $gt: startTime }
-        }
-      ]
-    });
-
-    if (conflictingReservation) {
-      return res.status(409).json({ 
-        error: 'Ya existe una reservación para este horario en esta área' 
+    let conflictingReservation;
+    
+    // Para el área de colaboración, verificar si ya existe una reserva para ese día completo
+    if (area === 'Área de Colaboración') {
+      conflictingReservation = await Reservation.findOne({
+        area,
+        date: new Date(date),
+        status: 'active'
       });
+      
+      if (conflictingReservation) {
+        return res.status(409).json({ 
+          error: 'El Área de Colaboración ya está reservada para este día completo' 
+        });
+      }
+    } else {
+      // Para otras áreas, verificar conflictos de horarios específicos
+      conflictingReservation = await Reservation.findOne({
+        area,
+        date: new Date(date),
+        status: 'active',
+        $or: [
+          {
+            startTime: { $lt: endTime },
+            endTime: { $gt: startTime }
+          }
+        ]
+      });
+      
+      if (conflictingReservation) {
+        return res.status(409).json({ 
+          error: 'Ya existe una reservación para este horario en esta área' 
+        });
+      }
     }
 
     // Crear la reservación

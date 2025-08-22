@@ -5,6 +5,7 @@ export interface Area {
   description?: string;
   color: string;
   isMeetingRoom: boolean;
+  isFullDayReservation?: boolean; // Nueva propiedad para reservas por día completo
 }
 
 export interface Reservation {

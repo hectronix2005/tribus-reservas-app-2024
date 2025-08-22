@@ -63,11 +63,12 @@ const initialState: AppState = {
     },
     {
       id: '3',
-      name: 'Área de Trabajo Colaborativo',
+      name: 'Área de Colaboración',
       capacity: 30,
-      description: 'Espacio abierto para trabajo en equipo',
+      description: 'Espacio abierto para trabajo en equipo - Se reserva por día completo',
       color: '#f59e0b',
-      isMeetingRoom: false
+      isMeetingRoom: false,
+      isFullDayReservation: true
     },
     {
       id: '4',
