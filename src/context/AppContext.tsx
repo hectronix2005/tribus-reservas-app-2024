@@ -539,12 +539,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     console.log('🚪 Iniciando logout...');
     
-    // Limpiar token de autenticación si existe
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem('authToken');
-      console.log('🗑️ Token removido de localStorage');
-    }
-    
     // Limpiar sessionStorage
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('tribus-auth');
