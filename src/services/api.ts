@@ -379,32 +379,7 @@ export const reservationService = {
   },
 };
 
-// Servicios de áreas (placeholder para futuras implementaciones)
-export const areaService = {
-  async getAllAreas() {
-    return apiRequest<any[]>('/areas');
-  },
 
-  async createArea(areaData: any) {
-    return apiRequest<{ area: any }>('/areas', {
-      method: 'POST',
-      body: JSON.stringify(areaData),
-    });
-  },
-
-  async updateArea(id: string, areaData: any) {
-    return apiRequest<{ area: any }>(`/areas/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(areaData),
-    });
-  },
-
-  async deleteArea(id: string) {
-    return apiRequest<{ message: string }>(`/areas/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
 
 // Servicios de plantillas (placeholder para futuras implementaciones)
 export const templateService = {
