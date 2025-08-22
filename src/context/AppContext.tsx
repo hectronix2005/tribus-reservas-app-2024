@@ -246,7 +246,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = state;
   }
 
-  // Ya no guardamos en localStorage - todo se maneja desde MongoDB
+  // Todo se maneja desde MongoDB
 
   return newState;
 }
@@ -265,7 +265,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Cargar estado inicial - sin localStorage, solo estado inicial
+  // Cargar estado inicial desde MongoDB
   const loadInitialState = (): AppState => {
     return initialState;
   };
@@ -420,7 +420,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    // Limpiar token del localStorage (si existe)
+    // Limpiar token de autenticación si existe
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.removeItem('authToken');
     }
