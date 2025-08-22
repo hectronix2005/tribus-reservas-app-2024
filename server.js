@@ -180,7 +180,13 @@ app.get('/api/areas/:id', async (req, res) => {
 
 app.post('/api/areas', async (req, res) => {
   try {
-    const area = new Area(req.body);
+    // Generar un ID único para el área
+    const areaData = {
+      ...req.body,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    };
+    
+    const area = new Area(areaData);
     await area.save();
     res.status(201).json({ message: 'Área creada exitosamente', area });
   } catch (error) {
@@ -241,7 +247,14 @@ app.get('/api/templates/:id', async (req, res) => {
 
 app.post('/api/templates', async (req, res) => {
   try {
-    const template = new Template(req.body);
+    // Generar un ID único para el template
+    const templateData = {
+      ...req.body,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString()
+    };
+    
+    const template = new Template(templateData);
     await template.save();
     res.status(201).json({ message: 'Template creado exitosamente', template });
   } catch (error) {
