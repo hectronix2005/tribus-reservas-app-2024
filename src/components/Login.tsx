@@ -29,11 +29,14 @@ export function Login() {
     // Guardar token en sessionStorage para persistencia
     if (typeof window !== 'undefined' && response.token) {
       sessionStorage.setItem('authToken', response.token);
+      console.log('💾 Token guardado en sessionStorage');
     }
     
     // Establecer usuario autenticado directamente en el estado de la aplicación
     dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
     dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+    
+    console.log('✅ Login exitoso, sesión establecida');
     
     // Cargar usuarios desde MongoDB después del login exitoso
     try {

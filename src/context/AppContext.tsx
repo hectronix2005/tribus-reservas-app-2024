@@ -206,10 +206,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
       // Guardar estado de autenticación en sessionStorage
       try {
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('tribus-auth', JSON.stringify({
+          const authData = {
             currentUser: action.payload,
             isAuthenticated: newState.auth.isAuthenticated
-          }));
+          };
+          sessionStorage.setItem('tribus-auth', JSON.stringify(authData));
+          console.log('💾 Sesión guardada en sessionStorage:', authData);
         }
       } catch (error) {
         console.error('❌ Error guardando sesión:', error);
@@ -220,10 +222,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
       // Guardar estado de autenticación en sessionStorage
       try {
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('tribus-auth', JSON.stringify({
+          const authData = {
             currentUser: newState.auth.currentUser,
             isAuthenticated: action.payload
-          }));
+          };
+          sessionStorage.setItem('tribus-auth', JSON.stringify(authData));
+          console.log('💾 Estado de autenticación guardado en sessionStorage:', authData);
         }
       } catch (error) {
         console.error('❌ Error guardando sesión:', error);
@@ -301,7 +305,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       if (typeof window !== 'undefined') {
         const savedAuth = sessionStorage.getItem('tribus-auth');
-        if (savedAuth) {
+        const token = sessionStorage.getItem('authToken');
+        console.log('🔍 Debug sessionStorage:', {
+          savedAuth: savedAuth ? 'exists' : 'not found',
+          token: token ? 'exists' : 'not found',
+          savedAuthContent: savedAuth
+        });
+        
+        if (savedAuth && token) {
           const authData = JSON.parse(savedAuth);
           console.log('🔄 Restaurando sesión desde sessionStorage:', authData);
           return {
@@ -314,6 +325,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               error: null
             }
           };
+        } else {
+          console.log('⚠️ No se encontró sesión completa en sessionStorage');
         }
       }
     } catch (error) {
@@ -329,20 +342,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAndRestoreSession = async () => {
       try {
-        // Si hay un usuario autenticado en el estado, verificar que sigue siendo válido
+        // Si hay un usuario autenticado en el estado, verificar que el token existe
         if (state.auth.isAuthenticated && state.auth.currentUser) {
           console.log('🔄 Verificando sesión existente...');
           
-          // Intentar obtener el perfil del usuario para verificar que la sesión sigue siendo válida
-          try {
-            const profile = await authService.getProfile();
-            console.log('✅ Sesión válida, usuario:', profile);
-            
-            // Actualizar el usuario actual con la información más reciente
-            dispatch({ type: 'SET_CURRENT_USER', payload: profile });
-          } catch (error) {
-            console.log('❌ Sesión expirada o inválida, limpiando...');
-            // Si la sesión no es válida, limpiar
+          // Verificar que el token existe en sessionStorage
+          const token = sessionStorage.getItem('authToken');
+          if (token) {
+            console.log('✅ Token encontrado, sesión válida');
+            // La sesión se mantiene válida si el token existe
+          } else {
+            console.log('❌ Token no encontrado, limpiando sesión...');
+            // Si no hay token, limpiar la sesión
             dispatch({ type: 'LOGOUT' });
           }
         }
@@ -502,18 +513,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    console.log('🚪 Iniciando logout...');
+    
     // Limpiar token de autenticación si existe
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.removeItem('authToken');
+      console.log('🗑️ Token removido de localStorage');
     }
     
     // Limpiar sessionStorage
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('tribus-auth');
+      sessionStorage.removeItem('authToken');
+      console.log('🗑️ Datos de sesión removidos de sessionStorage');
     }
     
     // Resetear estado de autenticación
     dispatch({ type: 'LOGOUT' });
+    console.log('✅ Logout completado');
   };
 
   const value: AppContextType = {
