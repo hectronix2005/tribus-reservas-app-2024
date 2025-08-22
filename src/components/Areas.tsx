@@ -105,11 +105,18 @@ export function Areas() {
   const handleDelete = async (areaId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta área? Esta acción no se puede deshacer.')) {
       try {
+        // Find the area object to get the MongoDB _id
+        const area = state.areas.find(a => a.id === areaId);
+        if (!area) {
+          console.error('❌ Área no encontrada:', areaId);
+          return;
+        }
+        
         // Use the MongoDB _id for backend operations
-        const areaId = area._id || area.id;
-        console.log('🔄 Eliminando área:', areaId);
-        await areaService.deleteArea(areaId);
-        console.log('✅ Área eliminada:', areaId);
+        const mongoId = area._id || area.id;
+        console.log('🔄 Eliminando área:', mongoId);
+        await areaService.deleteArea(mongoId);
+        console.log('✅ Área eliminada:', mongoId);
         
         // Remove from local state
         dispatch({ type: 'DELETE_AREA', payload: areaId });
