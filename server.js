@@ -178,7 +178,7 @@ app.post('/api/areas', async (req, res) => {
 
 app.put('/api/areas/:id', async (req, res) => {
   try {
-    const area = await Area.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    const area = await Area.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!area) {
       return res.status(404).json({ error: 'Área no encontrada' });
     }
@@ -191,7 +191,7 @@ app.put('/api/areas/:id', async (req, res) => {
 
 app.delete('/api/areas/:id', async (req, res) => {
   try {
-    const area = await Area.findOneAndDelete({ id: req.params.id });
+    const area = await Area.findByIdAndDelete(req.params.id);
     if (!area) {
       return res.status(404).json({ error: 'Área no encontrada' });
     }
@@ -226,7 +226,10 @@ app.post('/api/templates', async (req, res) => {
 
 app.put('/api/templates/:id', async (req, res) => {
   try {
-    const template = await Template.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    const template = await Template.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!template) {
+      return res.status(404).json({ error: 'Template no encontrado' });
+    }
     res.json({ message: 'Template actualizado exitosamente', template });
   } catch (error) {
     console.error('Error actualizando template:', error);
@@ -236,7 +239,7 @@ app.put('/api/templates/:id', async (req, res) => {
 
 app.delete('/api/templates/:id', async (req, res) => {
   try {
-    const template = await Template.findOneAndDelete({ id: req.params.id });
+    const template = await Template.findByIdAndDelete(req.params.id);
     if (!template) {
       return res.status(404).json({ error: 'Template no encontrado' });
     }
