@@ -54,6 +54,9 @@ export function Reservations() {
       startTime: isFullDay ? '00:00' : '09:00',
       endTime: isFullDay ? '23:59' : '10:00'
     }));
+
+    // Limpiar error cuando cambie el área
+    setError(null);
   };
 
   // Obtener áreas del contexto
@@ -63,10 +66,74 @@ export function Reservations() {
   const selectedArea = areas.find(area => area.name === formData.area);
   const isFullDayReservation = selectedArea?.isFullDayReservation || false;
 
+  // Función para verificar conflictos de horarios
+  const getConflictingReservations = (area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
+    return reservations.filter(reservation => {
+      // Excluir la reservación que se está editando
+      if (excludeId && reservation._id === excludeId) return false;
+      
+      // Verificar que sea la misma área y fecha
+      if (reservation.area !== area || reservation.date !== date) return false;
+      
+      // Verificar que la reservación esté activa
+      if (reservation.status !== 'active') return false;
+      
+      // Verificar conflicto de horarios
+      const reservationStart = reservation.startTime;
+      const reservationEnd = reservation.endTime;
+      
+      // Hay conflicto si los horarios se solapan
+      return (
+        (startTime < reservationEnd && endTime > reservationStart) ||
+        (reservationStart < endTime && reservationEnd > startTime)
+      );
+    });
+  };
+
+  // Función para generar opciones de horarios disponibles
+  const getAvailableTimeSlots = (area: string, date: string) => {
+    if (!area || !date) return [];
+    
+    const timeSlots = [];
+    const startHour = 8; // 8:00 AM
+    const endHour = 18;  // 6:00 PM
+    const slotDuration = 60; // 60 minutos por slot
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += slotDuration) {
+        const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const endTime = `${hour.toString().padStart(2, '0')}:${(minute + slotDuration).toString().padStart(2, '0')}`;
+        
+        // Verificar si este horario está disponible
+        const conflicts = getConflictingReservations(area, date, startTime, endTime, editingReservation?._id);
+        
+        if (conflicts.length === 0) {
+          timeSlots.push({
+            start: startTime,
+            end: endTime,
+            label: `${startTime} - ${endTime}`
+          });
+        }
+      }
+    }
+    
+    return timeSlots;
+  };
+
+  // Obtener horarios disponibles para el área y fecha seleccionados
+  const availableTimeSlots = getAvailableTimeSlots(formData.area, formData.date);
+
   // Cargar reservaciones al montar el componente
   useEffect(() => {
     loadReservations();
   }, []);
+
+  // Recargar reservaciones cuando cambie el área o fecha para actualizar horarios disponibles
+  useEffect(() => {
+    if (formData.area && formData.date) {
+      loadReservations();
+    }
+  }, [formData.area, formData.date]);
 
   const loadReservations = async () => {
     try {
@@ -88,6 +155,35 @@ export function Reservations() {
     if (!currentUser) {
       setError('Debe iniciar sesión para crear una reservación');
       return;
+    }
+
+    // Verificar conflictos de horarios antes de enviar
+    if (!isFullDayReservation) {
+      const conflicts = getConflictingReservations(
+        formData.area, 
+        formData.date, 
+        formData.startTime, 
+        formData.endTime, 
+        editingReservation?._id
+      );
+      
+      if (conflicts.length > 0) {
+        setError('El horario seleccionado ya está reservado. Por favor, seleccione otro horario.');
+        return;
+      }
+    } else {
+      // Para reservas por día completo, verificar que no haya ninguna reservación activa
+      const existingReservations = reservations.filter(r => 
+        r.area === formData.area && 
+        r.date === formData.date && 
+        r.status === 'active' &&
+        r._id !== editingReservation?._id
+      );
+      
+      if (existingReservations.length > 0) {
+        setError('Esta área ya está reservada para el día completo seleccionado.');
+        return;
+      }
     }
 
     try {
@@ -288,7 +384,10 @@ export function Reservations() {
                 <input
                   type="date"
                   value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, date: e.target.value});
+                    setError(null); // Limpiar error cuando cambie la fecha
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   required
                 />
@@ -298,29 +397,64 @@ export function Reservations() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora de Inicio
+                      Horario Disponible
                     </label>
-                    <input
-                      type="time"
-                      value={formData.startTime}
-                      onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                    <select
+                      value={`${formData.startTime}-${formData.endTime}`}
+                      onChange={(e) => {
+                        const [start, end] = e.target.value.split('-');
+                        setFormData({...formData, startTime: start, endTime: end});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       required
-                    />
+                    >
+                      <option value="">Seleccionar horario</option>
+                      {availableTimeSlots.map((slot, index) => (
+                        <option key={index} value={`${slot.start}-${slot.end}`}>
+                          {slot.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-sm text-gray-500">
+                        {availableTimeSlots.length} horario{availableTimeSlots.length !== 1 ? 's' : ''} disponible{availableTimeSlots.length !== 1 ? 's' : ''}
+                      </span>
+                      {availableTimeSlots.length > 0 && (
+                        <span className="text-sm text-green-600">
+                          ✓ Horarios libres
+                        </span>
+                      )}
+                    </div>
+                    {availableTimeSlots.length === 0 && formData.area && formData.date && (
+                      <p className="text-sm text-red-600 mt-1">
+                        No hay horarios disponibles para esta fecha y área
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora de Fin
-                    </label>
-                    <input
-                      type="time"
-                      value={formData.endTime}
-                      onChange={(e) => setFormData({...formData, endTime: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      required
-                    />
-                  </div>
+                  {/* Mostrar reservaciones existentes para la fecha y área seleccionadas */}
+                  {formData.area && formData.date && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reservaciones existentes para {formData.area} el {new Date(formData.date).toLocaleDateString('es-ES')}:
+                      </label>
+                      <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
+                        {reservations
+                          .filter(r => r.area === formData.area && r.date === formData.date && r.status === 'active')
+                          .map((reservation, index) => (
+                            <div key={index} className="text-sm text-gray-600 mb-1">
+                              <span className="font-medium">
+                                {reservation.startTime} - {reservation.endTime}
+                              </span>
+                              {reservation.notes && ` (${reservation.notes})`}
+                            </div>
+                          ))}
+                        {reservations.filter(r => r.area === formData.area && r.date === formData.date && r.status === 'active').length === 0 && (
+                          <p className="text-sm text-gray-500">No hay reservaciones para esta fecha</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
