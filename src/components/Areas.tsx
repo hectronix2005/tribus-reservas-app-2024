@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Building2, Plus, Edit, Trash2, Users } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Area } from '../types';
+import { areaService } from '../services/api';
 
 export function Areas() {
   const { state, dispatch } = useApp();
@@ -12,7 +13,8 @@ export function Areas() {
     capacity: 1,
     description: '',
     color: '#3b82f6',
-    isMeetingRoom: false
+    isMeetingRoom: false,
+    isFullDayReservation: false
   });
 
   const colorOptions = [
@@ -20,42 +22,68 @@ export function Areas() {
     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingArea) {
-      // Update existing area
-      const updatedArea: Area = {
-        ...editingArea,
-        name: formData.name,
-        capacity: formData.capacity,
-        description: formData.description,
-        color: formData.color
-      };
-      dispatch({ type: 'UPDATE_AREA', payload: updatedArea });
-    } else {
-      // Create new area
-      const newArea: Area = {
-        id: Date.now().toString(),
-        name: formData.name,
-        capacity: formData.capacity,
-        description: formData.description,
-        color: formData.color,
-        isMeetingRoom: formData.isMeetingRoom
-      };
-      dispatch({ type: 'ADD_AREA', payload: newArea });
-    }
+    try {
+      if (editingArea) {
+        // Update existing area
+        const updatedAreaData = {
+          name: formData.name,
+          capacity: formData.capacity,
+          description: formData.description,
+          color: formData.color,
+          isMeetingRoom: formData.isMeetingRoom,
+          isFullDayReservation: formData.isFullDayReservation
+        };
+        
+        console.log('🔄 Actualizando área:', editingArea.id, updatedAreaData);
+        const response = await areaService.updateArea(editingArea.id, updatedAreaData);
+        console.log('✅ Área actualizada:', response);
+        
+        // Update local state with the response from backend
+        const updatedArea: Area = {
+          ...editingArea,
+          ...response
+        };
+        dispatch({ type: 'UPDATE_AREA', payload: updatedArea });
+      } else {
+        // Create new area
+        const newAreaData = {
+          name: formData.name,
+          capacity: formData.capacity,
+          description: formData.description,
+          color: formData.color,
+          isMeetingRoom: formData.isMeetingRoom,
+          isFullDayReservation: formData.isFullDayReservation
+        };
+        
+        console.log('🔄 Creando nueva área:', newAreaData);
+        const response = await areaService.createArea(newAreaData);
+        console.log('✅ Área creada:', response);
+        
+        // Add to local state with the response from backend
+        const newArea: Area = {
+          ...response,
+          id: response._id || response.id
+        };
+        dispatch({ type: 'ADD_AREA', payload: newArea });
+      }
 
-    // Reset form
-    setFormData({
-      name: '',
-      capacity: 1,
-      description: '',
-      color: '#3b82f6',
-      isMeetingRoom: false
-    });
-    setShowForm(false);
-    setEditingArea(null);
+      // Reset form
+      setFormData({
+        name: '',
+        capacity: 1,
+        description: '',
+        color: '#3b82f6',
+        isMeetingRoom: false
+      });
+      setShowForm(false);
+      setEditingArea(null);
+    } catch (error) {
+      console.error('❌ Error en operación de área:', error);
+      alert('Error al guardar el área. Por favor, inténtalo de nuevo.');
+    }
   };
 
   const handleEdit = (area: Area) => {
@@ -65,14 +93,25 @@ export function Areas() {
       capacity: area.capacity,
       description: area.description || '',
       color: area.color,
-      isMeetingRoom: area.isMeetingRoom
+      isMeetingRoom: area.isMeetingRoom,
+      isFullDayReservation: area.isFullDayReservation || false
     });
     setShowForm(true);
   };
 
-  const handleDelete = (areaId: string) => {
+  const handleDelete = async (areaId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta área? Esta acción no se puede deshacer.')) {
-      dispatch({ type: 'DELETE_AREA', payload: areaId });
+      try {
+        console.log('🔄 Eliminando área:', areaId);
+        await areaService.deleteArea(areaId);
+        console.log('✅ Área eliminada:', areaId);
+        
+        // Remove from local state
+        dispatch({ type: 'DELETE_AREA', payload: areaId });
+      } catch (error) {
+        console.error('❌ Error eliminando área:', error);
+        alert('Error al eliminar el área. Por favor, inténtalo de nuevo.');
+      }
     }
   };
 
@@ -82,7 +121,8 @@ export function Areas() {
       capacity: 1,
       description: '',
       color: '#3b82f6',
-      isMeetingRoom: false
+      isMeetingRoom: false,
+      isFullDayReservation: false
     });
     setShowForm(false);
     setEditingArea(null);
@@ -158,6 +198,15 @@ export function Areas() {
                     {area.isMeetingRoom ? 'Sala de Juntas' : 'Área de Trabajo'}
                   </span>
                 </div>
+
+                {area.isFullDayReservation && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Reserva:</span>
+                    <span className="font-medium text-orange-600">
+                      Día completo
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Reservas activas:</span>
@@ -248,6 +297,19 @@ export function Areas() {
                   />
                   <label htmlFor="isMeetingRoom" className="text-sm font-medium text-gray-700">
                     Es una sala de juntas (se reserva completa)
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="isFullDayReservation"
+                    checked={formData.isFullDayReservation}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isFullDayReservation: e.target.checked }))}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label htmlFor="isFullDayReservation" className="text-sm font-medium text-gray-700">
+                    Se reserva por día completo (no por horas)
                   </label>
                 </div>
 
