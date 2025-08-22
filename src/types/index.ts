@@ -1,5 +1,6 @@
 export interface Area {
   id: string;
+  _id?: string; // MongoDB ObjectId
   name: string;
   capacity: number;
   description?: string;
