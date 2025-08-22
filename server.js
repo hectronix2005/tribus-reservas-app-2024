@@ -165,6 +165,19 @@ app.get('/api/areas', async (req, res) => {
   }
 });
 
+app.get('/api/areas/:id', async (req, res) => {
+  try {
+    const area = await Area.findById(req.params.id);
+    if (!area) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+    res.json(area);
+  } catch (error) {
+    console.error('Error obteniendo área:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 app.post('/api/areas', async (req, res) => {
   try {
     const area = new Area(req.body);
@@ -209,6 +222,19 @@ app.get('/api/templates', async (req, res) => {
     res.json(templates);
   } catch (error) {
     console.error('Error obteniendo templates:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/templates/:id', async (req, res) => {
+  try {
+    const template = await Template.findById(req.params.id);
+    if (!template) {
+      return res.status(404).json({ error: 'Template no encontrado' });
+    }
+    res.json(template);
+  } catch (error) {
+    console.error('Error obteniendo template:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
