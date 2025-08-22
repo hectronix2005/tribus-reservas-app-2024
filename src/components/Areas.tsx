@@ -37,14 +37,16 @@ export function Areas() {
           isFullDayReservation: formData.isFullDayReservation
         };
         
-        console.log('🔄 Actualizando área:', editingArea.id, updatedAreaData);
-        const response = await areaService.updateArea(editingArea.id, updatedAreaData);
+        // Use the MongoDB _id for backend operations
+        const areaId = editingArea._id || editingArea.id;
+        console.log('🔄 Actualizando área:', areaId, updatedAreaData);
+        const response = await areaService.updateArea(areaId, updatedAreaData);
         console.log('✅ Área actualizada:', response);
         
         // Update local state with the response from backend
         const updatedArea: Area = {
           ...editingArea,
-          ...response
+          ...response.area
         };
         dispatch({ type: 'UPDATE_AREA', payload: updatedArea });
       } else {
@@ -64,8 +66,8 @@ export function Areas() {
         
         // Add to local state with the response from backend
         const newArea: Area = {
-          ...response,
-          id: response._id || response.id
+          ...response.area,
+          id: response.area._id || response.area.id
         };
         dispatch({ type: 'ADD_AREA', payload: newArea });
       }
@@ -103,6 +105,8 @@ export function Areas() {
   const handleDelete = async (areaId: string) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar esta área? Esta acción no se puede deshacer.')) {
       try {
+        // Use the MongoDB _id for backend operations
+        const areaId = area._id || area.id;
         console.log('🔄 Eliminando área:', areaId);
         await areaService.deleteArea(areaId);
         console.log('✅ Área eliminada:', areaId);

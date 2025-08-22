@@ -261,25 +261,47 @@ export const userService = {
 // Servicios de áreas
 export const areaService = {
   async getAllAreas() {
-    return apiRequest<any[]>('/areas');
+    const areas = await apiRequest<any[]>('/areas');
+    return areas.map(area => ({
+      ...area,
+      id: area._id || area.id
+    }));
   },
 
   async getAreaById(id: string) {
-    return apiRequest<any>(`/areas/${id}`);
+    const area = await apiRequest<any>(`/areas/${id}`);
+    return {
+      ...area,
+      id: area._id || area.id
+    };
   },
 
   async createArea(areaData: any) {
-    return apiRequest<any>('/areas', {
+    const response = await apiRequest<any>('/areas', {
       method: 'POST',
       body: JSON.stringify(areaData),
     });
+    return {
+      ...response,
+      area: {
+        ...response.area,
+        id: response.area._id || response.area.id
+      }
+    };
   },
 
   async updateArea(id: string, areaData: any) {
-    return apiRequest<any>(`/areas/${id}`, {
+    const response = await apiRequest<any>(`/areas/${id}`, {
       method: 'PUT',
       body: JSON.stringify(areaData),
     });
+    return {
+      ...response,
+      area: {
+        ...response.area,
+        id: response.area._id || response.area.id
+      }
+    };
   },
 
   async deleteArea(id: string) {
