@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
-import { userService, areaService, templateService, authService } from '../services/api';
+import { userService, areaService, templateService } from '../services/api';
 
 interface AppState {
   areas: Area[];
@@ -342,28 +342,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAndRestoreSession = async () => {
       try {
-        // Si hay un usuario autenticado en el estado, verificar que el token existe
-        if (state.auth.isAuthenticated && state.auth.currentUser) {
-          console.log('🔄 Verificando sesión existente...');
-          
-          // Verificar que el token existe en sessionStorage
-          const token = sessionStorage.getItem('authToken');
-          if (token) {
-            console.log('✅ Token encontrado, sesión válida');
-            // La sesión se mantiene válida si el token existe
-          } else {
-            console.log('❌ Token no encontrado, limpiando sesión...');
-            // Si no hay token, limpiar la sesión
-            dispatch({ type: 'LOGOUT' });
+        // Verificar que el token existe en sessionStorage
+        const token = sessionStorage.getItem('authToken');
+        const savedAuth = sessionStorage.getItem('tribus-auth');
+        
+        console.log('🔍 Verificando sesión al inicializar:', {
+          hasToken: !!token,
+          hasSavedAuth: !!savedAuth,
+          currentAuthState: {
+            isAuthenticated: state.auth.isAuthenticated,
+            hasCurrentUser: !!state.auth.currentUser
           }
+        });
+        
+        // Si hay token pero no hay usuario autenticado en el estado, restaurar la sesión
+        if (token && savedAuth && !state.auth.isAuthenticated) {
+          try {
+            const authData = JSON.parse(savedAuth);
+            console.log('🔄 Restaurando sesión desde sessionStorage:', authData);
+            
+            dispatch({ type: 'SET_CURRENT_USER', payload: authData.currentUser });
+            dispatch({ type: 'SET_AUTHENTICATED', payload: authData.isAuthenticated });
+            
+            console.log('✅ Sesión restaurada exitosamente');
+          } catch (error) {
+            console.error('❌ Error restaurando sesión:', error);
+            // Si hay error al parsear, limpiar datos corruptos
+            sessionStorage.removeItem('tribus-auth');
+            sessionStorage.removeItem('authToken');
+          }
+        } else if (!token && state.auth.isAuthenticated) {
+          // Si no hay token pero hay usuario autenticado, limpiar la sesión
+          console.log('❌ Token no encontrado, limpiando sesión...');
+          dispatch({ type: 'LOGOUT' });
+        } else if (token && state.auth.isAuthenticated) {
+          console.log('✅ Sesión válida, no se requiere acción');
+        } else {
+          console.log('ℹ️ No hay sesión activa');
         }
       } catch (error) {
         console.error('❌ Error verificando sesión:', error);
       }
     };
 
-    checkAndRestoreSession();
-  }, []);
+    // Ejecutar después de un pequeño delay para asegurar que el estado inicial se ha cargado
+    setTimeout(checkAndRestoreSession, 100);
+  }, [state.auth.isAuthenticated, state.auth.currentUser]);
 
   // Cargar datos desde MongoDB al inicializar
   useEffect(() => {
