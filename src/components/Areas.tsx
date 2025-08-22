@@ -76,7 +76,8 @@ export function Areas() {
         capacity: 1,
         description: '',
         color: '#3b82f6',
-        isMeetingRoom: false
+        isMeetingRoom: false,
+        isFullDayReservation: false
       });
       setShowForm(false);
       setEditingArea(null);
