@@ -34,10 +34,23 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 rounded-lg overflow-hidden">
+                  <img 
+                    src="/images/tribus-logo.svg" 
+                    alt="Logo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback si la imagen no carga
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="w-full h-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center hidden">
+                    <span className="text-white font-bold text-lg">T</span>
+                  </div>
                 </div>
-                <h1 className="text-xl font-bold text-gray-900">TRIBUS</h1>
+                <h1 className="text-xl font-bold text-gray-900">Sistema de Reservas</h1>
               </div>
             </div>
           </div>

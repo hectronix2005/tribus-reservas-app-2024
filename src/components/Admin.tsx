@@ -59,7 +59,7 @@ export function Admin() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-            a.download = `reservas_tribus_${formatDateInBogota(new Date(), 'yyyy-MM-dd')}.csv`;
+            a.download = `reservas_${formatDateInBogota(new Date(), 'yyyy-MM-dd')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };

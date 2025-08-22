@@ -11,6 +11,11 @@ interface Reservation {
   date: string;
   startTime: string;
   endTime: string;
+  contactPerson: string;
+  teamName: string;
+  contactEmail: string;
+  contactPhone: string;
+  templateId?: string | null;
   status: 'active' | 'cancelled' | 'completed';
   notes: string;
   createdAt: string;
@@ -22,6 +27,11 @@ interface ReservationFormData {
   date: string;
   startTime: string;
   endTime: string;
+  contactPerson: string;
+  teamName: string;
+  contactEmail: string;
+  contactPhone: string;
+  templateId: string;
   notes: string;
 }
 
@@ -39,6 +49,11 @@ export function Reservations() {
     date: new Date().toISOString().split('T')[0],
     startTime: '09:00',
     endTime: '10:00',
+    contactPerson: currentUser?.name || '',
+    teamName: '',
+    contactEmail: currentUser?.email || '',
+    contactPhone: '',
+    templateId: '',
     notes: ''
   });
 
@@ -57,6 +72,27 @@ export function Reservations() {
 
     // Limpiar error cuando cambie el área
     setError(null);
+  };
+
+  // Función para manejar la selección de plantilla
+  const handleTemplateChange = (templateId: string) => {
+    if (!templateId) {
+      // Si no se selecciona plantilla, mantener los datos actuales
+      return;
+    }
+
+    const selectedTemplate = state.templates.find(template => template.id === templateId);
+    if (selectedTemplate) {
+      setFormData(prev => ({
+        ...prev,
+        templateId: templateId,
+        contactPerson: selectedTemplate.contactPerson,
+        teamName: selectedTemplate.groupName,
+        contactEmail: selectedTemplate.contactEmail,
+        contactPhone: selectedTemplate.contactPhone,
+        notes: selectedTemplate.notes || prev.notes
+      }));
+    }
   };
 
   // Obtener áreas del contexto
@@ -213,6 +249,11 @@ export function Reservations() {
         date: new Date().toISOString().split('T')[0],
         startTime: '09:00',
         endTime: '10:00',
+        contactPerson: currentUser?.name || '',
+        teamName: '',
+        contactEmail: currentUser?.email || '',
+        contactPhone: '',
+        templateId: '',
         notes: ''
       });
       setShowForm(false);
@@ -267,6 +308,11 @@ export function Reservations() {
       date: new Date(reservation.date).toISOString().split('T')[0],
       startTime: reservation.startTime,
       endTime: reservation.endTime,
+      contactPerson: reservation.contactPerson,
+      teamName: reservation.teamName,
+      contactEmail: reservation.contactEmail,
+      contactPhone: reservation.contactPhone,
+      templateId: reservation.templateId || '',
       notes: reservation.notes
     });
     setShowForm(true);
@@ -280,6 +326,11 @@ export function Reservations() {
       date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
       endTime: '10:00',
+      contactPerson: currentUser?.name || '',
+      teamName: '',
+      contactEmail: currentUser?.email || '',
+      contactPhone: '',
+      templateId: '',
       notes: ''
     });
     setError(null);
@@ -391,6 +442,80 @@ export function Reservations() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del Solicitante
+                </label>
+                <input
+                  type="text"
+                  value={formData.contactPerson}
+                  onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Nombre completo"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Equipo de Trabajo
+                </label>
+                <input
+                  type="text"
+                  value={formData.teamName}
+                  onChange={(e) => setFormData({...formData, teamName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Nombre del equipo"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="email@ejemplo.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.contactPhone}
+                  onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="+57 300 123 4567"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Usar Plantilla (Opcional)
+                </label>
+                <select
+                  value={formData.templateId}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Sin plantilla</option>
+                  {state.templates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} - {template.groupName}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {!isFullDayReservation && (
@@ -542,7 +667,7 @@ export function Reservations() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
-                        <span>{reservation.userName}</span>
+                        <span><strong>Solicitante:</strong> {reservation.contactPerson}</span>
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -564,6 +689,28 @@ export function Reservations() {
                         <MapPin className="w-4 h-4" />
                         <span>{reservation.area}</span>
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">👥</span>
+                        <span><strong>Equipo:</strong> {reservation.teamName}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">📧</span>
+                        <span><strong>Email:</strong> {reservation.contactEmail}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">📞</span>
+                        <span><strong>Teléfono:</strong> {reservation.contactPhone}</span>
+                      </div>
+
+                      {reservation.templateId && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">📋</span>
+                          <span><strong>Plantilla:</strong> {state.templates.find(t => t.id === reservation.templateId)?.name || 'Plantilla'}</span>
+                        </div>
+                      )}
                     </div>
 
                     {reservation.notes && (

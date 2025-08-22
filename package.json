@@ -1,7 +1,7 @@
 {
-  "name": "tribus-reservas",
+  "name": "sistema-reservas",
   "version": "1.0.0",
-  "description": "Sistema de reservas de puestos de trabajo TRIBUS",
+  "description": "Sistema de reservas de puestos de trabajo",
   "private": true,
   "engines": {
     "node": "18.x",

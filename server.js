@@ -78,6 +78,28 @@ const reservationSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+  // Nuevos campos para información del solicitante
+  contactPerson: { 
+    type: String, 
+    required: true 
+  },
+  teamName: { 
+    type: String, 
+    required: true 
+  },
+  contactEmail: { 
+    type: String, 
+    required: true 
+  },
+  contactPhone: { 
+    type: String, 
+    required: true 
+  },
+  // Campo para plantilla (opcional)
+  templateId: { 
+    type: String, 
+    default: null 
+  },
   status: { 
     type: String, 
     enum: ['active', 'cancelled', 'completed'], 
@@ -547,10 +569,24 @@ app.get('/api/reservations/user/:userId', async (req, res) => {
 // Crear nueva reservación (sin autenticación para facilitar el desarrollo)
 app.post('/api/reservations', async (req, res) => {
   try {
-    const { userId, userName, area, date, startTime, endTime, notes } = req.body;
+    const { 
+      userId, 
+      userName, 
+      area, 
+      date, 
+      startTime, 
+      endTime, 
+      contactPerson,
+      teamName,
+      contactEmail,
+      contactPhone,
+      templateId,
+      notes 
+    } = req.body;
 
     // Validar campos requeridos
-    if (!userId || !userName || !area || !date || !startTime || !endTime) {
+    if (!userId || !userName || !area || !date || !startTime || !endTime || 
+        !contactPerson || !teamName || !contactEmail || !contactPhone) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
@@ -605,6 +641,11 @@ app.post('/api/reservations', async (req, res) => {
       date: new Date(date),
       startTime,
       endTime,
+      contactPerson,
+      teamName,
+      contactEmail,
+      contactPhone,
+      templateId: templateId || null,
       notes: notes || ''
     });
 
@@ -628,7 +669,21 @@ app.post('/api/reservations', async (req, res) => {
 // Actualizar reservación (solo el creador o admin)
 app.put('/api/reservations/:id', async (req, res) => {
   try {
-    const { userId, userName, area, date, startTime, endTime, notes, status } = req.body;
+    const { 
+      userId, 
+      userName, 
+      area, 
+      date, 
+      startTime, 
+      endTime, 
+      contactPerson,
+      teamName,
+      contactEmail,
+      contactPhone,
+      templateId,
+      notes, 
+      status 
+    } = req.body;
 
     const reservation = await Reservation.findById(req.params.id);
     if (!reservation) {
@@ -653,6 +708,11 @@ app.put('/api/reservations/:id', async (req, res) => {
     if (date) reservation.date = new Date(date);
     if (startTime) reservation.startTime = startTime;
     if (endTime) reservation.endTime = endTime;
+    if (contactPerson) reservation.contactPerson = contactPerson;
+    if (teamName) reservation.teamName = teamName;
+    if (contactEmail) reservation.contactEmail = contactEmail;
+    if (contactPhone) reservation.contactPhone = contactPhone;
+    if (templateId !== undefined) reservation.templateId = templateId;
     if (notes !== undefined) reservation.notes = notes;
     if (status) reservation.status = status;
     
