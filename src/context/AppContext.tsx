@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
-import { userService, authService } from '../services/api';
+import { userService, areaService, templateService } from '../services/api';
 
 interface AppState {
   areas: Area[];
@@ -42,82 +42,11 @@ type AppAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null };
 
-// Estado inicial sin usuarios locales - se cargarán desde MongoDB
+// Estado inicial - todos los datos se cargarán desde MongoDB
 const initialState: AppState = {
-  areas: [
-    {
-      id: '1',
-      name: 'Sala de Reuniones A',
-      capacity: 20,
-      description: 'Sala principal para reuniones de equipo',
-      color: '#3b82f6',
-      isMeetingRoom: true
-    },
-    {
-      id: '2',
-      name: 'Sala de Reuniones B',
-      capacity: 15,
-      description: 'Sala secundaria para reuniones pequeñas',
-      color: '#10b981',
-      isMeetingRoom: true
-    },
-    {
-      id: '3',
-      name: 'Área de Colaboración',
-      capacity: 30,
-      description: 'Espacio abierto para trabajo en equipo - Se reserva por día completo',
-      color: '#f59e0b',
-      isMeetingRoom: false,
-      isFullDayReservation: true
-    },
-    {
-      id: '4',
-      name: 'Sala de Capacitación',
-      capacity: 25,
-      description: 'Sala equipada para capacitaciones',
-      color: '#8b5cf6',
-      isMeetingRoom: true
-    }
-  ],
+  areas: [], // Se cargarán desde MongoDB
   reservations: [],
-  templates: [
-    {
-      id: '1',
-      name: 'Equipo de Desarrollo',
-      description: 'Plantilla para el equipo de desarrollo',
-      groupName: 'Equipo de Desarrollo',
-      contactPerson: 'Juan Pérez',
-      contactEmail: 'juan.perez@empresa.com',
-      contactPhone: '+1234567890',
-      notes: 'Reunión de planificación semanal',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    },
-    {
-      id: '2',
-      name: 'Equipo de Marketing',
-      description: 'Plantilla para el equipo de marketing',
-      groupName: 'Equipo de Marketing',
-      contactPerson: 'María García',
-      contactEmail: 'maria.garcia@empresa.com',
-      contactPhone: '+1234567891',
-      notes: 'Revisión de campañas',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    },
-    {
-      id: '3',
-      name: 'Reunión de Cliente',
-      description: 'Plantilla para reuniones con clientes',
-      groupName: 'Reunión de Cliente',
-      contactPerson: 'Carlos López',
-      contactEmail: 'carlos.lopez@empresa.com',
-      contactPhone: '+1234567892',
-      notes: 'Presentación de propuestas',
-      isActive: true,
-      createdAt: getCurrentDateString()
-    }
-  ],
+  templates: [], // Se cargarán desde MongoDB
   users: [], // Se cargarán desde MongoDB
   auth: {
     currentUser: null,
@@ -139,15 +68,46 @@ const initialState: AppState = {
   error: null
 };
 
-// Variable global para mantener usuarios durante la sesión - se cargarán desde MongoDB
+// Variables globales para mantener datos durante la sesión - se cargarán desde MongoDB
 let sessionUsers: User[] = [];
+let sessionAreas: Area[] = [];
+let sessionTemplates: ReservationTemplate[] = [];
 
-// Función para debuggear usuarios
-const debugUsers = () => {
-  console.log('=== DEBUG USUARIOS ===');
+// Función para cargar áreas desde MongoDB
+const loadAreasFromMongoDB = async () => {
+  try {
+    console.log('🔄 Cargando áreas desde MongoDB...');
+    const areas = await areaService.getAllAreas();
+    sessionAreas = areas;
+    console.log('✅ Áreas cargadas desde MongoDB:', areas.length);
+    return areas;
+  } catch (error) {
+    console.error('❌ Error cargando áreas desde MongoDB:', error);
+    return [];
+  }
+};
+
+// Función para cargar templates desde MongoDB
+const loadTemplatesFromMongoDB = async () => {
+  try {
+    console.log('🔄 Cargando templates desde MongoDB...');
+    const templates = await templateService.getAllTemplates();
+    sessionTemplates = templates;
+    console.log('✅ Templates cargados desde MongoDB:', templates.length);
+    return templates;
+  } catch (error) {
+    console.error('❌ Error cargando templates desde MongoDB:', error);
+    return [];
+  }
+};
+
+// Función para debuggear datos
+const debugData = () => {
+  console.log('=== DEBUG DATOS ===');
   console.log('sessionUsers:', sessionUsers);
-  console.log('localStorage:', localStorage.getItem('tribus-app-state'));
-  console.log('=====================');
+  console.log('sessionAreas:', sessionAreas);
+  console.log('sessionTemplates:', sessionTemplates);
+  console.log('==================');
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -276,6 +236,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_ERROR':
       newState = { ...state, error: action.payload };
       break;
+    case 'SET_AREAS':
+      newState = { ...state, areas: action.payload };
+      break;
+    case 'SET_TEMPLATES':
+      newState = { ...state, templates: action.payload };
+      break;
     default:
       newState = state;
   }
@@ -306,35 +272,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [state, dispatch] = useReducer(appReducer, loadInitialState());
 
-  // Cargar usuarios desde MongoDB al inicializar
+  // Cargar datos desde MongoDB al inicializar
   useEffect(() => {
-    const loadUsersFromBackend = async () => {
+    const loadDataFromBackend = async () => {
       try {
-        console.log('🔄 Cargando usuarios desde MongoDB...');
+        console.log('🔄 Cargando datos desde MongoDB...');
+        
+        // Cargar usuarios
         const users = await userService.getAllUsers();
         dispatch({ type: 'SET_USERS', payload: users });
         sessionUsers = users;
         console.log('✅ Usuarios cargados desde MongoDB:', users.length);
+        
+        // Cargar áreas
+        const areas = await loadAreasFromMongoDB();
+        dispatch({ type: 'SET_AREAS', payload: areas });
+        
+        // Cargar templates
+        const templates = await loadTemplatesFromMongoDB();
+        dispatch({ type: 'SET_TEMPLATES', payload: templates });
+        
+        console.log('✅ Todos los datos cargados desde MongoDB');
       } catch (error) {
-        console.error('❌ Error cargando usuarios desde MongoDB:', error);
-        // Si falla, mantener array vacío
+        console.error('❌ Error cargando datos desde MongoDB:', error);
+        // Si falla, mantener arrays vacíos
         dispatch({ type: 'SET_USERS', payload: [] });
+        dispatch({ type: 'SET_AREAS', payload: [] });
+        dispatch({ type: 'SET_TEMPLATES', payload: [] });
         sessionUsers = [];
+        sessionAreas = [];
+        sessionTemplates = [];
       }
     };
 
-    // Solo cargar si no hay usuarios y hay un token de autenticación
-    const token = localStorage.getItem('authToken');
-    if (state.users.length === 0 && token) {
-      loadUsersFromBackend();
-    }
+    // Cargar datos al inicializar
+    loadDataFromBackend();
     
-    // Exponer la variable global en window para acceso directo
+    // Exponer las variables globales en window para acceso directo
     (window as any).sessionUsers = sessionUsers;
+    (window as any).sessionAreas = sessionAreas;
+    (window as any).sessionTemplates = sessionTemplates;
     
     // Debug inicial
-    console.log('AppProvider - Usuarios iniciales:', sessionUsers);
-  }, [state.users.length]);
+    console.log('AppProvider - Datos iniciales:', {
+      users: sessionUsers.length,
+      areas: sessionAreas.length,
+      templates: sessionTemplates.length
+    });
+  }, []);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
     const reservationsForDate = state.reservations.filter(
@@ -435,8 +420,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    // Limpiar token del localStorage
-    localStorage.removeItem('authToken');
+    // Limpiar token del localStorage (si existe)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem('authToken');
+    }
     
     // Resetear estado de autenticación
     dispatch({ type: 'LOGOUT' });

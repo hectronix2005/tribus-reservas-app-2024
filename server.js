@@ -99,6 +99,35 @@ const reservationSchema = new mongoose.Schema({
 
 const Reservation = mongoose.model('Reservation', reservationSchema);
 
+// Modelo de Área
+const areaSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  capacity: { type: Number, required: true },
+  description: { type: String },
+  color: { type: String, required: true },
+  isMeetingRoom: { type: Boolean, default: false },
+  isFullDayReservation: { type: Boolean, default: false }
+});
+
+const Area = mongoose.model('Area', areaSchema);
+
+// Modelo de Template
+const templateSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  description: { type: String },
+  groupName: { type: String, required: true },
+  contactPerson: { type: String, required: true },
+  contactEmail: { type: String, required: true },
+  contactPhone: { type: String, required: true },
+  notes: { type: String },
+  isActive: { type: Boolean, default: true },
+  createdAt: { type: String, required: true }
+});
+
+const Template = mongoose.model('Template', templateSchema);
+
 // Middleware de autenticación
 const auth = (req, res, next) => {
   try {
@@ -123,6 +152,99 @@ app.get('/api/health', (req, res) => {
     message: 'TRIBUS Backend API funcionando correctamente',
     timestamp: new Date().toISOString()
   });
+});
+
+// Endpoints para Áreas
+app.get('/api/areas', async (req, res) => {
+  try {
+    const areas = await Area.find();
+    res.json(areas);
+  } catch (error) {
+    console.error('Error obteniendo áreas:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/areas', async (req, res) => {
+  try {
+    const area = new Area(req.body);
+    await area.save();
+    res.status(201).json({ message: 'Área creada exitosamente', area });
+  } catch (error) {
+    console.error('Error creando área:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.put('/api/areas/:id', async (req, res) => {
+  try {
+    const area = await Area.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    if (!area) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+    res.json({ message: 'Área actualizada exitosamente', area });
+  } catch (error) {
+    console.error('Error actualizando área:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.delete('/api/areas/:id', async (req, res) => {
+  try {
+    const area = await Area.findOneAndDelete({ id: req.params.id });
+    if (!area) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+    res.json({ message: 'Área eliminada exitosamente' });
+  } catch (error) {
+    console.error('Error eliminando área:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoints para Templates
+app.get('/api/templates', async (req, res) => {
+  try {
+    const templates = await Template.find();
+    res.json(templates);
+  } catch (error) {
+    console.error('Error obteniendo templates:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.post('/api/templates', async (req, res) => {
+  try {
+    const template = new Template(req.body);
+    await template.save();
+    res.status(201).json({ message: 'Template creado exitosamente', template });
+  } catch (error) {
+    console.error('Error creando template:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.put('/api/templates/:id', async (req, res) => {
+  try {
+    const template = await Template.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+    res.json({ message: 'Template actualizado exitosamente', template });
+  } catch (error) {
+    console.error('Error actualizando template:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.delete('/api/templates/:id', async (req, res) => {
+  try {
+    const template = await Template.findOneAndDelete({ id: req.params.id });
+    if (!template) {
+      return res.status(404).json({ error: 'Template no encontrado' });
+    }
+    res.json({ message: 'Template eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error eliminando template:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // Endpoint para crear usuarios sin autenticación

@@ -1,0 +1,23 @@
+=== RESUMEN DE BACKUP MONGODB TRIBUS ===
+Fecha: Thu Aug 21 21:56:13 -05 2025
+Timestamp: 20250821_215603
+Base de datos: tribus
+
+=== ESTADÍSTICAS ===
+Usuarios: 8
+Reservaciones: 3
+
+=== ARCHIVOS CREADOS ===
+- users_tribus_backup_20250821_215603.json
+- reservations_tribus_backup_20250821_215603.json
+- complete_backup_tribus_backup_20250821_215603/ (directorio completo)
+
+=== INSTRUCCIONES DE RESTAURACIÓN ===
+Para restaurar usuarios:
+mongoimport --uri="mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0" --collection=users --file="users_tribus_backup_20250821_215603.json" --jsonArray
+
+Para restaurar reservaciones:
+mongoimport --uri="mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0" --collection=reservations --file="reservations_tribus_backup_20250821_215603.json" --jsonArray
+
+Para restaurar backup completo:
+mongorestore --uri="mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0" "complete_backup_tribus_backup_20250821_215603/"

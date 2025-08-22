@@ -245,6 +245,68 @@ export const userService = {
   }
 };
 
+// Servicios de áreas
+export const areaService = {
+  async getAllAreas() {
+    return apiRequest<any[]>('/areas');
+  },
+
+  async getAreaById(id: string) {
+    return apiRequest<any>(`/areas/${id}`);
+  },
+
+  async createArea(areaData: any) {
+    return apiRequest<any>('/areas', {
+      method: 'POST',
+      body: JSON.stringify(areaData),
+    });
+  },
+
+  async updateArea(id: string, areaData: any) {
+    return apiRequest<any>(`/areas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(areaData),
+    });
+  },
+
+  async deleteArea(id: string) {
+    return apiRequest<any>(`/areas/${id}`, {
+      method: 'DELETE',
+    });
+  }
+};
+
+// Servicios de templates
+export const templateService = {
+  async getAllTemplates() {
+    return apiRequest<any[]>('/templates');
+  },
+
+  async getTemplateById(id: string) {
+    return apiRequest<any>(`/templates/${id}`);
+  },
+
+  async createTemplate(templateData: any) {
+    return apiRequest<any>('/templates', {
+      method: 'POST',
+      body: JSON.stringify(templateData),
+    });
+  },
+
+  async updateTemplate(id: string, templateData: any) {
+    return apiRequest<any>(`/templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(templateData),
+    });
+  },
+
+  async deleteTemplate(id: string) {
+    return apiRequest<any>(`/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+};
+
 // Servicios de reservas con protocolo automático
 export const reservationService = {
   async getAllReservations() {
