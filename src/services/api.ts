@@ -381,32 +381,7 @@ export const reservationService = {
 
 
 
-// Servicios de plantillas (placeholder para futuras implementaciones)
-export const templateService = {
-  async getAllTemplates() {
-    return apiRequest<any[]>('/templates');
-  },
 
-  async createTemplate(templateData: any) {
-    return apiRequest<{ template: any }>('/templates', {
-      method: 'POST',
-      body: JSON.stringify(templateData),
-    });
-  },
-
-  async updateTemplate(id: string, templateData: any) {
-    return apiRequest<{ template: any }>(`/templates/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(templateData),
-    });
-  },
-
-  async deleteTemplate(id: string) {
-    return apiRequest<{ message: string }>(`/templates/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
 
 // Función para verificar si el backend está disponible
 export const checkBackendHealth = async () => {
