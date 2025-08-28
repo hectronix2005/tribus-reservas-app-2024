@@ -832,8 +832,9 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor TRIBUS ejecutándose en puerto ${PORT}`);
-  console.log(`📊 API disponible en http://localhost:${PORT}/api`);
-  console.log(`🌐 Frontend disponible en http://localhost:${PORT}`);
+  console.log(`📊 API disponible en /api`);
+  console.log(`🌐 Frontend disponible en /`);
   console.log(`🗄️  Base de datos: MongoDB Atlas (remota)`);
   console.log(`🔒 Modo: Solo conexión remota a MongoDB Atlas`);
+  console.log(`☁️  Desplegado en: Heroku`);
 });
