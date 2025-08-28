@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // Configuración de seguridad
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com',
+  origin: process.env.FRONTEND_URL || 'https://tribus-reservas-app-2024.herokuapp.com',
   credentials: true
 }));
 
@@ -99,6 +99,12 @@ const reservationSchema = new mongoose.Schema({
   templateId: { 
     type: String, 
     default: null 
+  },
+  // Campo para cantidad de puestos solicitados
+  requestedSeats: { 
+    type: Number, 
+    required: true, 
+    default: 1 
   },
   status: { 
     type: String, 
@@ -581,19 +587,38 @@ app.post('/api/reservations', async (req, res) => {
       contactEmail,
       contactPhone,
       templateId,
+      requestedSeats,
       notes 
     } = req.body;
 
     // Validar campos requeridos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
-        !contactPerson || !teamName || !contactEmail || !contactPhone) {
+        !contactPerson || !teamName || !contactEmail || !contactPhone || !requestedSeats) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
+    }
+
+    // Validar que requestedSeats sea un número válido
+    if (typeof requestedSeats !== 'number' || requestedSeats < 1) {
+      return res.status(400).json({ error: 'La cantidad de puestos debe ser un número mayor a 0' });
     }
 
     // Verificar que el usuario existe
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar que el área existe y obtener su capacidad
+    const areaInfo = await Area.findOne({ name: area });
+    if (!areaInfo) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+
+    // Verificar que la cantidad de puestos solicitados no exceda la capacidad del área
+    if (requestedSeats > areaInfo.capacity) {
+      return res.status(400).json({ 
+        error: `La cantidad de puestos solicitados (${requestedSeats}) excede la capacidad del área (${areaInfo.capacity} puestos)` 
+      });
     }
 
     // Verificar que no hay conflicto de horarios para la misma área y fecha
@@ -646,6 +671,7 @@ app.post('/api/reservations', async (req, res) => {
       contactEmail,
       contactPhone,
       templateId: templateId || null,
+      requestedSeats,
       notes: notes || ''
     });
 
@@ -681,6 +707,7 @@ app.put('/api/reservations/:id', async (req, res) => {
       contactEmail,
       contactPhone,
       templateId,
+      requestedSeats,
       notes, 
       status 
     } = req.body;
@@ -702,6 +729,24 @@ app.put('/api/reservations/:id', async (req, res) => {
       });
     }
 
+    // Si se está actualizando requestedSeats, validar que no exceda la capacidad del área
+    if (requestedSeats !== undefined) {
+      if (typeof requestedSeats !== 'number' || requestedSeats < 1) {
+        return res.status(400).json({ error: 'La cantidad de puestos debe ser un número mayor a 0' });
+      }
+
+      const areaInfo = await Area.findOne({ name: area || reservation.area });
+      if (!areaInfo) {
+        return res.status(404).json({ error: 'Área no encontrada' });
+      }
+
+      if (requestedSeats > areaInfo.capacity) {
+        return res.status(400).json({ 
+          error: `La cantidad de puestos solicitados (${requestedSeats}) excede la capacidad del área (${areaInfo.capacity} puestos)` 
+        });
+      }
+    }
+
     // Actualizar campos
     if (userName) reservation.userName = userName;
     if (area) reservation.area = area;
@@ -713,6 +758,7 @@ app.put('/api/reservations/:id', async (req, res) => {
     if (contactEmail) reservation.contactEmail = contactEmail;
     if (contactPhone) reservation.contactPhone = contactPhone;
     if (templateId !== undefined) reservation.templateId = templateId;
+    if (requestedSeats !== undefined) reservation.requestedSeats = requestedSeats;
     if (notes !== undefined) reservation.notes = notes;
     if (status) reservation.status = status;
     

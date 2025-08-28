@@ -16,6 +16,7 @@ interface Reservation {
   contactEmail: string;
   contactPhone: string;
   templateId?: string | null;
+  requestedSeats: number;
   status: 'active' | 'cancelled' | 'completed';
   notes: string;
   createdAt: string;
@@ -32,6 +33,7 @@ interface ReservationFormData {
   contactEmail: string;
   contactPhone: string;
   templateId: string;
+  requestedSeats: number;
   notes: string;
 }
 
@@ -54,6 +56,7 @@ export function Reservations() {
     contactEmail: currentUser?.email || '',
     contactPhone: '',
     templateId: '',
+    requestedSeats: 1,
     notes: ''
   });
 
@@ -101,6 +104,8 @@ export function Reservations() {
   // Verificar si el área seleccionada requiere reserva por día completo
   const selectedArea = areas.find(area => area.name === formData.area);
   const isFullDayReservation = selectedArea?.isFullDayReservation || false;
+
+
 
   // Función para verificar conflictos de horarios
   const getConflictingReservations = (area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
@@ -229,7 +234,8 @@ export function Reservations() {
       const reservationData = {
         userId: currentUser.id,
         userName: currentUser.name,
-        ...formData
+        ...formData,
+        requestedSeats: formData.requestedSeats
       };
 
       if (editingReservation) {
@@ -254,6 +260,7 @@ export function Reservations() {
         contactEmail: currentUser?.email || '',
         contactPhone: '',
         templateId: '',
+        requestedSeats: 1,
         notes: ''
       });
       setShowForm(false);
@@ -313,6 +320,7 @@ export function Reservations() {
       contactEmail: reservation.contactEmail,
       contactPhone: reservation.contactPhone,
       templateId: reservation.templateId || '',
+      requestedSeats: reservation.requestedSeats || 1,
       notes: reservation.notes
     });
     setShowForm(true);
@@ -331,6 +339,7 @@ export function Reservations() {
       contactEmail: currentUser?.email || '',
       contactPhone: '',
       templateId: '',
+      requestedSeats: 1,
       notes: ''
     });
     setError(null);
@@ -408,7 +417,7 @@ export function Reservations() {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Área
@@ -428,6 +437,58 @@ export function Reservations() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Usar Plantilla (Opcional)
+                </label>
+                <select
+                  value={formData.templateId}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Sin plantilla</option>
+                  {state.templates.map(template => (
+                    <option key={template.id} value={template.id}>
+                      {template.name} - {template.groupName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cantidad de Puestos
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedArea?.capacity || 1}
+                    value={formData.requestedSeats}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxCapacity = selectedArea?.capacity || 1;
+                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                      setFormData({...formData, requestedSeats: finalValue});
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  />
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    de {selectedArea?.capacity || 1} disponibles
+                  </span>
+                </div>
+                {selectedArea && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    <span className="text-blue-600 font-medium">
+                      Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Fecha
@@ -498,24 +559,6 @@ export function Reservations() {
                   placeholder="+57 300 123 4567"
                   required
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Usar Plantilla (Opcional)
-                </label>
-                <select
-                  value={formData.templateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Sin plantilla</option>
-                  {state.templates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} - {template.groupName}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               {!isFullDayReservation && (
@@ -703,6 +746,11 @@ export function Reservations() {
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">📞</span>
                         <span><strong>Teléfono:</strong> {reservation.contactPhone}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">🪑</span>
+                        <span><strong>Puestos:</strong> {reservation.requestedSeats || 1}</span>
                       </div>
 
                       {reservation.templateId && (

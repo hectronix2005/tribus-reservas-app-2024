@@ -76,13 +76,11 @@ let sessionTemplates: ReservationTemplate[] = [];
 // Función para cargar áreas desde MongoDB
 const loadAreasFromMongoDB = async () => {
   try {
-    console.log('🔄 Cargando áreas desde MongoDB...');
     const areas = await areaService.getAllAreas();
     sessionAreas = areas;
-    console.log('✅ Áreas cargadas desde MongoDB:', areas.length);
     return areas;
   } catch (error) {
-    console.error('❌ Error cargando áreas desde MongoDB:', error);
+    console.error('Error cargando áreas desde MongoDB:', error);
     return [];
   }
 };
@@ -90,13 +88,11 @@ const loadAreasFromMongoDB = async () => {
 // Función para cargar templates desde MongoDB
 const loadTemplatesFromMongoDB = async () => {
   try {
-    console.log('🔄 Cargando templates desde MongoDB...');
     const templates = await templateService.getAllTemplates();
     sessionTemplates = templates;
-    console.log('✅ Templates cargados desde MongoDB:', templates.length);
     return templates;
   } catch (error) {
-    console.error('❌ Error cargando templates desde MongoDB:', error);
+    console.error('Error cargando templates desde MongoDB:', error);
     return [];
   }
 };
@@ -393,13 +389,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const loadDataFromBackend = async () => {
       try {
-        console.log('🔄 Cargando datos desde MongoDB...');
-        
         // Cargar usuarios
         const users = await userService.getAllUsers();
         dispatch({ type: 'SET_USERS', payload: users });
         sessionUsers = users;
-        console.log('✅ Usuarios cargados desde MongoDB:', users.length);
         
         // Cargar áreas
         const areas = await loadAreasFromMongoDB();
@@ -408,10 +401,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Cargar templates
         const templates = await loadTemplatesFromMongoDB();
         dispatch({ type: 'SET_TEMPLATES', payload: templates });
-        
-        console.log('✅ Todos los datos cargados desde MongoDB');
       } catch (error) {
-        console.error('❌ Error cargando datos desde MongoDB:', error);
+        console.error('Error cargando datos desde MongoDB:', error);
         // Si falla, mantener arrays vacíos
         dispatch({ type: 'SET_USERS', payload: [] });
         dispatch({ type: 'SET_AREAS', payload: [] });
