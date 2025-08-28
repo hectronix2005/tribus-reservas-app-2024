@@ -144,6 +144,27 @@ const areaSchema = new mongoose.Schema({
   capacity: { type: Number, required: true },
   description: { type: String },
   color: { type: String, required: true },
+  // Categoría del área: 'SALA' o 'HOT_DESK'
+  category: { 
+    type: String, 
+    enum: ['SALA', 'HOT_DESK'], 
+    required: true 
+  },
+  // Para SALAS: tiempo mínimo y máximo de reservación
+  minReservationTime: { 
+    type: Number, 
+    default: 30 // 30 minutos mínimo para salas
+  },
+  maxReservationTime: { 
+    type: Number, 
+    default: 480 // 8 horas máximo para salas
+  },
+  // Para HOT DESK: horario de la oficina
+  officeHours: {
+    start: { type: String, default: '08:00' },
+    end: { type: String, default: '18:00' }
+  },
+  // Campos legacy para compatibilidad
   isMeetingRoom: { type: Boolean, default: false },
   isFullDayReservation: { type: Boolean, default: false }
 });
@@ -218,15 +239,59 @@ app.get('/api/areas/:id', async (req, res) => {
 
 app.post('/api/areas', async (req, res) => {
   try {
-    // Generar un ID único para el área
-    const areaData = {
-      ...req.body,
+    const { name, capacity, description, color, category, minReservationTime, maxReservationTime, officeHours } = req.body;
+    
+    // Validar campos requeridos
+    if (!name || !capacity || !color || !category) {
+      return res.status(400).json({ error: 'Nombre, capacidad, color y categoría son requeridos' });
+    }
+    
+    // Validar categoría
+    if (!['SALA', 'HOT_DESK'].includes(category)) {
+      return res.status(400).json({ error: 'Categoría debe ser SALA o HOT_DESK' });
+    }
+    
+    // Validar capacidad
+    if (capacity < 1) {
+      return res.status(400).json({ error: 'La capacidad debe ser mayor a 0' });
+    }
+    
+    // Configuraciones específicas por categoría
+    let areaData = {
+      name,
+      capacity,
+      description: description || '',
+      color,
+      category,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
     };
     
+    if (category === 'SALA') {
+      // Configuración para SALAS
+      areaData = {
+        ...areaData,
+        minReservationTime: minReservationTime || 30, // 30 minutos mínimo
+        maxReservationTime: maxReservationTime || 480, // 8 horas máximo
+        isMeetingRoom: true,
+        isFullDayReservation: false
+      };
+    } else if (category === 'HOT_DESK') {
+      // Configuración para HOT DESK
+      areaData = {
+        ...areaData,
+        officeHours: officeHours || { start: '08:00', end: '18:00' },
+        isMeetingRoom: false,
+        isFullDayReservation: true
+      };
+    }
+    
     const area = new Area(areaData);
     await area.save();
-    res.status(201).json({ message: 'Área creada exitosamente', area });
+    
+    res.status(201).json({ 
+      message: `Área ${category} creada exitosamente`, 
+      area 
+    });
   } catch (error) {
     console.error('Error creando área:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -255,6 +320,68 @@ app.delete('/api/areas/:id', async (req, res) => {
     res.json({ message: 'Área eliminada exitosamente' });
   } catch (error) {
     console.error('Error eliminando área:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoint para obtener disponibilidad de puestos en tiempo real
+app.get('/api/areas/:id/availability', async (req, res) => {
+  try {
+    const { date } = req.query;
+    const area = await Area.findById(req.params.id);
+    
+    if (!area) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Fecha requerida' });
+    }
+    
+    if (area.category === 'HOT_DESK') {
+      // Para HOT DESK: calcular puestos disponibles
+      const existingReservations = await Reservation.find({
+        area: area.name,
+        date: new Date(date),
+        status: 'active'
+      });
+      
+      const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
+      const availableSeats = area.capacity - totalReservedSeats;
+      
+      res.json({
+        area: area.name,
+        category: area.category,
+        totalCapacity: area.capacity,
+        reservedSeats: totalReservedSeats,
+        availableSeats: availableSeats,
+        date: date,
+        officeHours: area.officeHours
+      });
+    } else if (area.category === 'SALA') {
+      // Para SALAS: verificar disponibilidad por horarios
+      const existingReservations = await Reservation.find({
+        area: area.name,
+        date: new Date(date),
+        status: 'active'
+      });
+      
+      res.json({
+        area: area.name,
+        category: area.category,
+        isAvailable: existingReservations.length === 0,
+        existingReservations: existingReservations.map(r => ({
+          startTime: r.startTime,
+          endTime: r.endTime,
+          userName: r.userName
+        })),
+        date: date,
+        minReservationTime: area.minReservationTime,
+        maxReservationTime: area.maxReservationTime
+      });
+    }
+  } catch (error) {
+    console.error('Error obteniendo disponibilidad:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -631,24 +758,31 @@ app.post('/api/reservations', async (req, res) => {
       });
     }
 
-    // Verificar que no hay conflicto de horarios para la misma área y fecha
+    // Verificar que no hay conflicto de horarios según la categoría del área
     let conflictingReservation;
     
-    // Para el área de colaboración, verificar si ya existe una reserva para ese día completo
-    if (area === 'Área de Colaboración') {
-      conflictingReservation = await Reservation.findOne({
-        area,
-        date: new Date(date),
-        status: 'active'
-      });
+    if (areaInfo.category === 'SALA') {
+      // Para SALAS: verificar conflictos de horarios específicos
+      // También validar tiempo mínimo y máximo de reservación
+      const startTimeMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+      const endTimeMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+      const reservationDuration = endTimeMinutes - startTimeMinutes;
       
-      if (conflictingReservation) {
-        return res.status(409).json({ 
-          error: 'El Área de Colaboración ya está reservada para este día completo' 
+      // Validar tiempo mínimo (30 minutos)
+      if (reservationDuration < areaInfo.minReservationTime) {
+        return res.status(400).json({ 
+          error: `La reservación debe ser de al menos ${areaInfo.minReservationTime} minutos` 
         });
       }
-    } else {
-      // Para otras áreas, verificar conflictos de horarios específicos
+      
+      // Validar tiempo máximo (8 horas)
+      if (reservationDuration > areaInfo.maxReservationTime) {
+        return res.status(400).json({ 
+          error: `La reservación no puede exceder ${areaInfo.maxReservationTime} minutos (${areaInfo.maxReservationTime/60} horas)` 
+        });
+      }
+      
+      // Verificar conflictos de horarios
       conflictingReservation = await Reservation.findOne({
         area,
         date: new Date(date),
@@ -663,7 +797,35 @@ app.post('/api/reservations', async (req, res) => {
       
       if (conflictingReservation) {
         return res.status(409).json({ 
-          error: 'Ya existe una reservación para este horario en esta área' 
+          error: 'Ya existe una reservación para este horario en esta sala' 
+        });
+      }
+      
+    } else if (areaInfo.category === 'HOT_DESK') {
+      // Para HOT DESK: verificar disponibilidad de puestos para el día completo
+      // Calcular puestos ya reservados para ese día
+      const existingReservations = await Reservation.find({
+        area,
+        date: new Date(date),
+        status: 'active'
+      });
+      
+      const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
+      const availableSeats = areaInfo.capacity - totalReservedSeats;
+      
+      if (requestedSeats > availableSeats) {
+        return res.status(409).json({ 
+          error: `Solo hay ${availableSeats} puestos disponibles. Se solicitaron ${requestedSeats} puestos.` 
+        });
+      }
+      
+      // Para HOT DESK, la reservación debe ser para todo el día
+      const officeStart = areaInfo.officeHours.start;
+      const officeEnd = areaInfo.officeHours.end;
+      
+      if (startTime !== officeStart || endTime !== officeEnd) {
+        return res.status(400).json({ 
+          error: `Para HOT DESK, la reservación debe ser de ${officeStart} a ${officeEnd} (día completo)` 
         });
       }
     }
