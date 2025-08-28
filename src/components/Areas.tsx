@@ -13,8 +13,7 @@ export function Areas() {
     capacity: 1,
     description: '',
     color: '#3b82f6',
-    isMeetingRoom: false,
-    isFullDayReservation: false
+    category: 'SALA' as 'SALA' | 'HOT_DESK'
   });
 
   const colorOptions = [
@@ -33,8 +32,7 @@ export function Areas() {
           capacity: formData.capacity,
           description: formData.description,
           color: formData.color,
-          isMeetingRoom: formData.isMeetingRoom,
-          isFullDayReservation: formData.isFullDayReservation
+          category: formData.category
         };
         
         // Use the MongoDB _id for backend operations
@@ -56,8 +54,7 @@ export function Areas() {
           capacity: formData.capacity,
           description: formData.description,
           color: formData.color,
-          isMeetingRoom: formData.isMeetingRoom,
-          isFullDayReservation: formData.isFullDayReservation
+          category: formData.category
         };
         
         console.log('🔄 Creando nueva área:', newAreaData);
@@ -78,8 +75,7 @@ export function Areas() {
         capacity: 1,
         description: '',
         color: '#3b82f6',
-        isMeetingRoom: false,
-        isFullDayReservation: false
+        category: 'SALA'
       });
       setShowForm(false);
       setEditingArea(null);
@@ -96,8 +92,7 @@ export function Areas() {
       capacity: area.capacity,
       description: area.description || '',
       color: area.color,
-      isMeetingRoom: area.isMeetingRoom,
-      isFullDayReservation: area.isFullDayReservation || false
+      category: area.category || 'SALA'
     });
     setShowForm(true);
   };
@@ -133,8 +128,7 @@ export function Areas() {
       capacity: 1,
       description: '',
       color: '#3b82f6',
-      isMeetingRoom: false,
-      isFullDayReservation: false
+      category: 'SALA'
     });
     setShowForm(false);
     setEditingArea(null);
@@ -201,24 +195,22 @@ export function Areas() {
                     <Users className="w-4 h-4" />
                     <span>Capacidad:</span>
                   </span>
-                  <span className="font-medium">{area.capacity} {area.isMeetingRoom ? 'personas' : 'puestos'}</span>
+                  <span className="font-medium">{area.capacity} {area.category === 'SALA' ? 'personas' : 'puestos'}</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Tipo:</span>
-                  <span className={`font-medium ${area.isMeetingRoom ? 'text-primary-600' : 'text-secondary-600'}`}>
-                    {area.isMeetingRoom ? 'Sala de Juntas' : 'Área de Trabajo'}
+                  <span className="text-gray-600">Categoría:</span>
+                  <span className={`font-medium ${area.category === 'SALA' ? 'text-primary-600' : 'text-secondary-600'}`}>
+                    {area.category === 'SALA' ? 'SALA' : 'HOT DESK'}
                   </span>
                 </div>
 
-                {area.isFullDayReservation && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Reserva:</span>
-                    <span className="font-medium text-orange-600">
-                      Día completo
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Tipo de Reserva:</span>
+                  <span className="font-medium text-orange-600">
+                    {area.category === 'SALA' ? 'Por horarios' : 'Día completo'}
+                  </span>
+                </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Reservas activas:</span>
@@ -299,30 +291,19 @@ export function Areas() {
                   />
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="isMeetingRoom"
-                    checked={formData.isMeetingRoom}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isMeetingRoom: e.target.checked }))}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label htmlFor="isMeetingRoom" className="text-sm font-medium text-gray-700">
-                    Es una sala de juntas (se reserva completa)
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Categoría del Área
                   </label>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="isFullDayReservation"
-                    checked={formData.isFullDayReservation}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isFullDayReservation: e.target.checked }))}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label htmlFor="isFullDayReservation" className="text-sm font-medium text-gray-700">
-                    Se reserva por día completo (no por horas)
-                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as 'SALA' | 'HOT_DESK' }))}
+                    className="input-field"
+                    required
+                  >
+                    <option value="SALA">SALA - Se reserva completa por horarios</option>
+                    <option value="HOT_DESK">HOT DESK - Puestos de trabajo por día completo</option>
+                  </select>
                 </div>
 
                 <div>
