@@ -728,15 +728,30 @@ app.post('/api/reservations', async (req, res) => {
       notes 
     } = req.body;
 
-    // Validar campos requeridos
+    // Validar campos requeridos básicos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
-        !contactPerson || !teamName || !contactEmail || !contactPhone || !requestedSeats) {
+        !contactPerson || !teamName || !contactEmail || !contactPhone) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
-    // Validar que requestedSeats sea un número válido
-    if (typeof requestedSeats !== 'number' || requestedSeats < 1) {
-      return res.status(400).json({ error: 'La cantidad de puestos debe ser un número mayor a 0' });
+    // Verificar que el área existe y obtener su información
+    const areaInfo = await Area.findOne({ name: area });
+    if (!areaInfo) {
+      return res.status(404).json({ error: 'Área no encontrada' });
+    }
+
+    // Configurar requestedSeats según la categoría del área
+    let finalRequestedSeats = requestedSeats;
+    
+    if (areaInfo.category === 'SALA') {
+      // Para SALAS: siempre usar la capacidad completa (no se pregunta cantidad de puestos)
+      finalRequestedSeats = areaInfo.capacity;
+    } else if (areaInfo.category === 'HOT_DESK') {
+      // Para HOT DESK: validar que se proporcione requestedSeats
+      if (!requestedSeats || typeof requestedSeats !== 'number' || requestedSeats < 1) {
+        return res.status(400).json({ error: 'Para HOT DESK, debe especificar la cantidad de puestos requeridos' });
+      }
+      finalRequestedSeats = requestedSeats;
     }
 
     // Verificar que el usuario existe
@@ -745,16 +760,10 @@ app.post('/api/reservations', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Verificar que el área existe y obtener su capacidad
-    const areaInfo = await Area.findOne({ name: area });
-    if (!areaInfo) {
-      return res.status(404).json({ error: 'Área no encontrada' });
-    }
-
     // Verificar que la cantidad de puestos solicitados no exceda la capacidad del área
-    if (requestedSeats > areaInfo.capacity) {
+    if (finalRequestedSeats > areaInfo.capacity) {
       return res.status(400).json({ 
-        error: `La cantidad de puestos solicitados (${requestedSeats}) excede la capacidad del área (${areaInfo.capacity} puestos)` 
+        error: `La cantidad de puestos solicitados (${finalRequestedSeats}) excede la capacidad del área (${areaInfo.capacity} puestos)` 
       });
     }
 
@@ -843,7 +852,7 @@ app.post('/api/reservations', async (req, res) => {
       contactEmail,
       contactPhone,
       templateId: templateId || null,
-      requestedSeats,
+      requestedSeats: finalRequestedSeats,
       notes: notes || ''
     });
 
