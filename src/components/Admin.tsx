@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Database } from 'lucide-react';
+import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReservationTemplate, User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
