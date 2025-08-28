@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const MONGODB_CONFIG = require('./mongodb-config');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 // Configuración de seguridad
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://tribus-reservas-app-2024.herokuapp.com',
+  origin: true, // Permitir todas las origenes para desarrollo
   credentials: true
 }));
 
@@ -28,13 +29,22 @@ app.use('/api/', limiter);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'build')));
 
-// Conexión a MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+// Conexión a MongoDB Atlas
+mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
+.then(() => {
+  console.log('✅ Conectado exitosamente a MongoDB Atlas');
+  console.log(`🗄️  Base de datos: ${MONGODB_CONFIG.database.name}`);
+  console.log(`🌐 Cluster: ${MONGODB_CONFIG.database.cluster}`);
+  console.log(`☁️  Proveedor: ${MONGODB_CONFIG.database.provider}`);
 })
-.then(() => console.log('✅ Conectado a MongoDB Atlas'))
-.catch(err => console.error('❌ Error conectando a MongoDB:', err));
+.catch(err => {
+  console.error('❌ Error conectando a MongoDB Atlas:', err.message);
+  console.error('🔍 Verificar:');
+  console.error('   - Conexión a internet');
+  console.error('   - Credenciales de MongoDB Atlas');
+  console.error('   - Configuración de red');
+  process.exit(1); // Salir si no se puede conectar a la BD
+});
 
 // Modelo de Usuario
 const userSchema = new mongoose.Schema({
@@ -824,4 +834,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor TRIBUS ejecutándose en puerto ${PORT}`);
   console.log(`📊 API disponible en http://localhost:${PORT}/api`);
   console.log(`🌐 Frontend disponible en http://localhost:${PORT}`);
+  console.log(`🗄️  Base de datos: MongoDB Atlas (remota)`);
+  console.log(`🔒 Modo: Solo conexión remota a MongoDB Atlas`);
 });
