@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Sistema de reservas de puestos de trabajo",
   "private": true,
+  "homepage": "https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com",
   "engines": {
     "node": "18.x",
     "npm": "9.x"

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://tribus-reservas-app-2024.herokuapp.com/api';
+const API_BASE_URL = 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com/api';
 
 // Interfaz para las respuestas de la API
 interface ApiResponse<T> {
