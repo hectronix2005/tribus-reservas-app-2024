@@ -5,8 +5,16 @@ export interface Area {
   capacity: number;
   description?: string;
   color: string;
-  isMeetingRoom: boolean;
-  isFullDayReservation?: boolean; // Nueva propiedad para reservas por día completo
+  category: 'SALA' | 'HOT_DESK'; // Nueva categoría
+  minReservationTime?: number; // Para SALAS: tiempo mínimo en minutos
+  maxReservationTime?: number; // Para SALAS: tiempo máximo en minutos
+  officeHours?: { // Para HOT DESK: horario de oficina
+    start: string;
+    end: string;
+  };
+  // Campos legacy para compatibilidad
+  isMeetingRoom?: boolean;
+  isFullDayReservation?: boolean;
 }
 
 export interface Reservation {
