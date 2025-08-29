@@ -28,6 +28,7 @@ interface ReservationFormData {
   date: string;
   startTime: string;
   endTime: string;
+  duration: string;
   contactPerson: string;
   teamName: string;
   contactEmail: string;
@@ -51,6 +52,7 @@ export function Reservations() {
     date: new Date().toISOString().split('T')[0],
     startTime: '09:00',
     endTime: '10:00',
+    duration: '60',
     contactPerson: currentUser?.name || '',
     teamName: '',
     contactEmail: currentUser?.email || '',
@@ -71,6 +73,7 @@ export function Reservations() {
       // Si es reserva por día completo, establecer horarios por defecto
       startTime: isFullDay ? '00:00' : '09:00',
       endTime: isFullDay ? '23:59' : '10:00',
+      duration: '60', // Duración por defecto de 1 hora
       // Si es una sala de reunión, establecer la capacidad completa
       requestedSeats: selectedArea?.isMeetingRoom ? selectedArea.capacity : 1
     }));
@@ -133,38 +136,43 @@ export function Reservations() {
     });
   };
 
-  // Función para generar opciones de horarios disponibles
-  const getAvailableTimeSlots = (area: string, date: string) => {
-    if (!area || !date) return [];
+  // Función para agregar minutos a una hora
+  const addMinutesToTime = (time: string, minutes: number): string => {
+    const [hours, mins] = time.split(':').map(Number);
+    const totalMinutes = hours * 60 + mins + minutes;
+    const newHours = Math.floor(totalMinutes / 60);
+    const newMins = totalMinutes % 60;
+    return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
+  };
+
+  // Función para obtener horas de inicio disponibles
+  const getAvailableStartTimes = () => {
+    if (!formData.area || !formData.date) return [];
     
-    const timeSlots = [];
+    const availableTimes = [];
     const startHour = 8; // 8:00 AM
-    const endHour = 18;  // 6:00 PM
-    const slotDuration = 60; // 60 minutos por slot
+    const endHour = 18; // 6:00 PM
+    const interval = 30; // 30 minutos
+    const duration = parseInt(formData.duration || '60');
     
     for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += slotDuration) {
+      for (let minute = 0; minute < 60; minute += interval) {
         const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        const endTime = `${hour.toString().padStart(2, '0')}:${(minute + slotDuration).toString().padStart(2, '0')}`;
+        const endTime = addMinutesToTime(startTime, duration);
         
         // Verificar si este horario está disponible
-        const conflicts = getConflictingReservations(area, date, startTime, endTime, editingReservation?._id);
+        const conflicts = getConflictingReservations(formData.area, formData.date, startTime, endTime, editingReservation?._id);
         
         if (conflicts.length === 0) {
-          timeSlots.push({
-            start: startTime,
-            end: endTime,
-            label: `${startTime} - ${endTime}`
-          });
+          availableTimes.push(startTime);
         }
       }
     }
     
-    return timeSlots;
+    return availableTimes;
   };
 
-  // Obtener horarios disponibles para el área y fecha seleccionados
-  const availableTimeSlots = getAvailableTimeSlots(formData.area, formData.date);
+
 
   // Cargar reservaciones al montar el componente
   useEffect(() => {
@@ -257,6 +265,7 @@ export function Reservations() {
         date: new Date().toISOString().split('T')[0],
         startTime: '09:00',
         endTime: '10:00',
+        duration: '60',
         contactPerson: currentUser?.name || '',
         teamName: '',
         contactEmail: currentUser?.email || '',
@@ -312,11 +321,17 @@ export function Reservations() {
 
   const handleEdit = (reservation: Reservation) => {
     setEditingReservation(reservation);
+    // Calcular duración basada en startTime y endTime
+    const startMinutes = parseInt(reservation.startTime.split(':')[0]) * 60 + parseInt(reservation.startTime.split(':')[1]);
+    const endMinutes = parseInt(reservation.endTime.split(':')[0]) * 60 + parseInt(reservation.endTime.split(':')[1]);
+    const duration = (endMinutes - startMinutes).toString();
+    
     setFormData({
       area: reservation.area,
       date: new Date(reservation.date).toISOString().split('T')[0],
       startTime: reservation.startTime,
       endTime: reservation.endTime,
+      duration: duration,
       contactPerson: reservation.contactPerson,
       teamName: reservation.teamName,
       contactEmail: reservation.contactEmail,
@@ -336,6 +351,7 @@ export function Reservations() {
       date: new Date().toISOString().split('T')[0],
       startTime: '09:00',
       endTime: '10:00',
+      duration: '60',
       contactPerson: currentUser?.name || '',
       teamName: '',
       contactEmail: currentUser?.email || '',
@@ -590,38 +606,67 @@ export function Reservations() {
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Horario Disponible
+                      Hora de Inicio
                     </label>
                     <select
-                      value={`${formData.startTime}-${formData.endTime}`}
+                      value={formData.startTime}
                       onChange={(e) => {
-                        const [start, end] = e.target.value.split('-');
-                        setFormData({...formData, startTime: start, endTime: end});
+                        const startTime = e.target.value;
+                        const duration = parseInt(formData.duration || '60');
+                        const endTime = addMinutesToTime(startTime, duration);
+                        setFormData({...formData, startTime, endTime});
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       required
                     >
-                      <option value="">Seleccionar horario</option>
-                      {availableTimeSlots.map((slot, index) => (
-                        <option key={index} value={`${slot.start}-${slot.end}`}>
-                          {slot.label}
+                      <option value="">Seleccionar hora de inicio</option>
+                      {getAvailableStartTimes().map((time, index) => (
+                        <option key={index} value={time}>
+                          {time}
                         </option>
                       ))}
                     </select>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-sm text-gray-500">
-                        {availableTimeSlots.length} horario{availableTimeSlots.length !== 1 ? 's' : ''} disponible{availableTimeSlots.length !== 1 ? 's' : ''}
+                        {getAvailableStartTimes().length} hora{getAvailableStartTimes().length !== 1 ? 's' : ''} disponible{getAvailableStartTimes().length !== 1 ? 's' : ''}
                       </span>
-                      {availableTimeSlots.length > 0 && (
+                      {getAvailableStartTimes().length > 0 && (
                         <span className="text-sm text-green-600">
                           ✓ Horarios libres
                         </span>
                       )}
                     </div>
-                    {availableTimeSlots.length === 0 && formData.area && formData.date && (
-                      <p className="text-sm text-red-600 mt-1">
-                        No hay horarios disponibles para esta fecha y área
-                      </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duración (minutos)
+                    </label>
+                    <select
+                      value={formData.duration || '60'}
+                      onChange={(e) => {
+                        const duration = e.target.value;
+                        const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
+                        setFormData({...formData, duration, endTime});
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    >
+                      <option value="30">30 minutos</option>
+                      <option value="60">1 hora</option>
+                      <option value="90">1.5 horas</option>
+                      <option value="120">2 horas</option>
+                      <option value="180">3 horas</option>
+                      <option value="240">4 horas</option>
+                      <option value="300">5 horas</option>
+                      <option value="360">6 horas</option>
+                      <option value="420">7 horas</option>
+                      <option value="480">8 horas</option>
+                    </select>
+                    {formData.startTime && formData.duration && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
+                      </div>
                     )}
                   </div>
 
