@@ -70,7 +70,9 @@ export function Reservations() {
       area: areaName,
       // Si es reserva por día completo, establecer horarios por defecto
       startTime: isFullDay ? '00:00' : '09:00',
-      endTime: isFullDay ? '23:59' : '10:00'
+      endTime: isFullDay ? '23:59' : '10:00',
+      // Si es una sala de reunión, establecer la capacidad completa
+      requestedSeats: selectedArea?.isMeetingRoom ? selectedArea.capacity : 1
     }));
 
     // Limpiar error cuando cambie el área
@@ -455,37 +457,60 @@ export function Reservations() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cantidad de Puestos
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedArea?.capacity || 1}
-                    value={formData.requestedSeats}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 1;
-                      const maxCapacity = selectedArea?.capacity || 1;
-                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                      setFormData({...formData, requestedSeats: finalValue});
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  />
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    de {selectedArea?.capacity || 1} disponibles
-                  </span>
-                </div>
-                {selectedArea && (
+              {/* Campo de cantidad de puestos - solo para áreas que NO son salas */}
+              {selectedArea && !selectedArea.isMeetingRoom && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cantidad de Puestos
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedArea?.capacity || 1}
+                      value={formData.requestedSeats}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        const maxCapacity = selectedArea?.capacity || 1;
+                        const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                        setFormData({...formData, requestedSeats: finalValue});
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    />
+                    <span className="text-sm text-gray-600 whitespace-nowrap">
+                      de {selectedArea?.capacity || 1} disponibles
+                    </span>
+                  </div>
                   <div className="text-xs text-gray-500 mt-1">
                     <span className="text-blue-600 font-medium">
                       Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Información para salas de reunión */}
+              {selectedArea && selectedArea.isMeetingRoom && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800">
+                        Reserva de Sala Completa
+                      </h3>
+                      <div className="mt-1 text-sm text-blue-700">
+                        <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
+                        <p>No es necesario especificar cantidad de puestos.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
