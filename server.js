@@ -767,6 +767,14 @@ app.post('/api/reservations', async (req, res) => {
       });
     }
 
+    // Determinar tiempo máximo de reservación según el rol del usuario
+    let maxReservationTimeMinutes;
+    if (user.role === 'admin') {
+      maxReservationTimeMinutes = 480; // 8 horas para administradores
+    } else {
+      maxReservationTimeMinutes = 180; // 3 horas para usuarios regulares
+    }
+
     // Verificar que no hay conflicto de horarios según la categoría del área
     let conflictingReservation;
     
@@ -784,10 +792,12 @@ app.post('/api/reservations', async (req, res) => {
         });
       }
       
-      // Validar tiempo máximo (8 horas)
-      if (reservationDuration > areaInfo.maxReservationTime) {
+      // Validar tiempo máximo según el rol del usuario
+      if (reservationDuration > maxReservationTimeMinutes) {
+        const maxHours = maxReservationTimeMinutes / 60;
+        const userRole = user.role === 'admin' ? 'administrador' : 'usuario';
         return res.status(400).json({ 
-          error: `La reservación no puede exceder ${areaInfo.maxReservationTime} minutos (${areaInfo.maxReservationTime/60} horas)` 
+          error: `Como ${userRole}, la reservación no puede exceder ${maxReservationTimeMinutes} minutos (${maxHours} horas)` 
         });
       }
       
