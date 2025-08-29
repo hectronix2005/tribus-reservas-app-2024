@@ -754,7 +754,7 @@ app.post('/api/reservations', async (req, res) => {
 
     // Validar campos requeridos básicos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
-        !contactPerson || !teamName || !contactEmail || !contactPhone) {
+        !contactPerson || !teamName || !contactEmail) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
