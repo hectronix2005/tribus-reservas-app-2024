@@ -1,4 +1,14 @@
-const API_BASE_URL = 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com/api';
+// Use relative URL for local development, fallback to production for deployment
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? '/api'
+  : 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com/api';
+
+// Debug logging for API configuration
+console.log('🔧 API Configuration:', {
+  hostname: window.location.hostname,
+  API_BASE_URL: API_BASE_URL,
+  isLocal: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+});
 
 // Interfaz para las respuestas de la API
 interface ApiResponse<T> {

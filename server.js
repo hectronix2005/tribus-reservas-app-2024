@@ -25,9 +25,32 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// HTTP Request Logging Middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  const timestamp = new Date().toISOString();
+  
+  console.log(`🌐 [${timestamp}] ${req.method} ${req.url}`);
+  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
+  }
+  
+  // Log response
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`✅ [${timestamp}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+  });
+  
+  next();
+});
+
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'build')));
+
+// MongoDB Query Logging
+mongoose.set('debug', true);
 
 // Conexión a MongoDB Atlas
 mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
@@ -36,6 +59,7 @@ mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
   console.log(`🗄️  Base de datos: ${MONGODB_CONFIG.database.name}`);
   console.log(`🌐 Cluster: ${MONGODB_CONFIG.database.cluster}`);
   console.log(`☁️  Proveedor: ${MONGODB_CONFIG.database.provider}`);
+  console.log('🔍 MongoDB Query Logging: ENABLED');
 })
 .catch(err => {
   console.error('❌ Error conectando a MongoDB Atlas:', err.message);
