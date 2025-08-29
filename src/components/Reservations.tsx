@@ -590,15 +590,14 @@ export function Reservations() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono
+                  Teléfono <span className="text-gray-500 text-xs">(opcional)</span>
                 </label>
                 <input
                   type="tel"
                   value={formData.contactPhone}
                   onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="+57 300 123 4567"
-                  required
+                  placeholder="+57 300 123 4567 (opcional)"
                 />
               </div>
 
