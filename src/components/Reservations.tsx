@@ -116,12 +116,30 @@ export function Reservations() {
   const getConflictingReservations = useCallback((area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
     const normalizedDate = normalizeDate(date);
     
+    console.log('🔍 Buscando conflictos para:', {
+      area,
+      originalDate: date,
+      normalizedDate,
+      startTime,
+      endTime
+    });
+    
     const conflicts = reservations.filter(reservation => {
       // Excluir la reservación que se está editando
       if (excludeId && reservation._id === excludeId) return false;
       
       // Verificar que sea la misma área y fecha (normalizada)
       const reservationDate = normalizeDate(reservation.date);
+      
+      console.log('🔍 Comparando reservación:', {
+        reservationArea: reservation.area,
+        reservationDate: reservation.date,
+        reservationDateNormalized: reservationDate,
+        areaMatch: reservation.area === area,
+        dateMatch: reservationDate === normalizedDate,
+        isMatch: reservation.area === area && reservationDate === normalizedDate
+      });
+      
       if (reservation.area !== area || reservationDate !== normalizedDate) return false;
       
       // Verificar que la reservación esté activa
@@ -158,8 +176,26 @@ export function Reservations() {
   const isDateFullyBooked = useCallback((area: string, date: string) => {
     const normalizedDate = normalizeDate(date);
     
+    console.log('📅 Verificando fecha completamente ocupada:', {
+      area,
+      originalDate: date,
+      normalizedDate,
+      totalReservations: reservations.length
+    });
+    
     const areaReservations = reservations.filter(reservation => {
       const reservationDate = normalizeDate(reservation.date);
+      
+      console.log('📅 Comparando reservación para fecha ocupada:', {
+        reservationArea: reservation.area,
+        reservationDate: reservation.date,
+        reservationDateNormalized: reservationDate,
+        areaMatch: reservation.area === area,
+        dateMatch: reservationDate === normalizedDate,
+        statusMatch: reservation.status === 'active',
+        isMatch: reservation.area === area && reservationDate === normalizedDate && reservation.status === 'active'
+      });
+      
       return reservation.area === area && 
              reservationDate === normalizedDate && 
              reservation.status === 'active';
@@ -217,6 +253,9 @@ export function Reservations() {
       // Si ya es formato YYYY-MM-DD, retornarlo tal como está
       if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         normalizedDate = date;
+      } else if (date.includes('T')) {
+        // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
+        normalizedDate = date.split('T')[0];
       } else {
         // Si es una fecha en formato Date string, convertirla
         normalizedDate = new Date(date).toISOString().split('T')[0];
@@ -228,7 +267,8 @@ export function Reservations() {
     
     console.log('📅 Normalización de fecha:', {
       original: date,
-      normalized: normalizedDate
+      normalized: normalizedDate,
+      type: typeof date
     });
     
     return normalizedDate;
