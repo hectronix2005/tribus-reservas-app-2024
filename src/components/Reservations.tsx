@@ -424,6 +424,51 @@ export function Reservations() {
     return reservationDate < now;
   }, []);
 
+  // Función para verificar si solo una fecha está en el pasado (sin hora)
+  const isDateInPast = useCallback((date: string): boolean => {
+    if (!date) return false;
+    
+    // Crear fecha actual (solo fecha, sin hora)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Crear fecha de la reservación
+    let reservationDate: Date;
+    
+    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+      // Formato DD-MM-YY
+      const [day, month, year] = date.split('-').map(Number);
+      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+      reservationDate = new Date(fullYear, month - 1, day);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Formato YYYY-MM-DD
+      const [year, month, day] = date.split('-').map(Number);
+      reservationDate = new Date(year, month - 1, day);
+    } else {
+      reservationDate = new Date(date);
+      // Solo considerar la fecha, no la hora
+      reservationDate = new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate());
+    }
+    
+    console.log('📅 Validación fecha pasada:', {
+      today: today.toISOString(),
+      reservationDate: reservationDate.toISOString(),
+      isInPast: reservationDate < today,
+      date
+    });
+    
+    return reservationDate < today;
+  }, []);
+
+  // Función para obtener la fecha mínima permitida (hoy) en formato YYYY-MM-DD
+  const getMinDate = useCallback((): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, '0');
+    const day = today.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   // Función para obtener horas de inicio disponibles (memoizada)
   const availableStartTimes = useMemo(() => {
     if (!formData.area || !formData.date || !formData.duration) return [];
@@ -532,9 +577,7 @@ export function Reservations() {
       }
     } else if (isFullDayReservation) {
       // Para reservas de día completo, verificar solo la fecha
-      const today = new Date();
-      const reservationDate = new Date(formData.date);
-      if (reservationDate < today) {
+      if (isDateInPast(formData.date)) {
         setError('No se pueden hacer reservaciones en fechas pasadas. Por favor, seleccione una fecha futura.');
         return;
       }
@@ -867,6 +910,7 @@ export function Reservations() {
                 </label>
                 <input
                   type="date"
+                  min={getMinDate()}
                   value={(() => {
                     // Convertir DD-MM-YY a YYYY-MM-DD para el input date
                     if (formData.date && /^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
@@ -879,6 +923,12 @@ export function Reservations() {
                   onChange={(e) => {
                     const dateValue = e.target.value;
                     if (dateValue) {
+                      // Validar que la fecha no esté en el pasado
+                      if (isDateInPast(dateValue)) {
+                        setError('No se pueden seleccionar fechas pasadas. Por favor, seleccione una fecha futura.');
+                        return;
+                      }
+                      
                       // Convertir YYYY-MM-DD a DD-MM-YY
                       const [year, month, day] = dateValue.split('-').map(Number);
                       const shortYear = year.toString().slice(-2);
@@ -892,6 +942,8 @@ export function Reservations() {
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     isSelectedDateFullyBooked 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : isDateInPast(formData.date)
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50'
                       : 'border-gray-300 focus:ring-primary-500'
                   }`}
                   required
@@ -900,6 +952,12 @@ export function Reservations() {
                   <div className="mt-1 text-sm text-red-600 flex items-center">
                     <span className="mr-1">⚠️</span>
                     Esta fecha está completamente ocupada para {formData.area}
+                  </div>
+                )}
+                {isDateInPast(formData.date) && (
+                  <div className="mt-1 text-sm text-red-600 flex items-center">
+                    <span className="mr-1">⏰</span>
+                    No se pueden seleccionar fechas pasadas
                   </div>
                 )}
                 {formData.date && (
@@ -1127,9 +1185,9 @@ export function Reservations() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={isLoading || isSelectedDateFullyBooked}
+                disabled={isLoading || isSelectedDateFullyBooked || isDateInPast(formData.date)}
                 className={`flex-1 ${
-                  isSelectedDateFullyBooked 
+                  isSelectedDateFullyBooked || isDateInPast(formData.date)
                     ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
                     : 'btn-primary'
                 }`}

@@ -974,6 +974,20 @@ app.put('/api/reservations/:id', async (req, res) => {
       }
     }
 
+    // Validar que la fecha y hora no estén en el pasado (solo si se están actualizando)
+    if (date && startTime) {
+      const now = new Date();
+      const reservationDate = new Date(date);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      reservationDate.setHours(hours, minutes, 0, 0);
+      
+      if (reservationDate < now) {
+        return res.status(400).json({ 
+          error: 'No se pueden hacer reservaciones en fechas y horarios pasados. Por favor, seleccione una fecha y hora futura.' 
+        });
+      }
+    }
+
     // Actualizar campos
     if (userName) reservation.userName = userName;
     if (area) reservation.area = area;
