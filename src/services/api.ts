@@ -243,6 +243,36 @@ export const userService = {
       console.error('❌ Error verificando sincronización:', error);
       throw error;
     }
+  },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    try {
+      const response = await apiRequest<any>('/users/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId,
+          currentPassword,
+          newPassword
+        }),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error cambiando contraseña:', error);
+      throw error;
+    }
+  },
+
+  async updateProfile(userId: string, profileData: any) {
+    try {
+      const response = await apiRequest<any>(`/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error actualizando perfil:', error);
+      throw error;
+    }
   }
 };
 

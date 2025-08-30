@@ -9,6 +9,8 @@ import { Templates } from './components/Templates';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
 import { Availability } from './components/Availability';
+import { UserProfile } from './components/UserProfile';
+import { UserTemplates } from './components/UserTemplates';
 
 function AppContent() {
   const { state } = useApp();
@@ -75,6 +77,10 @@ function AppContent() {
         return state.auth.currentUser?.role === 'admin' ? <Admin /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
         </div>;
+      case 'profile':
+        return <UserProfile />;
+      case 'userTemplates':
+        return <UserTemplates />;
       default:
         return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <Availability onHourClick={handleAvailabilityHourClick} />;
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye, ChevronDown } from 'lucide-react';
+import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye, ChevronDown, UserCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface HeaderProps {
@@ -40,6 +40,11 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     ] : []),
     { id: 'reservations', label: 'Reservas', icon: Calendar },
     { id: 'availability', label: 'Disponibilidad', icon: Eye },
+  ];
+
+  const userItems = [
+    { id: 'profile', label: 'Mi Perfil', icon: UserCheck },
+    { id: 'userTemplates', label: 'Mis Plantillas', icon: FileText },
   ];
 
   const adminItems = [
@@ -144,6 +149,29 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 )}
               </div>
             )}
+
+            {/* User Menu for Regular Users */}
+            {state.auth.currentUser?.role === 'user' && (
+              <>
+                {userItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onViewChange(item.id)}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                        currentView === item.id
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </nav>
 
           {/* User Info and Logout */}
@@ -208,6 +236,37 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                       Administración
                     </div>
                     {adminItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            onViewChange(item.id);
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`flex items-center space-x-3 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                            currentView === item.id
+                              ? 'bg-primary-100 text-primary-700'
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* User Menu for Mobile */}
+              {state.auth.currentUser?.role === 'user' && (
+                <>
+                  <div className="border-t border-gray-200 pt-2 mt-2">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider px-3 py-2">
+                      Mi Cuenta
+                    </div>
+                    {userItems.map((item) => {
                       const Icon = item.icon;
                       return (
                         <button
