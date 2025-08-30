@@ -781,32 +781,32 @@ export function Reservations() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha (DD-MM-YY)
+                  Fecha
                 </label>
                 <input
-                  type="text"
-                  value={formData.date}
+                  type="date"
+                  value={(() => {
+                    // Convertir DD-MM-YY a YYYY-MM-DD para el input date
+                    if (formData.date && /^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
+                      const [day, month, year] = formData.date.split('-').map(Number);
+                      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+                      return `${fullYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    }
+                    return formData.date;
+                  })()}
                   onChange={(e) => {
-                    const inputValue = e.target.value;
-                    // Permitir solo números y guiones
-                    const cleanValue = inputValue.replace(/[^0-9-]/g, '');
-                    
-                    // Formatear automáticamente como DD-MM-YY
-                    let formattedValue = cleanValue;
-                    if (cleanValue.length >= 2 && !cleanValue.includes('-')) {
-                      formattedValue = cleanValue.slice(0, 2) + '-' + cleanValue.slice(2);
+                    const dateValue = e.target.value;
+                    if (dateValue) {
+                      // Convertir YYYY-MM-DD a DD-MM-YY
+                      const [year, month, day] = dateValue.split('-').map(Number);
+                      const shortYear = year.toString().slice(-2);
+                      const formattedDate = `${day.toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${shortYear}`;
+                      setFormData({...formData, date: formattedDate});
+                    } else {
+                      setFormData({...formData, date: ''});
                     }
-                    if (cleanValue.length >= 5 && cleanValue.split('-').length === 2) {
-                      formattedValue = cleanValue.slice(0, 5) + '-' + cleanValue.slice(5);
-                    }
-                    
-                    // Limitar a DD-MM-YY
-                    if (formattedValue.length <= 8) {
-                      setFormData({...formData, date: formattedValue});
-                      setError(null); // Limpiar error cuando cambie la fecha
-                    }
+                    setError(null); // Limpiar error cuando cambie la fecha
                   }}
-                  placeholder="DD-MM-YY (ej: 30-08-25)"
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     isSelectedDateFullyBooked 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
@@ -820,9 +820,9 @@ export function Reservations() {
                     Esta fecha está completamente ocupada para {formData.area}
                   </div>
                 )}
-                {formData.date && formData.date.length === 8 && !/^\d{2}-\d{2}-\d{2}$/.test(formData.date) && (
-                  <div className="mt-1 text-sm text-red-600">
-                    Formato inválido. Use DD-MM-YY (ej: 30-08-25)
+                {formData.date && (
+                  <div className="mt-1 text-sm text-gray-500">
+                    Fecha seleccionada: {formData.date} ({formatDateForDisplay(formData.date)})
                   </div>
                 )}
               </div>
