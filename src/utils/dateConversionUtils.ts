@@ -120,3 +120,49 @@ export const testDateNormalization = () => {
     });
   });
 };
+
+// Función específica para debuggear el problema de normalización
+export const debugDateNormalization = () => {
+  console.log('🔍 DEBUG: Análisis detallado de normalización de fechas');
+  
+  // Simular el flujo completo: frontend → backend → frontend
+  const frontendDate = '30-08-25'; // Formato que envía el frontend
+  console.log('1. Fecha del frontend (DD-MM-YY):', frontendDate);
+  
+  // Simular lo que hace el backend: new Date(frontendDate)
+  const backendDate = new Date(frontendDate);
+  console.log('2. Fecha en el backend (new Date):', backendDate);
+  console.log('2.1. Fecha ISO del backend:', backendDate.toISOString());
+  console.log('2.2. Fecha local del backend:', backendDate.toString());
+  
+  // Simular lo que viene de la base de datos (fecha ISO)
+  const dbDate = backendDate.toISOString();
+  console.log('3. Fecha de la base de datos (ISO):', dbDate);
+  
+  // Normalizar la fecha de la BD
+  const normalizedFromDB = normalizeDateConsistent(dbDate);
+  console.log('4. Fecha normalizada desde BD:', normalizedFromDB);
+  
+  // Normalizar la fecha original del frontend
+  const normalizedFromFrontend = normalizeDateConsistent(frontendDate);
+  console.log('5. Fecha normalizada desde frontend:', normalizedFromFrontend);
+  
+  // Comparar
+  console.log('6. ¿Son iguales?:', normalizedFromDB === normalizedFromFrontend);
+  
+  if (normalizedFromDB !== normalizedFromFrontend) {
+    console.error('❌ PROBLEMA DETECTADO: Las fechas no se normalizan igual');
+    console.error('   - Desde BD:', normalizedFromDB);
+    console.error('   - Desde frontend:', normalizedFromFrontend);
+  } else {
+    console.log('✅ Las fechas se normalizan correctamente');
+  }
+  
+  return {
+    frontendDate,
+    backendDate: backendDate.toISOString(),
+    normalizedFromDB,
+    normalizedFromFrontend,
+    areEqual: normalizedFromDB === normalizedFromFrontend
+  };
+};

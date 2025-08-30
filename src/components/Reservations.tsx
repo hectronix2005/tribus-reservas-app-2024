@@ -3,7 +3,7 @@ import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'luc
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
-import { normalizeDateConsistent, testDateNormalization } from '../utils/dateConversionUtils';
+import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
 
 interface Reservation {
   _id: string;
@@ -596,6 +596,10 @@ export function Reservations() {
         normalized3,
         allEqual: normalized1 === normalized2 && normalized2 === normalized3
       });
+      
+      // Debug específico del problema
+      console.log('🔍 DEBUG: Análisis del problema de normalización...');
+      debugDateNormalization();
     }
   }, []);
 
