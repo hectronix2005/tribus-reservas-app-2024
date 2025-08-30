@@ -13,14 +13,14 @@ import { Availability } from './components/Availability';
 function AppContent() {
   const { state } = useApp();
   const [currentView, setCurrentView] = useState(() => {
-    // Si es admin, mostrar dashboard; si es usuario regular, mostrar reservaciones
-    return state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'reservations';
+    // Si es admin, mostrar dashboard; si es usuario regular, mostrar disponibilidad
+    return state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'availability';
   });
 
   // Actualizar la vista cuando cambie el usuario autenticado
   useEffect(() => {
     if (state.auth.isAuthenticated) {
-      const defaultView = state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'reservations';
+      const defaultView = state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'availability';
       setCurrentView(defaultView);
     }
   }, [state.auth.currentUser?.role, state.auth.isAuthenticated]);
@@ -76,7 +76,7 @@ function AppContent() {
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
         </div>;
       default:
-        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <Reservations />;
+        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <Availability onHourClick={handleAvailabilityHourClick} />;
     }
   };
 
