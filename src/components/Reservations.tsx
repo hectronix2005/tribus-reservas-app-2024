@@ -699,16 +699,18 @@ export function Reservations() {
     // Verificar que la fecha sea un día de oficina
     if (formData.date) {
       const selectedDate = new Date(formData.date);
+      const officeDays = ensureAdminSettings();
+      
       console.log('🔍 Validando día de oficina:', {
         selectedDate: selectedDate.toISOString(),
         dayOfWeek: selectedDate.getDay(),
         dayName: selectedDate.toLocaleDateString('en-US', { weekday: 'long' }),
-        officeDays: state.adminSettings.officeDays,
+        officeDays: officeDays,
         adminSettings: state.adminSettings,
-        isOfficeDay: isOfficeDay(selectedDate, state.adminSettings.officeDays)
+        isOfficeDay: isOfficeDay(selectedDate, officeDays)
       });
       
-      if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+      if (!isOfficeDay(selectedDate, officeDays)) {
         console.error('❌ Error: La fecha seleccionada no es un día de oficina');
         setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
         return;
@@ -717,7 +719,8 @@ export function Reservations() {
 
     // Verificar que la hora esté dentro del horario de oficina
     if (!isFullDayReservation && formData.startTime) {
-      if (!isOfficeHour(formData.startTime, state.adminSettings.officeHours)) {
+      const officeHours = state.adminSettings?.officeHours || { start: '08:00', end: '18:00' };
+      if (!isOfficeHour(formData.startTime, officeHours)) {
         setError('La hora seleccionada está fuera del horario de oficina. Por favor, seleccione una hora dentro del horario laboral.');
         return;
       }
@@ -973,6 +976,34 @@ export function Reservations() {
       default: return 'Desconocido';
     }
   };
+
+  // Función para verificar y cargar configuración de admin
+  const ensureAdminSettings = () => {
+    if (!state.adminSettings || !state.adminSettings.officeDays) {
+      console.warn('⚠️ Configuración de admin no encontrada, usando configuración por defecto');
+      // Configuración por defecto
+      const defaultOfficeDays = {
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false
+      };
+      return defaultOfficeDays;
+    }
+    return state.adminSettings.officeDays;
+  };
+
+  // Cargar configuración de admin al montar el componente
+  useEffect(() => {
+    console.log('🔍 Configuración de admin cargada:', {
+      adminSettings: state.adminSettings,
+      officeDays: state.adminSettings?.officeDays,
+      officeHours: state.adminSettings?.officeHours
+    });
+  }, [state.adminSettings]);
 
   // Función para generar fechas recurrentes
   const generateRecurringDates = (startDate: string, recurrenceType: string, recurrenceInterval: number, recurrenceEndDate: string, recurrenceDays: string[] = []): string[] => {
