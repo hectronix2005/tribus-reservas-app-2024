@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye, ChevronDown, UserCheck, Menu, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { TribusLogo } from './TribusLogo';
 
 interface HeaderProps {
   currentView: string;
@@ -66,18 +67,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
           {/* Logo and Brand */}
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-primary shadow-glow flex items-center justify-center">
-                    <span className="text-white font-bold text-xl">T</span>
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-success-500 rounded-full border-2 border-white animate-pulse-soft"></div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gradient-primary">TRIBUS</h1>
-                  <p className="text-xs text-slate-500 font-medium">Sistema de Reservas</p>
-                </div>
-              </div>
+              <TribusLogo size="md" showText={true} />
             </div>
           </div>
 

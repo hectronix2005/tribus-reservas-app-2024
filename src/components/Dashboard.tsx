@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, Users, Clock, TrendingUp, AlertCircle, BarChart3, Activity, Zap, Target, Eye } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { formatDateInBogota } from '../utils/dateUtils';
+import { TribusLogo } from './TribusLogo';
 
 export function Dashboard() {
   const { state, getDailyCapacity } = useApp();
@@ -43,11 +44,14 @@ export function Dashboard() {
         <div className="absolute inset-0 bg-hero-pattern opacity-10"></div>
         <div className="relative z-10">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">¡Bienvenido de vuelta!</h1>
-              <p className="text-primary-100 text-lg">
-                Resumen de reservas para {formatDateInBogota(today, 'EEEE, d \'de\' MMMM')}
-              </p>
+            <div className="flex items-center space-x-4">
+              <TribusLogo size="lg" showText={false} />
+              <div>
+                <h1 className="text-4xl font-bold mb-2">¡Bienvenido a TRIBUS!</h1>
+                <p className="text-primary-100 text-lg">
+                  Resumen de reservas para {formatDateInBogota(today, 'EEEE, d \'de\' MMMM')}
+                </p>
+              </div>
             </div>
             <div className="text-right">
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">

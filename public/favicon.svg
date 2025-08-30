@@ -1,0 +1,30 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Patrón geométrico simplificado para favicon -->
+    <pattern id="geometricPattern" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="8" height="8" fill="#7c3aed" opacity="0.1"/>
+      <rect x="0" y="0" width="4" height="4" fill="#8b5cf6" opacity="0.2"/>
+      <rect x="4" y="4" width="4" height="4" fill="#8b5cf6" opacity="0.2"/>
+    </pattern>
+    
+    <!-- Gradiente para el fondo principal -->
+    <linearGradient id="backgroundGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5b21b6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fondo principal con patrón -->
+  <rect width="32" height="32" rx="8" fill="url(#backgroundGradient)"/>
+  <rect width="32" height="32" rx="8" fill="url(#geometricPattern)"/>
+  
+  <!-- Puntos de colores decorativos (versión simplificada) -->
+  <circle cx="8" cy="10" r="1.5" fill="#06b6d4"/> <!-- Punto azul -->
+  <circle cx="20" cy="10" r="1.5" fill="#f97316"/> <!-- Punto naranja -->
+  <circle cx="26" cy="10" r="1.5" fill="#ec4899"/> <!-- Punto rosa -->
+  
+  <!-- Texto "T" simplificado -->
+  <text x="16" y="22" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="800" text-anchor="middle" fill="white">
+    T
+  </text>
+</svg>
