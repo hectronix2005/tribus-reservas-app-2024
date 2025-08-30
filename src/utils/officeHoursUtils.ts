@@ -14,8 +14,14 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     return false;
   }
   
-  // Crear una nueva fecha para evitar problemas de zona horaria
-  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // Obtener los componentes de fecha en la zona horaria local
+  // Usar getFullYear(), getMonth(), getDate() que respetan la zona horaria local
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const day = date.getDate();
+  
+  // Crear una nueva fecha usando los componentes locales
+  const localDate = new Date(year, month, day);
   const dayOfWeek = localDate.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
   
   const dayMap = {
@@ -36,10 +42,17 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     console.log('🔍 isOfficeDay debug:', {
       originalDate: date.toISOString(),
       localDate: localDate.toISOString(),
+      year,
+      month,
+      day,
       dayOfWeek,
       dayKey,
       officeDays,
-      result
+      result,
+      // Información adicional para debug
+      originalDateString: date.toString(),
+      localDateString: localDate.toString(),
+      timezoneOffset: date.getTimezoneOffset()
     });
   }
   
