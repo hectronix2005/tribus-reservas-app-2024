@@ -31,18 +31,28 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Generar los próximos 15 días
+  // Generar los próximos días laborables (excluyendo sábados y domingos)
   const generateNext15Days = (): string[] => {
     const days: string[] = [];
     const today = new Date();
+    let currentDate = new Date(today);
+    let daysAdded = 0;
     
-    for (let i = 0; i < 15; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      days.push(`${year}-${month}-${day}`);
+    // Continuar hasta tener 15 días laborables
+    while (daysAdded < 15) {
+      const dayOfWeek = currentDate.getDay(); // 0 = domingo, 6 = sábado
+      
+      // Solo incluir días de lunes a viernes (1-5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        const year = currentDate.getFullYear();
+        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        const day = currentDate.getDate().toString().padStart(2, '0');
+        days.push(`${year}-${month}-${day}`);
+        daysAdded++;
+      }
+      
+      // Avanzar al siguiente día
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     
     return days;
