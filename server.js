@@ -1060,10 +1060,22 @@ app.delete('/api/reservations/:id', async (req, res) => {
   }
 });
 
-// Servir el frontend React para todas las demás rutas
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
+// Servir archivos estáticos de React en desarrollo
+if (process.env.NODE_ENV === 'development') {
+  // En desarrollo, el servidor de React maneja los archivos estáticos
+  // Solo servir la API
+  app.get('*', (req, res) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  });
+} else {
+  // En producción, servir archivos estáticos de React
+  app.use(express.static(path.join(__dirname, 'build')));
+  
+  // Servir el frontend React para todas las demás rutas
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor TRIBUS ejecutándose en puerto ${PORT}`);
