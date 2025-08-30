@@ -519,10 +519,31 @@ export function Reservations() {
     const interval = 30; // 30 minutos
     const duration = parseInt(formData.duration || '60');
     
+    // Solo mostrar logs en desarrollo para evitar spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🕐 Configuración de horarios de oficina para generación:', {
+        officeHours: state.adminSettings.officeHours,
+        startHour,
+        endHour,
+        interval,
+        duration,
+        formData: {
+          area: formData.area,
+          date: formData.date,
+          duration: formData.duration
+        }
+      });
+    }
+    
     // Verificar que la fecha seleccionada sea un día de oficina
     const selectedDate = new Date(formData.date);
     if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
-      console.log('❌ Fecha seleccionada no es un día de oficina:', formData.date);
+      console.log('❌ Fecha seleccionada no es un día de oficina:', {
+        date: formData.date,
+        selectedDate: selectedDate.toISOString(),
+        officeDays: state.adminSettings.officeDays,
+        isOfficeDayResult: isOfficeDay(selectedDate, state.adminSettings.officeDays)
+      });
       return [];
     }
     
@@ -736,7 +757,24 @@ export function Reservations() {
     // Verificar que la hora esté dentro del horario de oficina
     if (!isFullDayReservation && formData.startTime) {
       const officeHours = state.adminSettings?.officeHours || { start: '08:00', end: '18:00' };
+      
+      // Solo mostrar logs en desarrollo para evitar spam
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🕐 Validación de horario de oficina en submit:', {
+          startTime: formData.startTime,
+          officeHours,
+          isFullDayReservation,
+          adminSettings: state.adminSettings,
+          isOfficeHourResult: isOfficeHour(formData.startTime, officeHours)
+        });
+      }
+      
       if (!isOfficeHour(formData.startTime, officeHours)) {
+        console.warn('⚠️ Hora fuera del horario de oficina:', {
+          startTime: formData.startTime,
+          officeHours,
+          isOfficeHourResult: isOfficeHour(formData.startTime, officeHours)
+        });
         setError('La hora seleccionada está fuera del horario de oficina. Por favor, seleccione una hora dentro del horario laboral.');
         return;
       }

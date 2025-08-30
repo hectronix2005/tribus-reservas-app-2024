@@ -57,7 +57,23 @@ export const isOfficeHour = (time: string, officeHours: AdminSettings['officeHou
   const [endHours, endMinutes] = officeHours.end.split(':').map(Number);
   const endInMinutes = endHours * 60 + endMinutes;
   
-  return timeInMinutes >= startInMinutes && timeInMinutes < endInMinutes;
+  const result = timeInMinutes >= startInMinutes && timeInMinutes < endInMinutes;
+  
+  // Solo mostrar logs en desarrollo para evitar spam
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🕐 isOfficeHour debug:', {
+      time,
+      timeInMinutes,
+      officeHours,
+      startInMinutes,
+      endInMinutes,
+      result,
+      isAfterStart: timeInMinutes >= startInMinutes,
+      isBeforeEnd: timeInMinutes < endInMinutes
+    });
+  }
+  
+  return result;
 };
 
 // Función para verificar si una fecha y hora están dentro del horario de oficina
@@ -67,12 +83,29 @@ export const isWithinOfficeHours = (
   adminSettings: AdminSettings
 ): boolean => {
   // Verificar si es un día de oficina
-  if (!isOfficeDay(date, adminSettings.officeDays)) {
-    return false;
-  }
+  const isOfficeDayResult = isOfficeDay(date, adminSettings.officeDays);
   
   // Verificar si está dentro del horario de oficina
-  return isOfficeHour(time, adminSettings.officeHours);
+  const isOfficeHourResult = isOfficeHour(time, adminSettings.officeHours);
+  
+  const result = isOfficeDayResult && isOfficeHourResult;
+  
+  // Solo mostrar logs en desarrollo para evitar spam
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🏢 isWithinOfficeHours debug:', {
+      date: date.toISOString(),
+      time,
+      adminSettings: {
+        officeDays: adminSettings.officeDays,
+        officeHours: adminSettings.officeHours
+      },
+      isOfficeDay: isOfficeDayResult,
+      isOfficeHour: isOfficeHourResult,
+      result
+    });
+  }
+  
+  return result;
 };
 
 // Función para generar horarios disponibles basados en la configuración de oficina

@@ -65,11 +65,33 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
     const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
     
+    // Solo mostrar logs en desarrollo para evitar spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🕐 Generando horarios de disponibilidad:', {
+        officeHours: state.adminSettings.officeHours,
+        startHour,
+        endHour,
+        adminSettings: state.adminSettings
+      });
+    }
+    
     for (let hour = startHour; hour < endHour; hour++) {
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const displayHour = hour === 12 ? 12 : hour > 12 ? hour - 12 : hour;
-      slots.push(`${displayHour}:00 ${ampm}`);
+      const timeSlot = `${displayHour}:00 ${ampm}`;
+      slots.push(timeSlot);
+      
+      // Solo mostrar logs en desarrollo para evitar spam
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`  📅 Horario generado: ${hour}:00 (${timeSlot})`);
+      }
     }
+    
+    // Solo mostrar logs en desarrollo para evitar spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Horarios generados:', slots);
+    }
+    
     return slots;
   };
 

@@ -44,6 +44,27 @@ export function Admin() {
   ];
 
   const handleSettingsUpdate = (settings: typeof state.adminSettings) => {
+    // Solo mostrar logs en desarrollo para evitar spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('⚙️ Configuración de admin actualizada:', {
+        previousSettings: {
+          officeDays: state.adminSettings.officeDays,
+          officeHours: state.adminSettings.officeHours,
+          businessHours: state.adminSettings.businessHours
+        },
+        newSettings: {
+          officeDays: settings.officeDays,
+          officeHours: settings.officeHours,
+          businessHours: settings.businessHours
+        },
+        changes: {
+          officeDaysChanged: JSON.stringify(state.adminSettings.officeDays) !== JSON.stringify(settings.officeDays),
+          officeHoursChanged: JSON.stringify(state.adminSettings.officeHours) !== JSON.stringify(settings.officeHours),
+          businessHoursChanged: JSON.stringify(state.adminSettings.businessHours) !== JSON.stringify(settings.businessHours)
+        }
+      });
+    }
+    
     dispatch({ type: 'SET_ADMIN_SETTINGS', payload: settings });
   };
 
