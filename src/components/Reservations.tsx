@@ -56,7 +56,14 @@ export function Reservations() {
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
-    date: new Date().toISOString().split('T')[0],
+    date: (() => {
+      // Inicializar con la fecha actual en formato DD-MM-YY
+      const today = new Date();
+      const day = today.getDate().toString().padStart(2, '0');
+      const month = (today.getMonth() + 1).toString().padStart(2, '0');
+      const year = today.getFullYear().toString().slice(-2);
+      return `${day}-${month}-${year}`;
+    })(),
     startTime: '09:00',
     endTime: '10:00',
     duration: '60',
@@ -157,16 +164,19 @@ export function Reservations() {
     
     const normalizedDate = `${day}-${month}-${year}`;
     
-    console.log('📅 Normalización de fecha:', {
-      original: date,
-      normalized: normalizedDate,
-      displayFormat: formatDateForDisplay(date),
-      displayWithDay: formatDateWithDay(date),
-      type: typeof date,
-      isISO: typeof date === 'string' && date.includes('T'),
-      isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date),
-      isDDMMYY: typeof date === 'string' && /^\d{2}-\d{2}-\d{2}$/.test(date)
-    });
+    // Solo mostrar logs en desarrollo para evitar spam
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📅 Normalización de fecha:', {
+        original: date,
+        normalized: normalizedDate,
+        displayFormat: formatDateForDisplay(date),
+        displayWithDay: formatDateWithDay(date),
+        type: typeof date,
+        isISO: typeof date === 'string' && date.includes('T'),
+        isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date),
+        isDDMMYY: typeof date === 'string' && /^\d{2}-\d{2}-\d{2}$/.test(date)
+      });
+    }
     
     return normalizedDate;
   }, []);
