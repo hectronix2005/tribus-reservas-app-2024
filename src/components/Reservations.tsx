@@ -136,7 +136,9 @@ export function Reservations() {
       original: date,
       normalized: normalizedDate,
       displayFormat: formatDateForDisplay(date),
-      type: typeof date
+      displayWithDay: formatDateWithDay(date),
+      type: typeof date,
+      isISO: typeof date === 'string' && date.includes('T')
     });
     
     return normalizedDate;
@@ -144,7 +146,20 @@ export function Reservations() {
 
   // Función para formatear fecha para visualización (Día, Mes y Año)
   const formatDateForDisplay = (date: string | Date): string => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      // Si es un string ISO, crear la fecha correctamente
+      if (date.includes('T')) {
+        // Para fechas ISO, usar UTC para evitar problemas de zona horaria
+        const [year, month, day] = date.split('T')[0].split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      } else {
+        dateObj = new Date(date);
+      }
+    } else {
+      dateObj = date;
+    }
     
     // Formato: "Viernes, 30 de agosto de 2025"
     return dateObj.toLocaleDateString('es-ES', {
@@ -159,7 +174,20 @@ export function Reservations() {
 
   // Función para formatear fecha con día de la semana (DD/MM/YYYY - Día)
   const formatDateWithDay = (date: string | Date): string => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      // Si es un string ISO, crear la fecha correctamente
+      if (date.includes('T')) {
+        // Para fechas ISO, usar UTC para evitar problemas de zona horaria
+        const [year, month, day] = date.split('T')[0].split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      } else {
+        dateObj = new Date(date);
+      }
+    } else {
+      dateObj = date;
+    }
     
     // Formato: "30/08/2025 - Viernes"
     const shortDate = dateObj.toLocaleDateString('es-ES', {
