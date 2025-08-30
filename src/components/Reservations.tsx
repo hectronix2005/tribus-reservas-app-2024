@@ -133,6 +133,56 @@ export function Reservations() {
   const selectedArea = areas.find(area => area.name === formData.area);
   const isFullDayReservation = selectedArea?.isFullDayReservation || false;
 
+  // Función para generar opciones de duración basada en el rol del usuario
+  const getDurationOptions = useCallback(() => {
+    const baseOptions = [
+      { value: '30', label: '30 minutos' },
+      { value: '60', label: '1 hora' },
+      { value: '90', label: '1.5 horas' },
+      { value: '120', label: '2 horas' },
+      { value: '180', label: '3 horas' },
+      { value: '240', label: '4 horas' },
+      { value: '300', label: '5 horas' },
+      { value: '360', label: '6 horas' },
+      { value: '420', label: '7 horas' },
+      { value: '480', label: '8 horas' }
+    ];
+
+    // Si el usuario es admin, mostrar todas las opciones
+    if (currentUser?.role === 'admin') {
+      return baseOptions;
+    }
+
+    // Si el usuario es user, limitar a máximo 3 horas (180 minutos)
+    return baseOptions.filter(option => parseInt(option.value) <= 180);
+  }, [currentUser?.role]);
+
+  // Validar y ajustar duración para usuarios con rol "user"
+  useEffect(() => {
+    if (currentUser?.role === 'user' && !isFullDayReservation) {
+      const currentDuration = parseInt(formData.duration || '60');
+      if (currentDuration > 180) {
+        // Ajustar a 3 horas máximo
+        const newEndTime = addMinutesToTime(formData.startTime, 180);
+        setFormData(prev => ({
+          ...prev,
+          duration: '180',
+          endTime: newEndTime
+        }));
+        
+        // Mostrar mensaje informativo
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⚠️ Duración ajustada para usuario con rol "user":', {
+            originalDuration: currentDuration,
+            newDuration: 180,
+            originalEndTime: formData.endTime,
+            newEndTime: newEndTime
+          });
+        }
+      }
+    }
+  }, [currentUser?.role, formData.duration, formData.startTime, isFullDayReservation]);
+
 
 
   // Función para normalizar fechas a formato YYYY-MM-DD (para comparaciones internas)
@@ -792,6 +842,15 @@ export function Reservations() {
       }
     }
 
+    // Verificar límite de duración para usuarios con rol "user"
+    if (!isFullDayReservation && currentUser?.role === 'user') {
+      const durationMinutes = parseInt(formData.duration || '60');
+      if (durationMinutes > 180) {
+        setError('Los usuarios con rol "User" solo pueden reservar hasta 3 horas (180 minutos) máximo.');
+        return;
+      }
+    }
+
     // Verificar si la fecha está completamente ocupada
     if (isSelectedDateFullyBooked) {
       setError('Esta fecha está completamente ocupada. Por favor, seleccione otra fecha.');
@@ -1317,6 +1376,11 @@ export function Reservations() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Duración (minutos)
+                    {currentUser?.role === 'user' && (
+                      <span className="text-xs text-orange-600 ml-2">
+                        (Máximo 3 horas para usuarios)
+                      </span>
+                    )}
                   </label>
                   <select
                     value={formData.duration || '60'}
@@ -1328,16 +1392,11 @@ export function Reservations() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
                   >
-                    <option value="30">30 minutos</option>
-                    <option value="60">1 hora</option>
-                    <option value="90">1.5 horas</option>
-                    <option value="120">2 horas</option>
-                    <option value="180">3 horas</option>
-                    <option value="240">4 horas</option>
-                    <option value="300">5 horas</option>
-                    <option value="360">6 horas</option>
-                    <option value="420">7 horas</option>
-                    <option value="480">8 horas</option>
+                    {getDurationOptions().map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                   {formData.startTime && formData.duration && (
                     <div className="text-sm text-gray-600 mt-1">
