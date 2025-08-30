@@ -47,7 +47,11 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'build')));
+
+// Solo servir archivos estáticos en producción
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'build')));
+}
 
 // MongoDB Query Logging
 mongoose.set('debug', true);
