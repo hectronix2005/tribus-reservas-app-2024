@@ -14,15 +14,21 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     return false;
   }
   
-  // Obtener los componentes de fecha en la zona horaria local
-  // Usar getFullYear(), getMonth(), getDate() que respetan la zona horaria local
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const day = date.getDate();
+  // Determinar el día de la semana correctamente
+  let dayOfWeek: number;
   
-  // Crear una nueva fecha usando los componentes locales
-  const localDate = new Date(year, month, day);
-  const dayOfWeek = localDate.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+  // Verificar si la fecha original es UTC (tiene 'Z' al final)
+  const isUTC = date.toISOString().endsWith('Z');
+  
+  if (isUTC) {
+    // Si es UTC, convertir a la zona horaria local antes de determinar el día
+    // Crear una nueva fecha en la zona horaria local
+    const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+    dayOfWeek = localTime.getUTCDay();
+  } else {
+    // Si ya es local, usar directamente
+    dayOfWeek = date.getDay();
+  }
   
   const dayMap = {
     0: 'sunday',
@@ -41,22 +47,31 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
   if (process.env.NODE_ENV === 'development') {
     console.log('🔍 isOfficeDay debug:', {
       originalDate: date.toISOString(),
-      localDate: localDate.toISOString(),
-      year,
-      month,
-      day,
+      isUTC,
       dayOfWeek,
       dayKey,
       officeDays,
       result,
       // Información adicional para debug
       originalDateString: date.toString(),
-      localDateString: localDate.toString(),
-      timezoneOffset: date.getTimezoneOffset()
+      timezoneOffset: date.getTimezoneOffset(),
+      localTime: isUTC ? new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString() : 'N/A'
     });
   }
   
   return result;
+};
+
+// Función auxiliar para crear fechas en la zona horaria local
+export const createLocalDate = (dateString: string): Date => {
+  // Si la fecha tiene 'Z' al final, es UTC, convertir a local
+  if (dateString.endsWith('Z')) {
+    const utcDate = new Date(dateString);
+    return new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
+  }
+  
+  // Si no tiene 'Z', interpretar como fecha local
+  return new Date(dateString);
 };
 
 // Función para verificar si una hora específica está dentro del horario de oficina

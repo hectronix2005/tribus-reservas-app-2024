@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
+import { isOfficeDay as isOfficeDayUtil } from '../utils/officeHoursUtils';
 
 interface DayAvailability {
   date: string;
@@ -28,15 +29,9 @@ interface AvailabilityProps {
 export function Availability({ onHourClick }: AvailabilityProps) {
   const { state } = useApp();
   
-  // Verificar si un día es día de oficina
+  // Usar la función isOfficeDay importada que maneja correctamente las zonas horarias
   const isOfficeDay = (date: Date): boolean => {
-    if (!state.adminSettings.officeDays) return true; // Si no hay configuración, mostrar todos los días
-    
-    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = dayNames[dayOfWeek] as keyof typeof state.adminSettings.officeDays;
-    
-    return state.adminSettings.officeDays[dayName] || false;
+    return isOfficeDayUtil(date, state.adminSettings.officeDays);
   };
 
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
