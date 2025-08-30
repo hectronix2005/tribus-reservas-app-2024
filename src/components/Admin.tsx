@@ -664,7 +664,7 @@ export function Admin() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {reservation.groupName}
+                              {reservation.groupName || 'Sin grupo'}
                             </div>
                             {reservation.notes && (
                               <div className="text-sm text-gray-500">{reservation.notes}</div>
@@ -672,34 +672,40 @@ export function Admin() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{reservation.areaName}</div>
+                          <div className="text-sm text-gray-900">{reservation.areaName || 'Sin área'}</div>
                         </td>
                                                  <td className="px-6 py-4 whitespace-nowrap">
                            <div className="text-sm text-gray-900">
                              {state.areas.find(a => a.id === reservation.areaId)?.isMeetingRoom 
-                               ? `${reservation.requestedSeats} personas (sala completa)`
-                               : `${reservation.requestedSeats} puestos`
+                               ? `${reservation.requestedSeats || 0} personas (sala completa)`
+                               : `${reservation.requestedSeats || 0} puestos`
                              }
                            </div>
                          </td>
                                                  <td className="px-6 py-4 whitespace-nowrap">
                            <div className="text-sm text-gray-900">
-                             {formatDateInBogota(reservation.date, 'dd/MM/yyyy')}
+                             {reservation.date ? formatDateInBogota(reservation.date, 'dd/MM/yyyy') : 'Sin fecha'}
                            </div>
                            <div className="text-sm text-gray-500">
-                             {reservation.time} - {(() => {
-                               const [hours, minutes] = reservation.time.split(':').map(Number);
-                               const totalMinutes = hours * 60 + minutes + reservation.duration;
-                               const endHours = Math.floor(totalMinutes / 60);
-                               const endMinutes = totalMinutes % 60;
-                               return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+                             {reservation.time || 'Sin hora'} - {(() => {
+                               if (!reservation.time) return 'N/A';
+                               try {
+                                 const [hours, minutes] = reservation.time.split(':').map(Number);
+                                 const totalMinutes = hours * 60 + minutes + (reservation.duration || 0);
+                                 const endHours = Math.floor(totalMinutes / 60);
+                                 const endMinutes = totalMinutes % 60;
+                                 return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+                               } catch (error) {
+                                 console.error('Error calculando hora de fin:', error, reservation);
+                                 return 'Error';
+                               }
                              })()}
                            </div>
                          </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm text-gray-900">{reservation.contactPerson}</div>
-                            <div className="text-sm text-gray-500">{reservation.contactEmail}</div>
+                            <div className="text-sm text-gray-900">{reservation.contactPerson || 'Sin contacto'}</div>
+                            <div className="text-sm text-gray-500">{reservation.contactEmail || 'Sin email'}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
