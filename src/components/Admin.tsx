@@ -9,7 +9,8 @@ import { syncAdminSettings, getAdminSettings } from '../services/adminService';
 export function Admin() {
   const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState('settings');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -108,9 +109,11 @@ export function Admin() {
   };
 
   const exportReservations = () => {
+    const filteredReservations = getReservationsByDateRange(startDate, endDate);
+    
     const csvContent = [
       ['ID', 'Área', 'Grupo', 'Puestos', 'Fecha', 'Hora', 'Contacto', 'Email', 'Teléfono', 'Estado', 'Notas'],
-      ...state.reservations.map(r => [
+      ...filteredReservations.map(r => [
         r.id,
         r.areaName,
         r.groupName,
@@ -129,13 +132,18 @@ export function Admin() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-            a.download = `reservas_${formatDateInBogota(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `reservas_${startDate}_${endDate}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
-  const getReservationsByDate = (date: string) => {
-    return state.reservations.filter(r => r.date === date);
+  const getReservationsByDateRange = (startDate: string, endDate: string) => {
+    return state.reservations.filter(r => {
+      const reservationDate = new Date(r.date);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      return reservationDate >= start && reservationDate <= end;
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -492,15 +500,38 @@ export function Admin() {
 
             <div className="card">
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Filtrar por fecha
-                </label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="input-field max-w-xs"
-                />
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Filtrar por rango de fechas
+                  </label>
+                  <span className="text-sm text-gray-500">
+                    {getReservationsByDateRange(startDate, endDate).length} de {state.reservations.length} reservaciones
+                  </span>
+                </div>
+                <div className="flex gap-4 items-end">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Fecha inicial
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Fecha final
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="input-field"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -531,7 +562,7 @@ export function Admin() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {getReservationsByDate(selectedDate).map((reservation) => (
+                    {getReservationsByDateRange(startDate, endDate).map((reservation) => (
                       <tr key={reservation.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
@@ -617,7 +648,7 @@ export function Admin() {
                 </table>
               </div>
 
-              {getReservationsByDate(selectedDate).length === 0 && (
+                              {getReservationsByDateRange(startDate, endDate).length === 0 && (
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No hay reservas para esta fecha</p>
