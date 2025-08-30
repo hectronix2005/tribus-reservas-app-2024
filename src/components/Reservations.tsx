@@ -112,25 +112,28 @@ export function Reservations() {
 
 
 
-  // Función para normalizar fechas a formato YYYY-MM-DD (para comparaciones internas)
+  // Función para normalizar fechas a formato DD-MM-YY (para comparaciones internas)
   const normalizeDate = useCallback((date: string | Date): string => {
-    let normalizedDate: string;
+    let dateObj: Date;
     
     if (typeof date === 'string') {
-      // Si ya es formato YYYY-MM-DD, retornarlo tal como está
-      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        normalizedDate = date;
-      } else if (date.includes('T')) {
-        // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
-        normalizedDate = date.split('T')[0];
+      // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
+      if (date.includes('T')) {
+        const [year, month, day] = date.split('T')[0].split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
       } else {
-        // Si es una fecha en formato Date string, convertirla
-        normalizedDate = new Date(date).toISOString().split('T')[0];
+        dateObj = new Date(date);
       }
     } else {
-      // Si es un objeto Date, convertir a YYYY-MM-DD
-      normalizedDate = date.toISOString().split('T')[0];
+      dateObj = date;
     }
+    
+    // Convertir a formato DD-MM-YY
+    const day = dateObj.getDate().toString().padStart(2, '0');
+    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const year = dateObj.getFullYear().toString().slice(-2); // Solo los últimos 2 dígitos del año
+    
+    const normalizedDate = `${day}-${month}-${year}`;
     
     console.log('📅 Normalización de fecha:', {
       original: date,
