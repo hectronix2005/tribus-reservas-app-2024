@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
-import { isWithinOfficeHours, isValidReservationDate } from '../utils/officeHoursUtils';
+import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
 
 interface Reservation {
   _id: string;
@@ -468,14 +468,37 @@ export function Reservations() {
     return reservationDate < today;
   }, []);
 
-  // Función para obtener la fecha mínima permitida (hoy) en formato YYYY-MM-DD
+  // Función para obtener la fecha mínima permitida (próximo día de oficina) en formato YYYY-MM-DD
   const getMinDate = useCallback((): string => {
     const today = new Date();
-    const year = today.getFullYear();
-    const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    const day = today.getDate().toString().padStart(2, '0');
+    let currentDate = new Date(today);
+    
+    // Si hoy es un día de oficina y no es muy tarde, permitir hoy
+    if (isOfficeDay(currentDate, state.adminSettings.officeDays)) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const [officeStartHour] = state.adminSettings.officeHours.start.split(':').map(Number);
+      
+      // Si es antes del horario de oficina, permitir hoy
+      if (currentHour < officeStartHour) {
+        const year = currentDate.getFullYear();
+        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        const day = currentDate.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    }
+    
+    // Buscar el próximo día de oficina
+    currentDate.setDate(currentDate.getDate() + 1);
+    while (!isOfficeDay(currentDate, state.adminSettings.officeDays)) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    const year = currentDate.getFullYear();
+    const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    const day = currentDate.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }, []);
+  }, [state.adminSettings.officeDays, state.adminSettings.officeHours.start]);
 
   // Función para obtener horas de inicio disponibles (memoizada)
   const availableStartTimes = useMemo(() => {
@@ -491,15 +514,30 @@ export function Reservations() {
     });
     
     const availableTimes = [];
-    const startHour = 8; // 8:00 AM
-    const endHour = 18; // 6:00 PM
+    
+    // Usar horarios de oficina configurados
+    const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
+    const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
     const interval = 30; // 30 minutos
     const duration = parseInt(formData.duration || '60');
+    
+    // Verificar que la fecha seleccionada sea un día de oficina
+    const selectedDate = new Date(formData.date);
+    if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+      console.log('❌ Fecha seleccionada no es un día de oficina:', formData.date);
+      return [];
+    }
     
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += interval) {
         const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         const endTime = addMinutesToTime(startTime, duration);
+        
+        // Verificar si este horario está dentro del horario de oficina
+        if (!isOfficeHour(startTime, state.adminSettings.officeHours)) {
+          console.log('🏢 Horario fuera del horario de oficina:', startTime);
+          continue;
+        }
         
         // Verificar si este horario está disponible
         const conflicts = getConflictingReservations(formData.area, formData.date, startTime, endTime, editingReservation?._id);
@@ -520,7 +558,7 @@ export function Reservations() {
     
     console.log('✅ Horarios disponibles calculados para', duration, 'minutos:', availableTimes);
     return availableTimes;
-  }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations, isDateAndTimeInPast]);
+  }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations, isDateAndTimeInPast, state.adminSettings.officeDays, state.adminSettings.officeHours]);
 
   // Verificar si la fecha seleccionada está completamente ocupada
   const isSelectedDateFullyBooked = useMemo(() => {
@@ -642,6 +680,23 @@ export function Reservations() {
       // Para reservas de día completo, verificar solo la fecha
       if (isDateInPast(formData.date)) {
         setError('No se pueden hacer reservaciones en fechas pasadas. Por favor, seleccione una fecha futura.');
+        return;
+      }
+    }
+
+    // Verificar que la fecha sea un día de oficina
+    if (formData.date) {
+      const selectedDate = new Date(formData.date);
+      if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+        setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
+        return;
+      }
+    }
+
+    // Verificar que la hora esté dentro del horario de oficina
+    if (!isFullDayReservation && formData.startTime) {
+      if (!isOfficeHour(formData.startTime, state.adminSettings.officeHours)) {
+        setError('La hora seleccionada está fuera del horario de oficina. Por favor, seleccione una hora dentro del horario laboral.');
         return;
       }
     }
@@ -994,6 +1049,13 @@ export function Reservations() {
                         return;
                       }
                       
+                      // Validar que sea un día de oficina
+                      const selectedDate = new Date(dateValue);
+                      if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+                        setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
+                        return;
+                      }
+                      
                       // Convertir YYYY-MM-DD a DD-MM-YY
                       const [year, month, day] = dateValue.split('-').map(Number);
                       const shortYear = year.toString().slice(-2);
@@ -1023,6 +1085,12 @@ export function Reservations() {
                   <div className="mt-1 text-sm text-red-600 flex items-center">
                     <span className="mr-1">⏰</span>
                     No se pueden seleccionar fechas pasadas
+                  </div>
+                )}
+                {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
+                  <div className="mt-1 text-sm text-red-600 flex items-center">
+                    <span className="mr-1">🏢</span>
+                    La fecha seleccionada no es un día de oficina
                   </div>
                 )}
                 {formData.date && (
@@ -1159,6 +1227,9 @@ export function Reservations() {
                           ⚠️ No hay horarios disponibles para {formData.duration} min
                         </span>
                       )}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      Horario de oficina: {state.adminSettings.officeHours.start} - {state.adminSettings.officeHours.end}
                     </div>
                   </div>
 
