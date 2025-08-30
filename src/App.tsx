@@ -8,6 +8,7 @@ import { Admin } from './components/Admin';
 import { Templates } from './components/Templates';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
+import { Availability } from './components/Availability';
 
 function AppContent() {
   const { state } = useApp();
@@ -37,6 +38,8 @@ function AppContent() {
         </div>;
       case 'reservations':
         return <Reservations />;
+      case 'availability':
+        return <Availability />;
       case 'areas':
         return state.auth.currentUser?.role === 'admin' ? <Areas /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>

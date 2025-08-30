@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User } from 'lucide-react';
+import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface HeaderProps {
@@ -20,6 +20,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
       { id: 'dashboard', label: 'Dashboard', icon: Home },
     ] : []),
     { id: 'reservations', label: 'Reservas', icon: Calendar },
+    { id: 'availability', label: 'Disponibilidad', icon: Eye },
     ...(state.auth.currentUser?.role === 'admin' ? [
       { id: 'areas', label: 'Áreas', icon: Building2 },
       { id: 'templates', label: 'Plantillas', icon: FileText },
