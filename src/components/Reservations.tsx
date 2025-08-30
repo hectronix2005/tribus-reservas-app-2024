@@ -117,8 +117,12 @@ export function Reservations() {
     let dateObj: Date;
     
     if (typeof date === 'string') {
+      // Si ya es formato DD-MM-YY, retornarlo tal como está
+      if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+      }
       // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
-      if (date.includes('T')) {
+      else if (date.includes('T')) {
         const [year, month, day] = date.split('T')[0].split('-').map(Number);
         dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
       } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -147,7 +151,8 @@ export function Reservations() {
       displayWithDay: formatDateWithDay(date),
       type: typeof date,
       isISO: typeof date === 'string' && date.includes('T'),
-      isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date),
+      isDDMMYY: typeof date === 'string' && /^\d{2}-\d{2}-\d{2}$/.test(date)
     });
     
     return normalizedDate;
@@ -158,8 +163,15 @@ export function Reservations() {
     let dateObj: Date;
     
     if (typeof date === 'string') {
+      // Si es formato DD-MM-YY, convertir a Date
+      if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+        const [day, month, year] = date.split('-').map(Number);
+        // Asumir que el año es 20XX si es menor a 50, sino 19XX
+        const fullYear = year < 50 ? 2000 + year : 1900 + year;
+        dateObj = new Date(fullYear, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      }
       // Si es un string ISO, crear la fecha correctamente
-      if (date.includes('T')) {
+      else if (date.includes('T')) {
         // Para fechas ISO, usar UTC para evitar problemas de zona horaria
         const [year, month, day] = date.split('T')[0].split('-').map(Number);
         dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
@@ -186,8 +198,15 @@ export function Reservations() {
     let dateObj: Date;
     
     if (typeof date === 'string') {
+      // Si es formato DD-MM-YY, convertir a Date
+      if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+        const [day, month, year] = date.split('-').map(Number);
+        // Asumir que el año es 20XX si es menor a 50, sino 19XX
+        const fullYear = year < 50 ? 2000 + year : 1900 + year;
+        dateObj = new Date(fullYear, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      }
       // Si es un string ISO, crear la fecha correctamente
-      if (date.includes('T')) {
+      else if (date.includes('T')) {
         // Para fechas ISO, usar UTC para evitar problemas de zona horaria
         const [year, month, day] = date.split('T')[0].split('-').map(Number);
         dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
@@ -762,15 +781,32 @@ export function Reservations() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha
+                  Fecha (DD-MM-YY)
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   value={formData.date}
                   onChange={(e) => {
-                    setFormData({...formData, date: e.target.value});
-                    setError(null); // Limpiar error cuando cambie la fecha
+                    const inputValue = e.target.value;
+                    // Permitir solo números y guiones
+                    const cleanValue = inputValue.replace(/[^0-9-]/g, '');
+                    
+                    // Formatear automáticamente como DD-MM-YY
+                    let formattedValue = cleanValue;
+                    if (cleanValue.length >= 2 && !cleanValue.includes('-')) {
+                      formattedValue = cleanValue.slice(0, 2) + '-' + cleanValue.slice(2);
+                    }
+                    if (cleanValue.length >= 5 && cleanValue.split('-').length === 2) {
+                      formattedValue = cleanValue.slice(0, 5) + '-' + cleanValue.slice(5);
+                    }
+                    
+                    // Limitar a DD-MM-YY
+                    if (formattedValue.length <= 8) {
+                      setFormData({...formData, date: formattedValue});
+                      setError(null); // Limpiar error cuando cambie la fecha
+                    }
                   }}
+                  placeholder="DD-MM-YY (ej: 30-08-25)"
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     isSelectedDateFullyBooked 
                       ? 'border-red-500 focus:ring-red-500 bg-red-50' 
@@ -782,6 +818,11 @@ export function Reservations() {
                   <div className="mt-1 text-sm text-red-600 flex items-center">
                     <span className="mr-1">⚠️</span>
                     Esta fecha está completamente ocupada para {formData.area}
+                  </div>
+                )}
+                {formData.date && formData.date.length === 8 && !/^\d{2}-\d{2}-\d{2}$/.test(formData.date) && (
+                  <div className="mt-1 text-sm text-red-600">
+                    Formato inválido. Use DD-MM-YY (ej: 30-08-25)
                   </div>
                 )}
               </div>
