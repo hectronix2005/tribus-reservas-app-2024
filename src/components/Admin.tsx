@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { ReservationTemplate, User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
 import { syncAdminSettings, getAdminSettings } from '../services/adminService';
+import { reservationService } from '../services/api';
 
 
 export function Admin() {
@@ -16,6 +17,7 @@ export function Admin() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
+  const [isLoadingReservations, setIsLoadingReservations] = useState(false);
 
   // Cargar configuración al inicializar el componente
   useEffect(() => {
@@ -36,6 +38,35 @@ export function Admin() {
 
     loadSettings();
   }, [activeTab, dispatch]);
+
+  // Cargar reservaciones cuando se active la pestaña de reservaciones
+  useEffect(() => {
+    if (activeTab === 'reservations') {
+      console.log('🔄 Cargando reservaciones para Admin...');
+      console.log('📊 Estado actual de reservaciones:', state.reservations);
+      
+      // Si no hay reservaciones cargadas, cargarlas
+      if (state.reservations.length === 0) {
+        loadReservations();
+      }
+    }
+  }, [activeTab, state.reservations, dispatch]);
+
+  const loadReservations = async () => {
+    try {
+      setIsLoadingReservations(true);
+      console.log('🔄 Iniciando carga de reservaciones...');
+      
+      const reservations = await reservationService.getAllReservations();
+      console.log('✅ Reservaciones cargadas:', reservations);
+      
+      dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
+    } catch (error) {
+      console.error('❌ Error cargando reservaciones:', error);
+    } finally {
+      setIsLoadingReservations(false);
+    }
+  };
 
   const tabs = [
     { id: 'settings', label: 'Configuración', icon: Settings },
@@ -139,12 +170,33 @@ export function Admin() {
   };
 
   const getReservationsByDateRange = (startDate: string, endDate: string) => {
-    return state.reservations.filter(r => {
+    console.log('🔍 Filtrando reservaciones:', {
+      totalReservations: state.reservations.length,
+      startDate,
+      endDate,
+      reservations: state.reservations
+    });
+    
+    const filtered = state.reservations.filter(r => {
       const reservationDate = new Date(r.date);
       const start = new Date(startDate);
       const end = new Date(endDate);
-      return reservationDate >= start && reservationDate <= end;
+      const isInRange = reservationDate >= start && reservationDate <= end;
+      
+      console.log('📅 Reservación:', {
+        id: r.id,
+        date: r.date,
+        reservationDate: reservationDate.toISOString(),
+        start: start.toISOString(),
+        end: end.toISOString(),
+        isInRange
+      });
+      
+      return isInRange;
     });
+    
+    console.log('✅ Reservaciones filtradas:', filtered.length);
+    return filtered;
   };
 
   const handleStartDateChange = (date: string) => {
@@ -570,11 +622,13 @@ export function Admin() {
               </div>
 
               <div className="overflow-x-auto">
-                {isFiltering && (
+                {(isFiltering || isLoadingReservations) && (
                   <div className="flex items-center justify-center py-4 bg-blue-50 border-b border-blue-200">
                     <div className="flex items-center gap-2 text-blue-600">
                       <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                      <span className="text-sm">Actualizando filtros...</span>
+                      <span className="text-sm">
+                        {isLoadingReservations ? 'Cargando reservaciones...' : 'Actualizando filtros...'}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -691,7 +745,23 @@ export function Admin() {
                 </table>
               </div>
 
-              {getReservationsByDateRange(startDate, endDate).length === 0 && (
+              {isLoadingReservations ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-gray-500">Cargando reservaciones...</p>
+                </div>
+              ) : state.reservations.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 mb-2">No hay reservaciones en el sistema</p>
+                  <button
+                    onClick={loadReservations}
+                    className="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    Reintentar carga
+                  </button>
+                </div>
+              ) : getReservationsByDateRange(startDate, endDate).length === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500 mb-2">No hay reservaciones en el rango seleccionado</p>
@@ -699,7 +769,7 @@ export function Admin() {
                     Rango: {new Date(startDate).toLocaleDateString('es-ES')} - {new Date(endDate).toLocaleDateString('es-ES')}
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}
