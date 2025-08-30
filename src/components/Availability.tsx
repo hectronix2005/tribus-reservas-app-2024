@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 
@@ -331,8 +331,9 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   // Formatear fecha para mostrar
   const formatDateForDisplay = (date: Date): string => {
     return date.toLocaleDateString('es-ES', {
-      weekday: 'short',
-      month: 'short',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
       timeZone: 'America/Bogota'
     });
@@ -365,7 +366,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const daysToShow = getDaysToShow();
 
   // Obtener los días de la semana habilitados para el header
-  const getEnabledWeekDays = (): string[] => {
+  const getEnabledWeekDays = () => {
     if (!state.adminSettings.officeDays) {
       return ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     }
@@ -384,6 +385,177 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   };
 
   const enabledWeekDays = getEnabledWeekDays();
+
+  // Renderizar vista de día completo
+  const renderDayView = () => {
+    const dateString = currentDate.toISOString().split('T')[0];
+    const dayAvailability = availability.find(day => day.date === dateString);
+
+    return (
+      <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
+        {/* Header del día */}
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">{formatDateForDisplay(currentDate)}</h2>
+              <p className="text-primary-100 mt-1">
+                {isToday(currentDate) ? 'Hoy' : 'Día de oficina'} • {filteredAreas.length} áreas disponibles
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={goToPreviousDay}
+                className="p-2 rounded-xl hover:bg-primary-500 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={goToNextDay}
+                className="p-2 rounded-xl hover:bg-primary-500 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Vista de horarios del día */}
+        <div className="p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Áreas Hot Desk */}
+            {filteredAreas.filter(area => area.category === 'HOT_DESK').map(area => {
+              const areaStatus = dayAvailability?.areas[area.name];
+              if (!areaStatus) return null;
+
+              const availableSpaces = areaStatus.availableSpaces ?? area.capacity;
+              const totalSpaces = areaStatus.totalSpaces ?? area.capacity;
+              const isAvailable = availableSpaces > 0;
+
+              return (
+                <div key={area.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">{area.name}</h3>
+                      <p className="text-sm text-slate-600">Hot Desk • {area.capacity} puestos</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      isAvailable 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {availableSpaces}/{totalSpaces} libres
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700">Disponibilidad del día</span>
+                      <Clock className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div className="text-center py-8">
+                      <div className={`text-2xl font-bold ${
+                        isAvailable ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {isAvailable ? 'Disponible' : 'Ocupado'}
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1">
+                        {isAvailable 
+                          ? `${availableSpaces} puestos disponibles para el día completo`
+                          : 'Todos los puestos están reservados'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Áreas Salas */}
+            {filteredAreas.filter(area => area.category === 'SALA').map(area => {
+              const areaStatus = dayAvailability?.areas[area.name];
+              if (!areaStatus) return null;
+
+              const hourlySlots = areaStatus.hourlySlots ?? {};
+              const availableHours = generateHourlySlots().filter(hour => {
+                const hourStatus = hourlySlots[hour];
+                return (hourStatus?.isAvailable ?? true) && isWithinOfficeHours(hour);
+              });
+
+              return (
+                <div key={area.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">{area.name}</h3>
+                      <p className="text-sm text-slate-600">Sala de Reunión • {area.capacity} personas</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      availableHours.length > 0 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {availableHours.length} horarios libres
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-slate-700">Horarios disponibles</span>
+                      <Clock className="w-4 h-4 text-slate-500" />
+                    </div>
+                    
+                    {availableHours.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {availableHours.map((hour) => (
+                          <button
+                            key={hour}
+                            className="p-2 text-sm bg-blue-50 border border-blue-200 text-blue-800 rounded-lg hover:bg-blue-100 transition-colors"
+                            onClick={() => handleHourClick(area, currentDate, hour)}
+                            title={`Reservar ${area.name} a las ${hour}`}
+                          >
+                            {hour}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-lg font-medium text-red-600">No hay horarios disponibles</div>
+                        <p className="text-sm text-slate-600 mt-1">Todos los horarios están reservados</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Resumen del día */}
+          <div className="mt-6 bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <h4 className="text-lg font-semibold text-slate-900 mb-3">Resumen del día</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary-600">
+                  {filteredAreas.filter(area => area.category === 'HOT_DESK').length}
+                </div>
+                <div className="text-sm text-slate-600">Áreas Hot Desk</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary-600">
+                  {filteredAreas.filter(area => area.category === 'SALA').length}
+                </div>
+                <div className="text-sm text-slate-600">Salas de Reunión</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary-600">
+                  {generateHourlySlots().length}
+                </div>
+                <div className="text-sm text-slate-600">Horarios de oficina</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -551,120 +723,125 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         )}
       </div>
 
-      {/* Calendario Principal */}
-      <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
-        {/* Header de días de la semana - Solo días habilitados */}
-        <div className={`grid bg-slate-50/80 backdrop-blur-sm border-b border-slate-200`} 
-             style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
-          {enabledWeekDays.map((day) => (
-            <div key={day} className="p-4 text-center">
-              <div className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
-                {day}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Días del calendario - Solo días habilitados */}
-        <div className={`grid`} style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
-          {daysToShow.map((date, index) => {
-            const dateString = date.toISOString().split('T')[0];
-            const dayAvailability = availability.find(day => day.date === dateString);
-            const isTodayDate = isToday(date);
-            
-            return (
-              <div
-                key={index}
-                className={`min-h-[120px] border-r border-b border-slate-100 p-2 ${
-                  isTodayDate ? 'bg-primary-50/30' : 'bg-white'
-                }`}
-              >
-                {/* Número del día */}
-                <div className={`text-sm font-medium mb-2 ${
-                  isTodayDate 
-                    ? 'text-primary-600 font-bold' 
-                    : 'text-slate-900'
-                }`}>
-                  {date.getDate()}
-                  {isTodayDate && (
-                    <span className="ml-1 text-xs bg-primary-600 text-white px-2 py-1 rounded-full">
-                      HOY
-                    </span>
-                  )}
-                </div>
-
-                {/* Eventos/Disponibilidad del día */}
-                <div className="space-y-1">
-                  {filteredAreas.map((area) => {
-                    if (!dayAvailability?.areas[area.name]) return null;
-                    
-                    const areaStatus = dayAvailability.areas[area.name];
-                    
-                    if (area.category === 'HOT_DESK') {
-                      // Hot Desk: Mostrar contador de espacios
-                      const availableSpaces = areaStatus.availableSpaces ?? area.capacity;
-                      const totalSpaces = areaStatus.totalSpaces ?? area.capacity;
-                      const isAvailable = availableSpaces > 0;
-                      
-                      return (
-                        <div
-                          key={area.id}
-                          className={`text-xs p-1 rounded border ${
-                            isAvailable 
-                              ? 'bg-green-50 border-green-200 text-green-800' 
-                              : 'bg-red-50 border-red-200 text-red-800'
-                          }`}
-                        >
-                          <div className="font-medium truncate">{area.name}</div>
-                          <div className="text-[10px]">
-                            {availableSpaces}/{totalSpaces} libres
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      // Salas: Mostrar bloques de hora individuales (solo horarios disponibles)
-                      const hourlySlots = areaStatus.hourlySlots ?? {};
-                      const availableHours = generateHourlySlots().filter(hour => {
-                        const hourStatus = hourlySlots[hour];
-                        // Solo mostrar horarios que estén disponibles Y dentro del horario de oficina
-                        return (hourStatus?.isAvailable ?? true) && isWithinOfficeHours(hour);
-                      });
-                      
-                      if (availableHours.length === 0) return null;
-                      
-                      // Mostrar bloques de hora individuales para salas
-                      return (
-                        <div key={area.id} className="space-y-1">
-                          <div className="text-[10px] font-medium text-slate-700 truncate">
-                            {area.name}
-                          </div>
-                          <div className="grid grid-cols-2 gap-1">
-                            {availableHours.slice(0, 4).map((hour) => (
-                              <button
-                                key={hour}
-                                className="text-[8px] p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
-                                onClick={() => handleHourClick(area, date, hour)}
-                                title={`Reservar ${area.name} a las ${hour}`}
-                              >
-                                {hour}
-                              </button>
-                            ))}
-                            {availableHours.length > 4 && (
-                              <div className="text-[8px] p-1 rounded border bg-blue-100 border-blue-300 text-blue-900 text-center">
-                                +{availableHours.length - 4}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
+      {/* Contenido principal según el modo de vista */}
+      {viewMode === 'day' ? (
+        renderDayView()
+      ) : (
+        /* Calendario Principal para vistas Total y Semana */
+        <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
+          {/* Header de días de la semana - Solo días habilitados */}
+          <div className={`grid bg-slate-50/80 backdrop-blur-sm border-b border-slate-200`} 
+               style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
+            {enabledWeekDays.map((day) => (
+              <div key={day} className="p-4 text-center">
+                <div className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
+                  {day}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          {/* Días del calendario - Solo días habilitados */}
+          <div className={`grid`} style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
+            {daysToShow.map((date, index) => {
+              const dateString = date.toISOString().split('T')[0];
+              const dayAvailability = availability.find(day => day.date === dateString);
+              const isTodayDate = isToday(date);
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[120px] border-r border-b border-slate-100 p-2 ${
+                    isTodayDate ? 'bg-primary-50/30' : 'bg-white'
+                  }`}
+                >
+                  {/* Número del día */}
+                  <div className={`text-sm font-medium mb-2 ${
+                    isTodayDate 
+                      ? 'text-primary-600 font-bold' 
+                      : 'text-slate-900'
+                  }`}>
+                    {date.getDate()}
+                    {isTodayDate && (
+                      <span className="ml-1 text-xs bg-primary-600 text-white px-2 py-1 rounded-full">
+                        HOY
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Eventos/Disponibilidad del día */}
+                  <div className="space-y-1">
+                    {filteredAreas.map((area) => {
+                      if (!dayAvailability?.areas[area.name]) return null;
+                      
+                      const areaStatus = dayAvailability.areas[area.name];
+                      
+                      if (area.category === 'HOT_DESK') {
+                        // Hot Desk: Mostrar contador de espacios
+                        const availableSpaces = areaStatus.availableSpaces ?? area.capacity;
+                        const totalSpaces = areaStatus.totalSpaces ?? area.capacity;
+                        const isAvailable = availableSpaces > 0;
+                        
+                        return (
+                          <div
+                            key={area.id}
+                            className={`text-xs p-1 rounded border ${
+                              isAvailable 
+                                ? 'bg-green-50 border-green-200 text-green-800' 
+                                : 'bg-red-50 border-red-200 text-red-800'
+                            }`}
+                          >
+                            <div className="font-medium truncate">{area.name}</div>
+                            <div className="text-[10px]">
+                              {availableSpaces}/{totalSpaces} libres
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        // Salas: Mostrar bloques de hora individuales (solo horarios disponibles)
+                        const hourlySlots = areaStatus.hourlySlots ?? {};
+                        const availableHours = generateHourlySlots().filter(hour => {
+                          const hourStatus = hourlySlots[hour];
+                          // Solo mostrar horarios que estén disponibles Y dentro del horario de oficina
+                          return (hourStatus?.isAvailable ?? true) && isWithinOfficeHours(hour);
+                        });
+                        
+                        if (availableHours.length === 0) return null;
+                        
+                        // Mostrar bloques de hora individuales para salas
+                        return (
+                          <div key={area.id} className="space-y-1">
+                            <div className="text-[10px] font-medium text-slate-700 truncate">
+                              {area.name}
+                            </div>
+                            <div className="grid grid-cols-2 gap-1">
+                              {availableHours.slice(0, 4).map((hour) => (
+                                <button
+                                  key={hour}
+                                  className="text-[8px] p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
+                                  onClick={() => handleHourClick(area, date, hour)}
+                                  title={`Reservar ${area.name} a las ${hour}`}
+                                >
+                                  {hour}
+                                </button>
+                              ))}
+                              {availableHours.length > 4 && (
+                                <div className="text-[8px] p-1 rounded border bg-blue-100 border-blue-300 text-blue-900 text-center">
+                                  +{availableHours.length - 4}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Información adicional */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -746,7 +923,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Vista Día:</strong> Muestra un día específico con navegación
+              <strong>Vista Día:</strong> Muestra el día completo con bloques de horas disponibles
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
