@@ -151,6 +151,58 @@ export function Reservations() {
     return conflicts;
   }, [reservations]);
 
+  // Función para verificar si una fecha está completamente ocupada para un área
+  const isDateFullyBooked = useCallback((area: string, date: string) => {
+    const areaReservations = reservations.filter(reservation => 
+      reservation.area === area && 
+      reservation.date === date && 
+      reservation.status === 'active'
+    );
+
+    if (areaReservations.length === 0) return false;
+
+    // Verificar si las reservaciones cubren todo el horario laboral (8:00-18:00)
+    const businessHours = [];
+    for (let hour = 8; hour < 18; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        businessHours.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+      }
+    }
+
+    // Verificar si cada hora del horario laboral está ocupada
+    const occupiedHours = new Set();
+    areaReservations.forEach(reservation => {
+      const start = reservation.startTime;
+      const end = reservation.endTime;
+      
+      // Agregar todas las horas entre start y end
+      let currentTime = start;
+      while (currentTime < end) {
+        occupiedHours.add(currentTime);
+        // Avanzar 30 minutos
+        const [hours, minutes] = currentTime.split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes + 30;
+        const newHours = Math.floor(totalMinutes / 60);
+        const newMinutes = totalMinutes % 60;
+        currentTime = `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+      }
+    });
+
+    // Verificar si todas las horas del horario laboral están ocupadas
+    const allHoursOccupied = businessHours.every(hour => occupiedHours.has(hour));
+    
+    console.log('📅 Verificación de fecha ocupada:', {
+      area,
+      date,
+      totalReservations: areaReservations.length,
+      businessHours: businessHours.length,
+      occupiedHours: occupiedHours.size,
+      isFullyBooked: allHoursOccupied
+    });
+
+    return allHoursOccupied;
+  }, [reservations]);
+
   // Función para agregar minutos a una hora
   const addMinutesToTime = (time: string, minutes: number): string => {
     const [hours, mins] = time.split(':').map(Number);
@@ -197,6 +249,12 @@ export function Reservations() {
     return availableTimes;
   }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations]);
 
+  // Verificar si la fecha seleccionada está completamente ocupada
+  const isSelectedDateFullyBooked = useMemo(() => {
+    if (!formData.area || !formData.date) return false;
+    return isDateFullyBooked(formData.area, formData.date);
+  }, [formData.area, formData.date, isDateFullyBooked]);
+
 
 
   // Cargar reservaciones al montar el componente
@@ -232,6 +290,12 @@ export function Reservations() {
     
     if (!currentUser) {
       setError('Debe iniciar sesión para crear una reservación');
+      return;
+    }
+
+    // Verificar si la fecha está completamente ocupada
+    if (isSelectedDateFullyBooked) {
+      setError('Esta fecha está completamente ocupada. Por favor, seleccione otra fecha.');
       return;
     }
 
@@ -568,9 +632,19 @@ export function Reservations() {
                     setFormData({...formData, date: e.target.value});
                     setError(null); // Limpiar error cuando cambie la fecha
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    isSelectedDateFullyBooked 
+                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-primary-500'
+                  }`}
                   required
                 />
+                {isSelectedDateFullyBooked && (
+                  <div className="mt-1 text-sm text-red-600 flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    Esta fecha está completamente ocupada para {formData.area}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -754,8 +828,12 @@ export function Reservations() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                disabled={isLoading}
-                className="btn-primary flex-1"
+                disabled={isLoading || isSelectedDateFullyBooked}
+                className={`flex-1 ${
+                  isSelectedDateFullyBooked 
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed' 
+                    : 'btn-primary'
+                }`}
               >
                 {isLoading ? 'Guardando...' : (editingReservation ? 'Actualizar' : 'Crear')}
               </button>
