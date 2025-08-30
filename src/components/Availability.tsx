@@ -364,6 +364,27 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
   const daysToShow = getDaysToShow();
 
+  // Obtener los días de la semana habilitados para el header
+  const getEnabledWeekDays = (): string[] => {
+    if (!state.adminSettings.officeDays) {
+      return ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    }
+    
+    const enabledDays: string[] = [];
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    
+    dayNames.forEach((dayName, index) => {
+      if (state.adminSettings.officeDays[dayName as keyof typeof state.adminSettings.officeDays]) {
+        enabledDays.push(dayLabels[index]);
+      }
+    });
+    
+    return enabledDays;
+  };
+
+  const enabledWeekDays = getEnabledWeekDays();
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header del Calendario */}
@@ -532,9 +553,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
       {/* Calendario Principal */}
       <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
-        {/* Header de días de la semana */}
-        <div className="grid grid-cols-7 bg-slate-50/80 backdrop-blur-sm border-b border-slate-200">
-          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+        {/* Header de días de la semana - Solo días habilitados */}
+        <div className={`grid bg-slate-50/80 backdrop-blur-sm border-b border-slate-200`} 
+             style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
+          {enabledWeekDays.map((day) => (
             <div key={day} className="p-4 text-center">
               <div className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
                 {day}
@@ -543,8 +565,8 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           ))}
         </div>
 
-        {/* Días del calendario */}
-        <div className="grid grid-cols-7">
+        {/* Días del calendario - Solo días habilitados */}
+        <div className={`grid`} style={{ gridTemplateColumns: `repeat(${enabledWeekDays.length}, 1fr)` }}>
           {daysToShow.map((date, index) => {
             const dateString = date.toISOString().split('T')[0];
             const dayAvailability = availability.find(day => day.date === dateString);
@@ -669,6 +691,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               <span className="font-medium">{daysToShow.length}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-slate-600">Días habilitados:</span>
+              <span className="font-medium">{enabledWeekDays.join(', ')}</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-slate-600">Período:</span>
               <span className="font-medium">
                 {daysToShow.length > 0 && (
@@ -702,7 +728,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             </div>
             <div className="flex items-center">
               <div className="w-3 h-3 bg-slate-100 border border-slate-200 rounded mr-2"></div>
-              <span className="text-slate-700">Solo días de oficina</span>
+              <span className="text-slate-700">Solo días de oficina habilitados</span>
             </div>
           </div>
         </div>
@@ -728,7 +754,11 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Horarios de oficina:</strong> Solo se muestran días y horarios habilitados
+              <strong>Días de oficina:</strong> Solo se muestran los días habilitados (no sábados/domingos)
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Horarios de oficina:</strong> Solo se muestran horarios habilitados
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
