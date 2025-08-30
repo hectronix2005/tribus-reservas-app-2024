@@ -362,9 +362,25 @@ export const templateService = {
 
 // Servicios de reservas con protocolo automático
 export const reservationService = {
-  async getAllReservations() {
+  async getAllReservations(filters?: {
+    startDate?: string;
+    endDate?: string;
+    area?: string;
+    status?: string;
+  }) {
     try {
-      const reservations = await apiRequest<any[]>('/reservations');
+      let url = '/reservations';
+      if (filters) {
+        const params = new URLSearchParams();
+        if (filters.startDate) params.append('startDate', filters.startDate);
+        if (filters.endDate) params.append('endDate', filters.endDate);
+        if (filters.area) params.append('area', filters.area);
+        if (filters.status) params.append('status', filters.status);
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
+      }
+      const reservations = await apiRequest<any[]>(url);
       return reservations;
     } catch (error) {
       console.error('Error obteniendo reservaciones:', error);

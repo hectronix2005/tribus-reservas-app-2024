@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
 import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
+import { ReservationFilters } from './ReservationFilters';
 
 interface Reservation {
   _id: string;
@@ -50,6 +51,7 @@ export function Reservations() {
   const { state } = useApp();
   const currentUser = state.auth.currentUser;
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -591,6 +593,16 @@ export function Reservations() {
   useEffect(() => {
     loadReservations();
   }, []);
+
+  // Actualizar reservaciones filtradas cuando cambien las reservaciones
+  useEffect(() => {
+    setFilteredReservations(reservations);
+  }, [reservations]);
+
+  // Función para manejar el cambio de filtros
+  const handleFilterChange = (filtered: Reservation[]) => {
+    setFilteredReservations(filtered);
+  };
 
   // useEffect temporal para probar la normalización de fechas
   useEffect(() => {
@@ -1671,6 +1683,14 @@ export function Reservations() {
         </div>
       )}
 
+      {/* Filtros y Exportación */}
+      <ReservationFilters
+        reservations={reservations}
+        onFilterChange={handleFilterChange}
+        onLoadingChange={setIsLoading}
+        areas={areas}
+      />
+
       {/* Lista de Reservaciones */}
       <div className="bg-white rounded-lg shadow-md">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -1682,14 +1702,14 @@ export function Reservations() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
             <p className="mt-2 text-gray-600">Cargando reservaciones...</p>
           </div>
-        ) : reservations.length === 0 ? (
+        ) : filteredReservations.length === 0 ? (
           <div className="p-6 text-center text-gray-500">
             <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No hay reservaciones activas</p>
+            <p>No hay reservaciones que coincidan con los filtros</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {reservations.map((reservation) => (
+            {filteredReservations.map((reservation) => (
               <div key={reservation._id} className="p-6">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">

@@ -739,10 +739,36 @@ app.get('/api/users/profile', auth, async (req, res) => {
 
 // ===== ENDPOINTS DE RESERVACIONES =====
 
-// Obtener todas las reservaciones (sin autenticación para facilitar el desarrollo)
+// Obtener todas las reservaciones (con filtros opcionales)
 app.get('/api/reservations', async (req, res) => {
   try {
-    const reservations = await Reservation.find().populate('userId', 'name username');
+    const { startDate, endDate, area, status } = req.query;
+    
+    // Construir filtro
+    let filter = {};
+    
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) {
+        filter.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.date.$lte = new Date(endDate);
+      }
+    }
+    
+    if (area) {
+      filter.area = area;
+    }
+    
+    if (status) {
+      filter.status = status;
+    }
+    
+    const reservations = await Reservation.find(filter)
+      .populate('userId', 'name username')
+      .sort({ date: 1, startTime: 1 });
+
     res.json(reservations);
   } catch (error) {
     console.error('Error obteniendo reservaciones:', error);
