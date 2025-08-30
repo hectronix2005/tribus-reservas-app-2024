@@ -699,7 +699,17 @@ export function Reservations() {
     // Verificar que la fecha sea un día de oficina
     if (formData.date) {
       const selectedDate = new Date(formData.date);
+      console.log('🔍 Validando día de oficina:', {
+        selectedDate: selectedDate.toISOString(),
+        dayOfWeek: selectedDate.getDay(),
+        dayName: selectedDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        officeDays: state.adminSettings.officeDays,
+        adminSettings: state.adminSettings,
+        isOfficeDay: isOfficeDay(selectedDate, state.adminSettings.officeDays)
+      });
+      
       if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+        console.error('❌ Error: La fecha seleccionada no es un día de oficina');
         setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
         return;
       }

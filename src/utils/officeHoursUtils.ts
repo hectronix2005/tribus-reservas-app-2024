@@ -2,7 +2,15 @@ import { AdminSettings } from '../types';
 
 // Función para verificar si un día específico es un día de oficina
 export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays']): boolean => {
-  const dayOfWeek = date.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+  // Validar que officeDays existe
+  if (!officeDays) {
+    console.warn('⚠️ officeDays no está definido, usando configuración por defecto');
+    return true; // Por defecto, permitir todos los días si no hay configuración
+  }
+  
+  // Crear una nueva fecha para evitar problemas de zona horaria
+  const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayOfWeek = localDate.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
   
   const dayMap = {
     0: 'sunday',
@@ -15,7 +23,18 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
   };
   
   const dayKey = dayMap[dayOfWeek as keyof typeof dayMap];
-  return officeDays[dayKey as keyof typeof officeDays];
+  const result = officeDays[dayKey as keyof typeof officeDays];
+  
+  console.log('🔍 isOfficeDay debug:', {
+    originalDate: date.toISOString(),
+    localDate: localDate.toISOString(),
+    dayOfWeek,
+    dayKey,
+    officeDays,
+    result
+  });
+  
+  return result;
 };
 
 // Función para verificar si una hora específica está dentro del horario de oficina
