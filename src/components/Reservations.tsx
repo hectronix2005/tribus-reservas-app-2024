@@ -629,6 +629,8 @@ export function Reservations() {
         requestedSeats: formData.requestedSeats
       };
 
+      console.log('🔍 Datos de reservación a enviar:', reservationData);
+
       if (editingReservation) {
         // Actualizar reservación existente
         await reservationService.updateReservation(editingReservation._id, reservationData);

@@ -9,6 +9,14 @@ interface DayAvailability {
     [areaName: string]: {
       isAvailable: boolean;
       reservations: any[];
+      hourlySlots?: {
+        [hour: string]: {
+          isAvailable: boolean;
+          reservations: any[];
+        };
+      };
+      availableSpaces?: number;
+      totalSpaces?: number;
     };
   };
 }
@@ -34,6 +42,15 @@ export function Availability() {
     }
     
     return days;
+  };
+
+  // Generar horarios de 1 hora (8:00 a 18:00)
+  const generateHourlySlots = (): string[] => {
+    const slots: string[] = [];
+    for (let hour = 8; hour <= 18; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return slots;
   };
 
   // Formatear fecha para mostrar
@@ -69,6 +86,7 @@ export function Availability() {
       setError(null);
 
       const days = generateNext15Days();
+      const hourlySlots = generateHourlySlots();
       const reservations = await reservationService.getAllReservations();
       const areas = state.areas;
 
@@ -78,17 +96,50 @@ export function Availability() {
           return reservationDate === date && reservation.status === 'active';
         });
 
-        const areasAvailability: { [areaName: string]: { isAvailable: boolean; reservations: any[] } } = {};
+        const areasAvailability: { [areaName: string]: any } = {};
         
         areas.forEach(area => {
           const areaReservations = dayReservations.filter(reservation => 
             reservation.area === area.name
           );
           
-          areasAvailability[area.name] = {
-            isAvailable: areaReservations.length === 0,
-            reservations: areaReservations
-          };
+          if (area.category === 'HOT_DESK') {
+            // Para Hot Desk: calcular espacios disponibles
+            const totalReservedSeats = areaReservations.reduce((total, reservation) => {
+              return total + (reservation.requestedSeats || 0);
+            }, 0);
+            
+            const availableSpaces = Math.max(0, area.capacity - totalReservedSeats);
+            
+            areasAvailability[area.name] = {
+              isAvailable: availableSpaces > 0,
+              reservations: areaReservations,
+              availableSpaces,
+              totalSpaces: area.capacity
+            };
+          } else {
+            // Para Salas: calcular disponibilidad por hora
+            const hourlyAvailability: { [hour: string]: { isAvailable: boolean; reservations: any[] } } = {};
+            
+            hourlySlots.forEach(hour => {
+              const hourReservations = areaReservations.filter(reservation => {
+                const startHour = reservation.startTime;
+                const endHour = reservation.endTime;
+                return startHour <= hour && endHour > hour;
+              });
+              
+              hourlyAvailability[hour] = {
+                isAvailable: hourReservations.length === 0,
+                reservations: hourReservations
+              };
+            });
+            
+            areasAvailability[area.name] = {
+              isAvailable: areaReservations.length === 0,
+              reservations: areaReservations,
+              hourlySlots: hourlyAvailability
+            };
+          }
         });
 
         return {
@@ -157,7 +208,7 @@ export function Availability() {
                   Área
                 </th>
                 {availability.map((day) => (
-                  <th key={day.date} className="px-2 py-3 text-center text-xs font-medium text-gray-700 border-b border-gray-200 min-w-[80px]">
+                  <th key={day.date} className="px-2 py-3 text-center text-xs font-medium text-gray-700 border-b border-gray-200 min-w-[120px]">
                     <div className="flex flex-col items-center">
                       <span className={`font-semibold ${isToday(day.date) ? 'text-primary-600' : 'text-gray-900'}`}>
                         {formatDateShort(day.date)}
@@ -183,39 +234,78 @@ export function Availability() {
                       <span className="ml-2 text-xs text-gray-500">
                         ({area.capacity} puestos)
                       </span>
+                      <span className="ml-2 text-xs text-gray-400">
+                        {area.category === 'HOT_DESK' ? 'Hot Desk' : 'Sala'}
+                      </span>
                     </div>
                   </td>
                   {availability.map((day) => {
                     const areaStatus = day.areas[area.name];
-                    const isAvailable = areaStatus?.isAvailable ?? true;
-                    const reservations = areaStatus?.reservations ?? [];
                     
-                    return (
-                      <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
-                        <div className={`flex flex-col items-center justify-center min-h-[60px] p-2 rounded-md ${
-                          isAvailable 
-                            ? 'bg-white text-gray-900 border border-gray-200' 
-                            : 'bg-gray-200 text-gray-900 border border-gray-300'
-                        }`}>
-                          {isAvailable ? (
+                    if (area.category === 'HOT_DESK') {
+                      // Renderizado para Hot Desk
+                      const availableSpaces = areaStatus?.availableSpaces ?? area.capacity;
+                      const totalSpaces = areaStatus?.totalSpaces ?? area.capacity;
+                      const isAvailable = availableSpaces > 0;
+                      
+                      return (
+                        <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
+                          <div className={`flex flex-col items-center justify-center min-h-[60px] p-2 rounded-md ${
+                            isAvailable 
+                              ? 'bg-white text-gray-900 border border-gray-200' 
+                              : 'bg-gray-200 text-gray-900 border border-gray-300'
+                          }`}>
                             <div className="flex flex-col items-center">
-                              <CheckCircle className="w-4 h-4 text-green-600 mb-1" />
-                              <span className="text-xs font-medium">Libre</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center">
-                              <XCircle className="w-4 h-4 text-red-600 mb-1" />
-                              <span className="text-xs font-medium">Ocupado</span>
-                              {reservations.length > 0 && (
-                                <span className="text-xs text-gray-600 mt-1">
-                                  {reservations.length} reserva{reservations.length !== 1 ? 's' : ''}
-                                </span>
+                              {isAvailable ? (
+                                <CheckCircle className="w-4 h-4 text-green-600 mb-1" />
+                              ) : (
+                                <XCircle className="w-4 h-4 text-red-600 mb-1" />
                               )}
+                              <span className="text-xs font-medium">
+                                {availableSpaces}/{totalSpaces}
+                              </span>
+                              <span className="text-xs text-gray-600">
+                                espacios libres
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      </td>
-                    );
+                          </div>
+                        </td>
+                      );
+                    } else {
+                      // Renderizado para Salas (bloques de hora)
+                      const hourlySlots = areaStatus?.hourlySlots ?? {};
+                      const reservations = areaStatus?.reservations ?? [];
+                      
+                      return (
+                        <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
+                          <div className="min-h-[120px] p-1">
+                            <div className="grid grid-cols-2 gap-1">
+                              {generateHourlySlots().map((hour) => {
+                                const hourStatus = hourlySlots[hour];
+                                const isHourAvailable = hourStatus?.isAvailable ?? true;
+                                
+                                return (
+                                  <div
+                                    key={hour}
+                                    className={`text-xs p-1 rounded border ${
+                                      isHourAvailable
+                                        ? 'bg-white text-gray-900 border-gray-200'
+                                        : 'bg-gray-200 text-gray-900 border-gray-300'
+                                    }`}
+                                    title={`${hour} - ${isHourAvailable ? 'Libre' : 'Ocupado'}`}
+                                  >
+                                    <div className="font-medium">{hour}</div>
+                                    <div className={`text-[10px] ${isHourAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                                      {isHourAvailable ? '✓' : '✗'}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </td>
+                      );
+                    }
                   })}
                 </tr>
               ))}
@@ -225,18 +315,33 @@ export function Availability() {
 
         {/* Leyenda */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <div className="flex items-center justify-center space-x-6 text-sm">
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
-              <span className="text-gray-700">Libre</span>
+          <div className="flex flex-col space-y-3">
+            <div className="text-center text-sm font-medium text-gray-700 mb-2">
+              Leyenda de Disponibilidad
             </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded mr-2"></div>
-              <span className="text-gray-700">Ocupado</span>
+            <div className="flex items-center justify-center space-x-6 text-sm">
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
+                <span className="text-gray-700">Libre</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded mr-2"></div>
+                <span className="text-gray-700">Ocupado</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-primary-100 border border-primary-200 rounded mr-2"></div>
+                <span className="text-primary-700 font-medium">Hoy</span>
+              </div>
             </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-primary-100 border border-primary-200 rounded mr-2"></div>
-              <span className="text-primary-700 font-medium">Hoy</span>
+            <div className="flex items-center justify-center space-x-6 text-sm text-gray-600">
+              <div className="flex items-center">
+                <span className="mr-2">🏢</span>
+                <span>Salas: Bloques de 1 hora (8:00-18:00)</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-2">💺</span>
+                <span>Hot Desk: Contador de espacios libres</span>
+              </div>
             </div>
           </div>
         </div>
@@ -276,11 +381,15 @@ export function Availability() {
           <ul className="space-y-2 text-sm text-gray-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              Las áreas libres aparecen en blanco con borde gris
+              <strong>Salas:</strong> Se muestran bloques de 1 hora (8:00-18:00) con estado libre/ocupado
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              Las áreas ocupadas aparecen en gris con borde oscuro
+              <strong>Hot Desk:</strong> Se muestra el contador de espacios libres (disponibles/total)
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              Los bloques libres aparecen en blanco, los ocupados en gris
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
@@ -289,6 +398,10 @@ export function Availability() {
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
               Se muestran los próximos 15 días desde hoy
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              Pasa el mouse sobre los bloques para ver detalles
             </li>
           </ul>
         </div>
