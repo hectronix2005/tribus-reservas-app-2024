@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, Clock } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 
@@ -390,6 +390,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const renderDayView = () => {
     const dateString = currentDate.toISOString().split('T')[0];
     const dayAvailability = availability.find(day => day.date === dateString);
+    const hourlySlots = generateHourlySlots();
 
     return (
       <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
@@ -419,137 +420,138 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           </div>
         </div>
 
-        {/* Vista de horarios del día */}
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Áreas Hot Desk */}
-            {filteredAreas.filter(area => area.category === 'HOT_DESK').map(area => {
-              const areaStatus = dayAvailability?.areas[area.name];
-              if (!areaStatus) return null;
-
-              const availableSpaces = areaStatus.availableSpaces ?? area.capacity;
-              const totalSpaces = areaStatus.totalSpaces ?? area.capacity;
-              const isAvailable = availableSpaces > 0;
-
-              return (
-                <div key={area.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">{area.name}</h3>
-                      <p className="text-sm text-slate-600">Hot Desk • {area.capacity} puestos</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      isAvailable 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {availableSpaces}/{totalSpaces} libres
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-slate-700">Disponibilidad del día</span>
-                      <Clock className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div className="text-center py-8">
-                      <div className={`text-2xl font-bold ${
-                        isAvailable ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {isAvailable ? 'Disponible' : 'Ocupado'}
-                      </div>
-                      <p className="text-sm text-slate-600 mt-1">
-                        {isAvailable 
-                          ? `${availableSpaces} puestos disponibles para el día completo`
-                          : 'Todos los puestos están reservados'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Áreas Salas */}
-            {filteredAreas.filter(area => area.category === 'SALA').map(area => {
-              const areaStatus = dayAvailability?.areas[area.name];
-              if (!areaStatus) return null;
-
-              const hourlySlots = areaStatus.hourlySlots ?? {};
-              const availableHours = generateHourlySlots().filter(hour => {
-                const hourStatus = hourlySlots[hour];
-                return (hourStatus?.isAvailable ?? true) && isWithinOfficeHours(hour);
-              });
-
-              return (
-                <div key={area.id} className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-900">{area.name}</h3>
-                      <p className="text-sm text-slate-600">Sala de Reunión • {area.capacity} personas</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      availableHours.length > 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {availableHours.length} horarios libres
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-slate-700">Horarios disponibles</span>
-                      <Clock className="w-4 h-4 text-slate-500" />
-                    </div>
-                    
-                    {availableHours.length > 0 ? (
-                      <div className="grid grid-cols-3 gap-2">
-                        {availableHours.map((hour) => (
-                          <button
-                            key={hour}
-                            className="p-2 text-sm bg-blue-50 border border-blue-200 text-blue-800 rounded-lg hover:bg-blue-100 transition-colors"
-                            onClick={() => handleHourClick(area, currentDate, hour)}
-                            title={`Reservar ${area.name} a las ${hour}`}
-                          >
-                            {hour}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className="text-lg font-medium text-red-600">No hay horarios disponibles</div>
-                        <p className="text-sm text-slate-600 mt-1">Todos los horarios están reservados</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {/* Vista tipo Google Calendar */}
+        <div className="flex">
+          {/* Columna de horas */}
+          <div className="w-20 bg-slate-50 border-r border-slate-200">
+            <div className="h-16 border-b border-slate-200"></div> {/* Header vacío */}
+            {hourlySlots.map((hour, index) => (
+              <div key={hour} className="h-16 border-b border-slate-100 flex items-center justify-center">
+                <span className="text-xs font-medium text-slate-600">{hour}</span>
+              </div>
+            ))}
           </div>
 
-          {/* Resumen del día */}
-          <div className="mt-6 bg-slate-50 rounded-xl p-4 border border-slate-200">
-            <h4 className="text-lg font-semibold text-slate-900 mb-3">Resumen del día</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">
-                  {filteredAreas.filter(area => area.category === 'HOT_DESK').length}
+          {/* Contenido del calendario */}
+          <div className="flex-1">
+            {/* Header con áreas */}
+            <div className="h-16 border-b border-slate-200 bg-slate-50 flex">
+              {filteredAreas.map((area) => (
+                <div key={area.id} className="flex-1 border-r border-slate-200 p-2">
+                  <div className="text-xs font-medium text-slate-700 truncate">{area.name}</div>
+                  <div className="text-xs text-slate-500">
+                    {area.category === 'HOT_DESK' ? 'Hot Desk' : 'Sala'}
+                  </div>
                 </div>
-                <div className="text-sm text-slate-600">Áreas Hot Desk</div>
+              ))}
+            </div>
+
+            {/* Filas de horas */}
+            {hourlySlots.map((hour, hourIndex) => (
+              <div key={hour} className="h-16 border-b border-slate-100 flex">
+                {filteredAreas.map((area, areaIndex) => {
+                  const areaStatus = dayAvailability?.areas[area.name];
+                  const isWithinOfficeHours = (hour: string): boolean => {
+                    if (!state.adminSettings.officeHours) return true;
+                    const hour24 = convertTo24Hour(hour);
+                    const [hourNum] = hour24.split(':').map(Number);
+                    const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
+                    const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
+                    return hourNum >= startHour && hourNum < endHour;
+                  };
+
+                  return (
+                    <div 
+                      key={`${area.id}-${hour}`} 
+                      className={`flex-1 border-r border-slate-100 relative ${
+                        areaIndex === filteredAreas.length - 1 ? 'border-r-0' : ''
+                      }`}
+                    >
+                      {area.category === 'HOT_DESK' ? (
+                        // Hot Desk: Mostrar disponibilidad del día completo
+                        <div className="h-full flex items-center justify-center">
+                          {hourIndex === 0 && areaStatus && (
+                            <div className="text-center">
+                              <div className={`text-xs font-medium ${
+                                (areaStatus.availableSpaces ?? area.capacity) > 0 
+                                  ? 'text-green-600' 
+                                  : 'text-red-600'
+                              }`}>
+                                {(areaStatus.availableSpaces ?? area.capacity)}/{(areaStatus.totalSpaces ?? area.capacity)}
+                              </div>
+                              <div className="text-[10px] text-slate-500">libres</div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        // Salas: Mostrar disponibilidad por hora
+                        <div className="h-full relative">
+                          {isWithinOfficeHours(hour) && areaStatus && (
+                            (() => {
+                              const hourlySlots = areaStatus.hourlySlots ?? {};
+                              const hourStatus = hourlySlots[hour];
+                              const isAvailable = hourStatus?.isAvailable ?? true;
+                              
+                              if (isAvailable) {
+                                return (
+                                  <button
+                                    className="w-full h-full bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors flex items-center justify-center group"
+                                    onClick={() => handleHourClick(area, currentDate, hour)}
+                                    title={`Reservar ${area.name} a las ${hour}`}
+                                  >
+                                    <div className="text-xs text-blue-700 font-medium group-hover:text-blue-800">
+                                      Disponible
+                                    </div>
+                                  </button>
+                                );
+                              } else {
+                                return (
+                                  <div className="w-full h-full bg-red-50 border border-red-200 flex items-center justify-center">
+                                    <div className="text-xs text-red-700 font-medium">
+                                      Ocupado
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            })()
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">
-                  {filteredAreas.filter(area => area.category === 'SALA').length}
-                </div>
-                <div className="text-sm text-slate-600">Salas de Reunión</div>
+            ))}
+          </div>
+        </div>
+
+        {/* Resumen del día */}
+        <div className="p-6 bg-slate-50 border-t border-slate-200">
+          <h4 className="text-lg font-semibold text-slate-900 mb-3">Resumen del día</h4>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary-600">
+                {filteredAreas.filter(area => area.category === 'HOT_DESK').length}
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">
-                  {generateHourlySlots().length}
-                </div>
-                <div className="text-sm text-slate-600">Horarios de oficina</div>
+              <div className="text-sm text-slate-600">Áreas Hot Desk</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary-600">
+                {filteredAreas.filter(area => area.category === 'SALA').length}
               </div>
+              <div className="text-sm text-slate-600">Salas de Reunión</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary-600">
+                {hourlySlots.length}
+              </div>
+              <div className="text-sm text-slate-600">Horarios de oficina</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary-600">
+                {filteredAreas.length}
+              </div>
+              <div className="text-sm text-slate-600">Total de áreas</div>
             </div>
           </div>
         </div>
