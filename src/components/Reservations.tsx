@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
@@ -145,8 +145,8 @@ export function Reservations() {
     return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
   };
 
-  // Función para obtener horas de inicio disponibles
-  const getAvailableStartTimes = () => {
+  // Función para obtener horas de inicio disponibles (memoizada)
+  const availableStartTimes = useMemo(() => {
     if (!formData.area || !formData.date) return [];
     
     const availableTimes = [];
@@ -170,7 +170,7 @@ export function Reservations() {
     }
     
     return availableTimes;
-  };
+  }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations]);
 
 
 
@@ -185,6 +185,8 @@ export function Reservations() {
       loadReservations();
     }
   }, [formData.area, formData.date]);
+
+
 
   const loadReservations = async () => {
     try {
@@ -619,7 +621,7 @@ export function Reservations() {
                       required
                     >
                       <option value="">Seleccionar hora de inicio</option>
-                      {getAvailableStartTimes().map((time, index) => (
+                      {availableStartTimes.map((time, index) => (
                         <option key={index} value={time}>
                           {time}
                         </option>
@@ -627,9 +629,9 @@ export function Reservations() {
                     </select>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-sm text-gray-500">
-                        {getAvailableStartTimes().length} hora{getAvailableStartTimes().length !== 1 ? 's' : ''} disponible{getAvailableStartTimes().length !== 1 ? 's' : ''}
+                        {availableStartTimes.length} hora{availableStartTimes.length !== 1 ? 's' : ''} disponible{availableStartTimes.length !== 1 ? 's' : ''}
                       </span>
-                      {getAvailableStartTimes().length > 0 && (
+                      {availableStartTimes.length > 0 && (
                         <span className="text-sm text-green-600">
                           ✓ Horarios libres
                         </span>
