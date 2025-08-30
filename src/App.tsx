@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -11,7 +11,18 @@ import { UserManagement } from './components/UserManagement';
 
 function AppContent() {
   const { state } = useApp();
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState(() => {
+    // Si es admin, mostrar dashboard; si es usuario regular, mostrar reservaciones
+    return state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'reservations';
+  });
+
+  // Actualizar la vista cuando cambie el usuario autenticado
+  useEffect(() => {
+    if (state.auth.isAuthenticated) {
+      const defaultView = state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'reservations';
+      setCurrentView(defaultView);
+    }
+  }, [state.auth.currentUser?.role, state.auth.isAuthenticated]);
 
   // Si no está autenticado, mostrar login
   if (!state.auth.isAuthenticated) {
@@ -21,7 +32,9 @@ function AppContent() {
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard />;
+        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <div className="text-center py-12">
+          <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
+        </div>;
       case 'reservations':
         return <Reservations />;
       case 'areas':
@@ -41,7 +54,7 @@ function AppContent() {
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
         </div>;
       default:
-        return <Dashboard />;
+        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <Reservations />;
     }
   };
 

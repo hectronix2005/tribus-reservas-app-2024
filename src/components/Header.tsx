@@ -16,7 +16,9 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   };
 
   const navigationItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    ...(state.auth.currentUser?.role === 'admin' ? [
+      { id: 'dashboard', label: 'Dashboard', icon: Home },
+    ] : []),
     { id: 'reservations', label: 'Reservas', icon: Calendar },
     ...(state.auth.currentUser?.role === 'admin' ? [
       { id: 'areas', label: 'Áreas', icon: Building2 },
