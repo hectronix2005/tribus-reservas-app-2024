@@ -27,13 +27,7 @@ interface AvailabilityProps {
 
 export function Availability({ onHourClick }: AvailabilityProps) {
   const { state } = useApp();
-  const [availability, setAvailability] = useState<DayAvailability[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'total' | 'week' | 'day'>('total');
-  const [selectedAreas, setSelectedAreas] = useState<string[]>([]); // Array de IDs de áreas seleccionadas
-
+  
   // Verificar si un día es día de oficina
   const isOfficeDay = (date: Date): boolean => {
     if (!state.adminSettings.officeDays) return true; // Si no hay configuración, mostrar todos los días
@@ -44,6 +38,27 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     
     return state.adminSettings.officeDays[dayName] || false;
   };
+
+  const [availability, setAvailability] = useState<DayAvailability[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState(() => {
+    // Inicializar con el siguiente día hábil si hoy no lo es
+    const today = new Date();
+    if (isOfficeDay(today)) {
+      return today;
+    } else {
+      // Buscar el siguiente día de oficina
+      const nextOfficeDay = new Date(today);
+      nextOfficeDay.setDate(today.getDate() + 1);
+      while (!isOfficeDay(nextOfficeDay)) {
+        nextOfficeDay.setDate(nextOfficeDay.getDate() + 1);
+      }
+      return nextOfficeDay;
+    }
+  });
+  const [viewMode, setViewMode] = useState<'total' | 'week' | 'day'>('total');
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]); // Array de IDs de áreas seleccionadas
 
   // Verificar si una hora está dentro del horario de oficina
   const isWithinOfficeHours = (hour: string): boolean => {
