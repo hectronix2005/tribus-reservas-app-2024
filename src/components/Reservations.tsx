@@ -527,6 +527,46 @@ export function Reservations() {
     loadReservations();
   }, []);
 
+  // Escuchar evento de clic en horario desde la vista de disponibilidad
+  useEffect(() => {
+    const handleAvailabilityHourClick = (event: CustomEvent) => {
+      const { area, date, hour } = event.detail;
+      
+      console.log('🎯 Evento de disponibilidad recibido:', { area, date, hour });
+      
+      // Pre-llenar el formulario con los datos seleccionados
+      setFormData(prevData => ({
+        ...prevData,
+        area: area.name,
+        date: date,
+        startTime: hour,
+        endTime: addMinutesToTime(hour, parseInt(prevData.duration || '60')),
+        contactPerson: state.auth.currentUser?.name || '',
+        contactEmail: state.auth.currentUser?.email || '',
+        teamName: '',
+        contactPhone: '',
+        templateId: '',
+        requestedSeats: area.category === 'SALA' ? area.capacity : 1,
+        notes: ''
+      }));
+      
+      // Abrir el formulario
+      setShowForm(true);
+      setEditingReservation(null);
+      
+      // Limpiar cualquier error previo
+      setError(null);
+    };
+
+    // Agregar event listener
+    window.addEventListener('availabilityHourClick', handleAvailabilityHourClick as EventListener);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('availabilityHourClick', handleAvailabilityHourClick as EventListener);
+    };
+  }, [state.auth.currentUser, state.areas]);
+
   // Recargar reservaciones cuando cambie el área, fecha o duración para actualizar horarios disponibles
   useEffect(() => {
     if (formData.area && formData.date) {
