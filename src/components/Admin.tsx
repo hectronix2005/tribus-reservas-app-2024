@@ -1,14 +1,39 @@
-import React, { useState } from 'react';
-import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Save, CheckCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReservationTemplate, User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
+import { syncAdminSettings, getAdminSettings } from '../services/adminService';
 
 
 export function Admin() {
   const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState('settings');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+
+  // Cargar configuración al inicializar el componente
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (activeTab === 'settings') {
+        setIsLoadingSettings(true);
+        try {
+          const savedSettings = await getAdminSettings();
+          dispatch({ type: 'SET_ADMIN_SETTINGS', payload: savedSettings });
+          console.log('✅ Configuración cargada:', savedSettings);
+        } catch (error) {
+          console.error('❌ Error cargando configuración:', error);
+        } finally {
+          setIsLoadingSettings(false);
+        }
+      }
+    };
+
+    loadSettings();
+  }, [activeTab, dispatch]);
 
   const tabs = [
     { id: 'settings', label: 'Configuración', icon: Settings },
@@ -20,6 +45,31 @@ export function Admin() {
 
   const handleSettingsUpdate = (settings: typeof state.adminSettings) => {
     dispatch({ type: 'SET_ADMIN_SETTINGS', payload: settings });
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      setSaveSuccess(false);
+      
+      // Guardar configuración usando el servicio
+      await syncAdminSettings(state.adminSettings);
+      
+      setSaveSuccess(true);
+      
+      // Ocultar mensaje de éxito después de 3 segundos
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+      
+      console.log('✅ Configuración guardada exitosamente:', state.adminSettings);
+    } catch (error) {
+      console.error('❌ Error guardando configuración:', error);
+      setSaveError('Error al guardar la configuración. Por favor, inténtalo de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReservationStatusChange = (reservationId: string, status: 'confirmed' | 'cancelled') => {
@@ -139,6 +189,17 @@ export function Admin() {
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
+            {isLoadingSettings && (
+              <div className="card">
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-600">Cargando configuración...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuración del Sistema</h3>
               <div className="space-y-4">
@@ -319,6 +380,46 @@ export function Admin() {
                         Horario actual: {state.adminSettings.businessHours.end}
                       </p>
                     </div>
+                  </div>
+                </div>
+                
+                {/* Botón de Guardar y Mensajes de Estado */}
+                <div className="border-t border-gray-200 pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      {saveSuccess && (
+                        <div className="flex items-center space-x-2 text-success-600">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="text-sm font-medium">Configuración guardada exitosamente</span>
+                        </div>
+                      )}
+                      {saveError && (
+                        <div className="text-danger-600 text-sm">
+                          {saveError}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={isSaving}
+                      className={`flex items-center space-x-2 px-6 py-2 rounded-md font-medium transition-colors duration-200 ${
+                        isSaving
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2'
+                      }`}
+                    >
+                      {isSaving ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Guardando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Guardar Configuración</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
