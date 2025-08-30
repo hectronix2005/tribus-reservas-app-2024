@@ -20,13 +20,25 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
   // Verificar si la fecha original es UTC (tiene 'Z' al final)
   const isUTC = date.toISOString().endsWith('Z');
   
-  if (isUTC) {
-    // Si es UTC, convertir a la zona horaria local antes de determinar el día
-    // Crear una nueva fecha en la zona horaria local
+  // Para fechas que vienen del formulario (new Date('YYYY-MM-DD')), 
+  // JavaScript las interpreta como UTC pero queremos tratarlas como locales
+  // Verificamos si la fecha fue creada a partir de un string simple de fecha
+  const isSimpleDateString = date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0;
+  
+  if (isUTC && !isSimpleDateString) {
+    // Si es UTC real (no una fecha simple), convertir a la zona horaria local
     const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
     dayOfWeek = localTime.getUTCDay();
+  } else if (isSimpleDateString) {
+    // Si es una fecha simple (YYYY-MM-DD), crear una nueva fecha local
+    // Extraer los componentes UTC y crear una fecha local
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    const localDate = new Date(year, month, day);
+    dayOfWeek = localDate.getDay();
   } else {
-    // Si ya es local, usar directamente
+    // Si es local, usar directamente
     dayOfWeek = date.getDay();
   }
   
@@ -48,6 +60,7 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     console.log('🔍 isOfficeDay debug:', {
       originalDate: date.toISOString(),
       isUTC,
+      isSimpleDateString,
       dayOfWeek,
       dayKey,
       officeDays,
@@ -55,7 +68,12 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
       // Información adicional para debug
       originalDateString: date.toString(),
       timezoneOffset: date.getTimezoneOffset(),
-      localTime: isUTC ? new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString() : 'N/A'
+      utcHours: date.getUTCHours(),
+      utcMinutes: date.getUTCMinutes(),
+      utcSeconds: date.getUTCSeconds(),
+      utcYear: date.getUTCFullYear(),
+      utcMonth: date.getUTCMonth(),
+      utcDate: date.getUTCDate()
     });
   }
   
