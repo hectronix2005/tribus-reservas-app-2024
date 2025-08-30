@@ -27,6 +27,8 @@ function AppContent() {
 
   // Manejar clic en horario desde la vista de disponibilidad
   const handleAvailabilityHourClick = (area: any, date: string, hour: string) => {
+    console.log('🚀 Navegando desde disponibilidad a reservaciones:', { area: area.name, date, hour });
+    
     // Cambiar a la vista de reservaciones
     setCurrentView('reservations');
     
@@ -35,6 +37,8 @@ function AppContent() {
       detail: { area, date, hour }
     });
     window.dispatchEvent(event);
+    
+    console.log('📡 Evento availabilityHourClick disparado');
   };
 
   // Si no está autenticado, mostrar login

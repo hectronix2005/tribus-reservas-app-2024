@@ -556,6 +556,8 @@ export function Reservations() {
       
       // Limpiar cualquier error previo
       setError(null);
+      
+      console.log('✅ Formulario pre-llenado y abierto');
     };
 
     // Agregar event listener
@@ -574,16 +576,17 @@ export function Reservations() {
     }
   }, [formData.area, formData.date, formData.duration]);
 
-  // Limpiar hora de inicio cuando cambien la fecha o duración
+  // Limpiar hora de inicio cuando cambien la fecha o duración (solo si no viene de disponibilidad)
   useEffect(() => {
-    if (formData.date || formData.duration) {
+    // Solo limpiar si no hay una hora de inicio ya establecida
+    if ((formData.date || formData.duration) && !formData.startTime) {
       setFormData(prev => ({
         ...prev,
         startTime: '',
         endTime: ''
       }));
     }
-  }, [formData.date, formData.duration]);
+  }, [formData.date, formData.duration, formData.startTime]);
 
 
 

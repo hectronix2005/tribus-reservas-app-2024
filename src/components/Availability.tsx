@@ -110,10 +110,15 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
   // Manejar clic en horario disponible
   const handleHourClick = (area: any, date: string, hour: string) => {
+    console.log('🖱️ Clic en horario disponible:', { area: area.name, date, hour });
+    
     if (onHourClick) {
       // Convertir el horario AM/PM a formato 24 horas para enviar al backend
       const hour24 = convertTo24Hour(hour);
+      console.log('🔄 Horario convertido:', { original: hour, converted: hour24 });
       onHourClick(area, date, hour24);
+    } else {
+      console.log('❌ onHourClick no está disponible');
     }
   };
 
