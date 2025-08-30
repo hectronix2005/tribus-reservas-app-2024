@@ -112,6 +112,68 @@ export function Reservations() {
 
 
 
+  // Función para normalizar fechas a formato YYYY-MM-DD (para comparaciones internas)
+  const normalizeDate = useCallback((date: string | Date): string => {
+    let normalizedDate: string;
+    
+    if (typeof date === 'string') {
+      // Si ya es formato YYYY-MM-DD, retornarlo tal como está
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        normalizedDate = date;
+      } else if (date.includes('T')) {
+        // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
+        normalizedDate = date.split('T')[0];
+      } else {
+        // Si es una fecha en formato Date string, convertirla
+        normalizedDate = new Date(date).toISOString().split('T')[0];
+      }
+    } else {
+      // Si es un objeto Date, convertir a YYYY-MM-DD
+      normalizedDate = date.toISOString().split('T')[0];
+    }
+    
+    console.log('📅 Normalización de fecha:', {
+      original: date,
+      normalized: normalizedDate,
+      displayFormat: formatDateForDisplay(date),
+      type: typeof date
+    });
+    
+    return normalizedDate;
+  }, []);
+
+  // Función para formatear fecha para visualización (Día, Mes y Año)
+  const formatDateForDisplay = (date: string | Date): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Formato: "Viernes, 30 de agosto de 2025"
+    return dateObj.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+
+
+  // Función para formatear fecha con día de la semana (DD/MM/YYYY - Día)
+  const formatDateWithDay = (date: string | Date): string => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Formato: "30/08/2025 - Viernes"
+    const shortDate = dateObj.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const dayName = dateObj.toLocaleDateString('es-ES', {
+      weekday: 'long'
+    });
+    
+    return `${shortDate} - ${dayName}`;
+  };
+
   // Función para verificar conflictos de horarios
   const getConflictingReservations = useCallback((area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
     const normalizedDate = normalizeDate(date);
@@ -120,6 +182,7 @@ export function Reservations() {
       area,
       originalDate: date,
       normalizedDate,
+      displayDate: formatDateForDisplay(date),
       startTime,
       endTime
     });
@@ -135,6 +198,7 @@ export function Reservations() {
         reservationArea: reservation.area,
         reservationDate: reservation.date,
         reservationDateNormalized: reservationDate,
+        reservationDateDisplay: formatDateForDisplay(reservation.date),
         areaMatch: reservation.area === area,
         dateMatch: reservationDate === normalizedDate,
         isMatch: reservation.area === area && reservationDate === normalizedDate
@@ -170,7 +234,7 @@ export function Reservations() {
     });
     
     return conflicts;
-  }, [reservations]);
+  }, [reservations, normalizeDate]);
 
   // Función para verificar si una fecha está completamente ocupada para un área
   const isDateFullyBooked = useCallback((area: string, date: string) => {
@@ -180,6 +244,7 @@ export function Reservations() {
       area,
       originalDate: date,
       normalizedDate,
+      displayDate: formatDateForDisplay(date),
       totalReservations: reservations.length
     });
     
@@ -190,6 +255,7 @@ export function Reservations() {
         reservationArea: reservation.area,
         reservationDate: reservation.date,
         reservationDateNormalized: reservationDate,
+        reservationDateDisplay: formatDateForDisplay(reservation.date),
         areaMatch: reservation.area === area,
         dateMatch: reservationDate === normalizedDate,
         statusMatch: reservation.status === 'active',
@@ -243,36 +309,7 @@ export function Reservations() {
     });
 
     return allHoursOccupied;
-  }, [reservations]);
-
-  // Función para normalizar fechas a formato YYYY-MM-DD
-  const normalizeDate = (date: string | Date): string => {
-    let normalizedDate: string;
-    
-    if (typeof date === 'string') {
-      // Si ya es formato YYYY-MM-DD, retornarlo tal como está
-      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        normalizedDate = date;
-      } else if (date.includes('T')) {
-        // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
-        normalizedDate = date.split('T')[0];
-      } else {
-        // Si es una fecha en formato Date string, convertirla
-        normalizedDate = new Date(date).toISOString().split('T')[0];
-      }
-    } else {
-      // Si es un objeto Date, convertir a YYYY-MM-DD
-      normalizedDate = date.toISOString().split('T')[0];
-    }
-    
-    console.log('📅 Normalización de fecha:', {
-      original: date,
-      normalized: normalizedDate,
-      type: typeof date
-    });
-    
-    return normalizedDate;
-  };
+  }, [reservations, normalizeDate]);
 
   // Función para agregar minutos a una hora
   const addMinutesToTime = (time: string, minutes: number): string => {
@@ -290,6 +327,7 @@ export function Reservations() {
     console.log('🔄 Calculando horarios disponibles para:', {
       area: formData.area,
       date: formData.date,
+      displayDate: formatDateForDisplay(formData.date),
       duration: formData.duration,
       totalReservations: reservations.length
     });
@@ -539,14 +577,7 @@ export function Reservations() {
     return currentUser.id === reservationUserId || currentUser.role === 'admin';
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -845,7 +876,7 @@ export function Reservations() {
                   {formData.area && formData.date && (
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reservaciones existentes para {formData.area} el {new Date(formData.date).toLocaleDateString('es-ES')}:
+                        Reservaciones existentes para {formData.area} el {formatDateWithDay(formData.date)}:
                       </label>
                       <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
                         {reservations
@@ -968,7 +999,7 @@ export function Reservations() {
                       
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        <span>{formatDate(reservation.date)}</span>
+                        <span>{formatDateWithDay(reservation.date)}</span>
                       </div>
                       
                       <div className="flex items-center gap-2">
