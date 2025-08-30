@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
@@ -113,8 +113,8 @@ export function Reservations() {
 
 
   // Función para verificar conflictos de horarios
-  const getConflictingReservations = (area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
-    return reservations.filter(reservation => {
+  const getConflictingReservations = useCallback((area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
+    const conflicts = reservations.filter(reservation => {
       // Excluir la reservación que se está editando
       if (excludeId && reservation._id === excludeId) return false;
       
@@ -129,12 +129,27 @@ export function Reservations() {
       const reservationEnd = reservation.endTime;
       
       // Hay conflicto si los horarios se solapan
-      return (
+      const hasConflict = (
         (startTime < reservationEnd && endTime > reservationStart) ||
         (reservationStart < endTime && reservationEnd > startTime)
       );
+      
+      // Debug: Log conflictos encontrados
+      if (hasConflict) {
+        console.log('🔴 Conflicto detectado:', {
+          area,
+          date,
+          requestedTime: `${startTime}-${endTime}`,
+          existingReservation: `${reservationStart}-${reservationEnd}`,
+          reservationId: reservation._id
+        });
+      }
+      
+      return hasConflict;
     });
-  };
+    
+    return conflicts;
+  }, [reservations]);
 
   // Función para agregar minutos a una hora
   const addMinutesToTime = (time: string, minutes: number): string => {
@@ -148,6 +163,13 @@ export function Reservations() {
   // Función para obtener horas de inicio disponibles (memoizada)
   const availableStartTimes = useMemo(() => {
     if (!formData.area || !formData.date) return [];
+    
+    console.log('🔄 Calculando horarios disponibles para:', {
+      area: formData.area,
+      date: formData.date,
+      duration: formData.duration,
+      totalReservations: reservations.length
+    });
     
     const availableTimes = [];
     const startHour = 8; // 8:00 AM
@@ -165,10 +187,13 @@ export function Reservations() {
         
         if (conflicts.length === 0) {
           availableTimes.push(startTime);
+        } else {
+          console.log('❌ Horario no disponible:', startTime, 'conflictos:', conflicts.length);
         }
       }
     }
     
+    console.log('✅ Horarios disponibles calculados:', availableTimes);
     return availableTimes;
   }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations]);
 
