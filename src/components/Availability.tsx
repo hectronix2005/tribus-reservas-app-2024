@@ -21,7 +21,11 @@ interface DayAvailability {
   };
 }
 
-export function Availability() {
+interface AvailabilityProps {
+  onHourClick?: (area: any, date: string, hour: string) => void;
+}
+
+export function Availability({ onHourClick }: AvailabilityProps) {
   const { state } = useApp();
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,11 +48,13 @@ export function Availability() {
     return days;
   };
 
-  // Generar horarios de 1 hora (8:00 a 18:00)
+  // Generar horarios de 1 hora (8:00 a 18:00) en formato AM/PM
   const generateHourlySlots = (): string[] => {
     const slots: string[] = [];
     for (let hour = 8; hour <= 18; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 12 ? 12 : hour > 12 ? hour - 12 : hour;
+      slots.push(`${displayHour}:00 ${ampm}`);
     }
     return slots;
   };
@@ -77,6 +83,38 @@ export function Availability() {
     const today = new Date();
     const date = new Date(dateString);
     return date.toDateString() === today.toDateString();
+  };
+
+  // Convertir formato AM/PM a formato 24 horas para comparaciones
+  const convertTo24Hour = (time12h: string): string => {
+    const [time, period] = time12h.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    let hour24 = hours;
+    if (period === 'PM' && hours !== 12) {
+      hour24 = hours + 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  // Convertir formato 24 horas a formato AM/PM para mostrar
+  const convertTo12Hour = (time24h: string): string => {
+    const [hours, minutes] = time24h.split(':').map(Number);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  // Manejar clic en horario disponible
+  const handleHourClick = (area: any, date: string, hour: string) => {
+    if (onHourClick) {
+      // Convertir el horario AM/PM a formato 24 horas para enviar al backend
+      const hour24 = convertTo24Hour(hour);
+      onHourClick(area, date, hour24);
+    }
   };
 
   // Cargar disponibilidad
@@ -122,10 +160,13 @@ export function Availability() {
             const hourlyAvailability: { [hour: string]: { isAvailable: boolean; reservations: any[] } } = {};
             
             hourlySlots.forEach(hour => {
+              // Convertir el horario AM/PM a formato 24 horas para comparaciones
+              const hour24 = convertTo24Hour(hour);
+              
               const hourReservations = areaReservations.filter(reservation => {
                 const startHour = reservation.startTime;
                 const endHour = reservation.endTime;
-                return startHour <= hour && endHour > hour;
+                return startHour <= hour24 && endHour > hour24;
               });
               
               hourlyAvailability[hour] = {
@@ -272,39 +313,44 @@ export function Availability() {
                         </td>
                       );
                     } else {
-                      // Renderizado para Salas (bloques de hora)
-                      const hourlySlots = areaStatus?.hourlySlots ?? {};
-                      const reservations = areaStatus?.reservations ?? [];
-                      
-                      return (
-                        <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
-                          <div className="min-h-[120px] p-1">
-                            <div className="grid grid-cols-2 gap-1">
-                              {generateHourlySlots().map((hour) => {
-                                const hourStatus = hourlySlots[hour];
-                                const isHourAvailable = hourStatus?.isAvailable ?? true;
-                                
-                                return (
-                                  <div
-                                    key={hour}
-                                    className={`text-xs p-1 rounded border ${
-                                      isHourAvailable
-                                        ? 'bg-white text-gray-900 border-gray-200'
-                                        : 'bg-gray-200 text-gray-900 border-gray-300'
-                                    }`}
-                                    title={`${hour} - ${isHourAvailable ? 'Libre' : 'Ocupado'}`}
-                                  >
-                                    <div className="font-medium">{hour}</div>
-                                    <div className={`text-[10px] ${isHourAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                                      {isHourAvailable ? '✓' : '✗'}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </td>
-                      );
+                                             // Renderizado para Salas (bloques de hora)
+                       const hourlySlots = areaStatus?.hourlySlots ?? {};
+                       const reservations = areaStatus?.reservations ?? [];
+                       
+                       // Filtrar solo los horarios disponibles
+                       const availableHours = generateHourlySlots().filter(hour => {
+                         const hourStatus = hourlySlots[hour];
+                         return hourStatus?.isAvailable ?? true;
+                       });
+                       
+                       return (
+                         <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
+                           <div className="min-h-[120px] p-1">
+                             {availableHours.length > 0 ? (
+                               <div className="grid grid-cols-2 gap-1">
+                                 {availableHours.map((hour) => (
+                                   <button
+                                     key={hour}
+                                     className="text-xs p-1 rounded border bg-white text-gray-900 border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
+                                     title={`Hacer clic para reservar ${area.name} a las ${hour}`}
+                                     onClick={() => handleHourClick(area, day.date, hour)}
+                                   >
+                                     <div className="font-medium">{hour}</div>
+                                     <div className="text-[10px] text-green-600">✓ Libre</div>
+                                   </button>
+                                 ))}
+                               </div>
+                             ) : (
+                               <div className="flex items-center justify-center h-full">
+                                 <div className="text-xs text-gray-500">
+                                   <div>Sin horarios</div>
+                                   <div>disponibles</div>
+                                 </div>
+                               </div>
+                             )}
+                           </div>
+                         </td>
+                       );
                     }
                   })}
                 </tr>
@@ -336,7 +382,7 @@ export function Availability() {
             <div className="flex items-center justify-center space-x-6 text-sm text-gray-600">
               <div className="flex items-center">
                 <span className="mr-2">🏢</span>
-                <span>Salas: Bloques de 1 hora (8:00-18:00)</span>
+                <span>Salas: Solo horarios libres (8:00 AM - 6:00 PM)</span>
               </div>
               <div className="flex items-center">
                 <span className="mr-2">💺</span>
@@ -381,7 +427,7 @@ export function Availability() {
           <ul className="space-y-2 text-sm text-gray-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Salas:</strong> Se muestran bloques de 1 hora (8:00-18:00) con estado libre/ocupado
+              <strong>Salas:</strong> Solo se muestran horarios libres (8:00 AM - 6:00 PM). Haz clic para crear una reservación
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
@@ -389,7 +435,7 @@ export function Availability() {
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              Los bloques libres aparecen en blanco, los ocupados en gris
+              Los horarios libres son botones clickeables que abren el formulario de reservación
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>

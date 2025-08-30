@@ -25,6 +25,18 @@ function AppContent() {
     }
   }, [state.auth.currentUser?.role, state.auth.isAuthenticated]);
 
+  // Manejar clic en horario desde la vista de disponibilidad
+  const handleAvailabilityHourClick = (area: any, date: string, hour: string) => {
+    // Cambiar a la vista de reservaciones
+    setCurrentView('reservations');
+    
+    // Emitir un evento personalizado para que Reservations.tsx pueda escucharlo
+    const event = new CustomEvent('availabilityHourClick', {
+      detail: { area, date, hour }
+    });
+    window.dispatchEvent(event);
+  };
+
   // Si no está autenticado, mostrar login
   if (!state.auth.isAuthenticated) {
     return <Login />;
@@ -39,7 +51,7 @@ function AppContent() {
       case 'reservations':
         return <Reservations />;
       case 'availability':
-        return <Availability />;
+        return <Availability onHourClick={handleAvailabilityHourClick} />;
       case 'areas':
         return state.auth.currentUser?.role === 'admin' ? <Areas /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
