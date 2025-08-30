@@ -170,6 +170,11 @@ export function Reservations() {
         const fullYear = year < 50 ? 2000 + year : 1900 + year;
         dateObj = new Date(fullYear, month - 1, day); // month - 1 porque Date usa 0-indexed months
       }
+      // Si es formato YYYY-MM-DD, parsear directamente
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      }
       // Si es un string ISO, crear la fecha correctamente
       else if (date.includes('T')) {
         // Para fechas ISO, usar UTC para evitar problemas de zona horaria
@@ -204,6 +209,11 @@ export function Reservations() {
         // Asumir que el año es 20XX si es menor a 50, sino 19XX
         const fullYear = year < 50 ? 2000 + year : 1900 + year;
         dateObj = new Date(fullYear, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      }
+      // Si es formato YYYY-MM-DD, parsear directamente
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
       }
       // Si es un string ISO, crear la fecha correctamente
       else if (date.includes('T')) {
