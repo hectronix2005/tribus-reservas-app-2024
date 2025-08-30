@@ -127,7 +127,7 @@ const reservationSchema = new mongoose.Schema({
   },
   contactPhone: { 
     type: String, 
-    required: true 
+    required: false 
   },
   // Campo para plantilla (opcional)
   templateId: { 
@@ -765,17 +765,17 @@ app.post('/api/reservations', async (req, res) => {
     }
 
     // Configurar requestedSeats según la categoría del área
-    let finalRequestedSeats = requestedSeats;
+    let finalRequestedSeats = parseInt(requestedSeats) || 1;
     
     if (areaInfo.category === 'SALA') {
       // Para SALAS: siempre usar la capacidad completa (no se pregunta cantidad de puestos)
       finalRequestedSeats = areaInfo.capacity;
     } else if (areaInfo.category === 'HOT_DESK') {
       // Para HOT DESK: validar que se proporcione requestedSeats
-      if (!requestedSeats || typeof requestedSeats !== 'number' || requestedSeats < 1) {
+      if (!requestedSeats || isNaN(parseInt(requestedSeats)) || parseInt(requestedSeats) < 1) {
         return res.status(400).json({ error: 'Para HOT DESK, debe especificar la cantidad de puestos requeridos' });
       }
-      finalRequestedSeats = requestedSeats;
+      finalRequestedSeats = parseInt(requestedSeats);
     }
 
     // Verificar que el usuario existe
@@ -856,7 +856,7 @@ app.post('/api/reservations', async (req, res) => {
       const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
       const availableSeats = areaInfo.capacity - totalReservedSeats;
       
-      if (requestedSeats > availableSeats) {
+      if (parseInt(requestedSeats) > availableSeats) {
         return res.status(409).json({ 
           error: `Solo hay ${availableSeats} puestos disponibles. Se solicitaron ${requestedSeats} puestos.` 
         });
