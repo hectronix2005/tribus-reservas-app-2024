@@ -66,14 +66,20 @@ export const isValidDate = (dateString: string): boolean => {
   }
 };
 
-// Función para normalizar fechas a formato DD-MM-YY de manera consistente
+// Función para normalizar fechas a formato YYYY-MM-DD de manera consistente (estándar)
 export const normalizeDateConsistent = (date: string | Date): string => {
   let dateObj: Date;
   
   if (typeof date === 'string') {
-    // Si ya es formato DD-MM-YY, retornarlo tal como está
-    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+    // Si ya es formato YYYY-MM-DD, retornarlo tal como está
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return date;
+    }
+    // Si es formato DD-MM-YY, convertir a YYYY-MM-DD
+    else if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+      const [day, month, year] = date.split('-').map(Number);
+      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+      return `${fullYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     }
     // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha en UTC
     else if (date.includes('T')) {
@@ -81,10 +87,6 @@ export const normalizeDateConsistent = (date: string | Date): string => {
       const [year, month, day] = date.split('T')[0].split('-').map(Number);
       // Crear fecha en UTC para evitar conversiones de zona horaria
       dateObj = new Date(Date.UTC(year, month - 1, day));
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      // Si es formato YYYY-MM-DD, parsear directamente
-      const [year, month, day] = date.split('-').map(Number);
-      dateObj = new Date(year, month - 1, day);
     } else {
       // Para otros formatos, usar el constructor de Date
       dateObj = new Date(date);
@@ -93,12 +95,12 @@ export const normalizeDateConsistent = (date: string | Date): string => {
     dateObj = date;
   }
   
-  // Convertir a formato DD-MM-YY usando UTC para evitar problemas de zona horaria
-  const day = dateObj.getUTCDate().toString().padStart(2, '0');
+  // Convertir a formato YYYY-MM-DD usando UTC para evitar problemas de zona horaria
+  const year = dateObj.getUTCFullYear();
   const month = (dateObj.getUTCMonth() + 1).toString().padStart(2, '0');
-  const year = dateObj.getUTCFullYear().toString().slice(-2);
+  const day = dateObj.getUTCDate().toString().padStart(2, '0');
   
-  return `${day}-${month}-${year}`;
+  return `${year}-${month}-${day}`;
 };
 
 // Función para probar la normalización de fechas
@@ -110,7 +112,7 @@ export const testDateNormalization = () => {
     new Date('2025-08-30T00:00:00.000Z')
   ];
   
-  console.log('🧪 Pruebas de normalización de fechas:');
+  console.log('🧪 Pruebas de normalización de fechas (formato YYYY-MM-DD):');
   testCases.forEach((testCase, index) => {
     const normalized = normalizeDateConsistent(testCase);
     console.log(`Test ${index + 1}:`, {
@@ -119,6 +121,11 @@ export const testDateNormalization = () => {
       type: typeof testCase
     });
   });
+  
+  // Verificar que todas las fechas se normalizan a YYYY-MM-DD
+  const allNormalized = testCases.map(testCase => normalizeDateConsistent(testCase));
+  const allEqual = allNormalized.every(date => date === '2025-08-30');
+  console.log('✅ Todas las fechas se normalizan igual:', allEqual);
 };
 
 // Función específica para debuggear el problema de normalización
@@ -126,8 +133,8 @@ export const debugDateNormalization = () => {
   console.log('🔍 DEBUG: Análisis detallado de normalización de fechas');
   
   // Simular el flujo completo: frontend → backend → frontend
-  const frontendDate = '30-08-25'; // Formato que envía el frontend
-  console.log('1. Fecha del frontend (DD-MM-YY):', frontendDate);
+  const frontendDate = '2025-08-30'; // Formato estándar YYYY-MM-DD
+  console.log('1. Fecha del frontend (YYYY-MM-DD):', frontendDate);
   
   // Simular lo que hace el backend: new Date(frontendDate)
   const backendDate = new Date(frontendDate);

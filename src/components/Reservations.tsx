@@ -58,12 +58,12 @@ export function Reservations() {
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
     date: (() => {
-      // Inicializar con la fecha actual en formato DD-MM-YY
+      // Inicializar con la fecha actual en formato YYYY-MM-DD (estándar)
       const today = new Date();
-      const day = today.getDate().toString().padStart(2, '0');
+      const year = today.getFullYear();
       const month = (today.getMonth() + 1).toString().padStart(2, '0');
-      const year = today.getFullYear().toString().slice(-2);
-      return `${day}-${month}-${year}`;
+      const day = today.getDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`;
     })(),
     startTime: '09:00',
     endTime: '10:00',
@@ -133,7 +133,7 @@ export function Reservations() {
 
 
 
-  // Función para normalizar fechas a formato DD-MM-YY (para comparaciones internas)
+  // Función para normalizar fechas a formato YYYY-MM-DD (para comparaciones internas)
   const normalizeDate = useCallback((date: string | Date): string => {
     const normalizedDate = normalizeDateConsistent(date);
     
@@ -518,15 +518,7 @@ export function Reservations() {
     const duration = parseInt(formData.duration || '60');
     
     // Verificar que la fecha seleccionada sea un día de oficina
-    const selectedDate = (() => {
-      // Convertir DD-MM-YY a Date object
-      if (/^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
-        const [day, month, year] = formData.date.split('-').map(Number);
-        const fullYear = year < 50 ? 2000 + year : 1900 + year;
-        return new Date(fullYear, month - 1, day);
-      }
-      return new Date(formData.date);
-    })();
+    const selectedDate = new Date(formData.date);
     if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
       console.log('❌ Fecha seleccionada no es un día de oficina:', formData.date);
       return [];
@@ -589,12 +581,13 @@ export function Reservations() {
       const normalized2 = normalizeDateConsistent('2025-08-30');
       const normalized3 = normalizeDateConsistent('30-08-25');
       
-      console.log('🔍 Pruebas de consistencia:', {
+      console.log('🔍 Pruebas de consistencia (YYYY-MM-DD):', {
         testDate,
         normalized1,
         normalized2,
         normalized3,
-        allEqual: normalized1 === normalized2 && normalized2 === normalized3
+        allEqual: normalized1 === normalized2 && normalized2 === normalized3,
+        expectedFormat: '2025-08-30'
       });
       
       // Debug específico del problema
@@ -1210,15 +1203,7 @@ export function Reservations() {
                 <input
                   type="date"
                   min={getMinDate()}
-                  value={(() => {
-                    // Convertir DD-MM-YY a YYYY-MM-DD para el input date
-                    if (formData.date && /^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
-                      const [day, month, year] = formData.date.split('-').map(Number);
-                      const fullYear = year < 50 ? 2000 + year : 1900 + year;
-                      return `${fullYear}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-                    }
-                    return formData.date;
-                  })()}
+                  value={formData.date}
                   onChange={(e) => {
                     const dateValue = e.target.value;
                     if (dateValue) {
@@ -1235,11 +1220,8 @@ export function Reservations() {
                         return;
                       }
                       
-                      // Convertir YYYY-MM-DD a DD-MM-YY
-                      const [year, month, day] = dateValue.split('-').map(Number);
-                      const shortYear = year.toString().slice(-2);
-                      const formattedDate = `${day.toString().padStart(2, '0')}-${month.toString().padStart(2, '0')}-${shortYear}`;
-                      setFormData({...formData, date: formattedDate});
+                      // Usar directamente el formato YYYY-MM-DD
+                      setFormData({...formData, date: dateValue});
                     } else {
                       setFormData({...formData, date: ''});
                     }
@@ -1266,15 +1248,7 @@ export function Reservations() {
                     No se pueden seleccionar fechas pasadas
                   </div>
                 )}
-                {formData.date && !isOfficeDay((() => {
-                  // Convertir DD-MM-YY a Date object
-                  if (/^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
-                    const [day, month, year] = formData.date.split('-').map(Number);
-                    const fullYear = year < 50 ? 2000 + year : 1900 + year;
-                    return new Date(fullYear, month - 1, day);
-                  }
-                  return new Date(formData.date);
-                })(), state.adminSettings.officeDays) && (
+                {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
                   <div className="mt-1 text-sm text-red-600 flex items-center">
                     <span className="mr-1">🏢</span>
                     La fecha seleccionada no es un día de oficina
