@@ -172,6 +172,27 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     }
   };
 
+  // Función para manejar el cambio de modo de vista
+  const handleViewModeChange = (mode: 'total' | 'week' | 'day') => {
+    setViewMode(mode);
+    
+    // Si se cambia a vista día y hoy no es un día hábil, ir al siguiente día hábil
+    if (mode === 'day') {
+      const today = new Date();
+      if (!isOfficeDay(today)) {
+        // Buscar el siguiente día de oficina
+        const nextOfficeDay = new Date(today);
+        nextOfficeDay.setDate(today.getDate() + 1);
+        while (!isOfficeDay(nextOfficeDay)) {
+          nextOfficeDay.setDate(nextOfficeDay.getDate() + 1);
+        }
+        setCurrentDate(nextOfficeDay);
+      } else {
+        setCurrentDate(today);
+      }
+    }
+  };
+
   // Obtener áreas filtradas según las áreas seleccionadas
   const getFilteredAreas = () => {
     if (selectedAreas.length === 0) {
@@ -607,7 +628,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               {(['total', 'week', 'day'] as const).map((mode) => (
                 <button
                   key={mode}
-                  onClick={() => setViewMode(mode)}
+                  onClick={() => handleViewModeChange(mode)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     viewMode === mode
                       ? 'bg-white text-slate-900 shadow-soft'
