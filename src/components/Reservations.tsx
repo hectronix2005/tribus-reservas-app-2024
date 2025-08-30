@@ -850,33 +850,6 @@ export function Reservations() {
           <Plus className="w-5 h-5" />
           Nueva Reservación
         </button>
-        
-        {/* Botón de prueba temporal para verificar la funcionalidad */}
-        <button
-          onClick={() => {
-            console.log('🧪 Prueba manual de pre-llenado');
-            setFormData(prevData => ({
-              ...prevData,
-              area: 'Sala Pikasso',
-              date: '2025-08-30',
-              startTime: '09:00',
-              endTime: '10:00',
-              contactPerson: state.auth.currentUser?.name || '',
-              contactEmail: state.auth.currentUser?.email || '',
-              teamName: 'Equipo de Prueba',
-              contactPhone: '',
-              templateId: '',
-              requestedSeats: 15,
-              notes: 'Prueba manual'
-            }));
-            setShowForm(true);
-            setEditingReservation(null);
-            setError(null);
-          }}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
-        >
-          🧪 Prueba Manual
-        </button>
       </div>
 
       {error && (
