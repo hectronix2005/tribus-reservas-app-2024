@@ -43,6 +43,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   ];
 
   const adminItems = [
+    { id: 'admin', label: 'Administración', icon: Settings },
     { id: 'areas', label: 'Áreas', icon: Building2 },
     { id: 'templates', label: 'Plantillas', icon: FileText },
     { id: 'users', label: 'Usuarios', icon: Users },
@@ -103,7 +104,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 <button
                   onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
                   className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                    ['areas', 'templates', 'users'].includes(currentView)
+                    ['admin', 'areas', 'templates', 'users'].includes(currentView)
                       ? 'bg-primary-100 text-primary-700'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                   }`}
@@ -115,24 +116,28 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 
                 {isAdminMenuOpen && (
                   <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                    {adminItems.map((item) => {
+                    {adminItems.map((item, index) => {
                       const Icon = item.icon;
                       return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            onViewChange(item.id);
-                            setIsAdminMenuOpen(false);
-                          }}
-                          className={`flex items-center space-x-3 w-full px-4 py-2 text-sm text-left transition-colors duration-200 ${
-                            currentView === item.id
-                              ? 'bg-primary-50 text-primary-700'
-                              : 'text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span>{item.label}</span>
-                        </button>
+                        <div key={item.id}>
+                          <button
+                            onClick={() => {
+                              onViewChange(item.id);
+                              setIsAdminMenuOpen(false);
+                            }}
+                            className={`flex items-center space-x-3 w-full px-4 py-2 text-sm text-left transition-colors duration-200 ${
+                              currentView === item.id
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </button>
+                          {index === 0 && (
+                            <div className="border-t border-gray-200 mx-2"></div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
