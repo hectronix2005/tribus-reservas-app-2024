@@ -388,13 +388,14 @@ export function Reservations() {
 
   // Función para obtener horas de inicio disponibles (memoizada)
   const availableStartTimes = useMemo(() => {
-    if (!formData.area || !formData.date) return [];
+    if (!formData.area || !formData.date || !formData.duration) return [];
     
     console.log('🔄 Calculando horarios disponibles para:', {
       area: formData.area,
       date: formData.date,
       displayDate: formatDateForDisplay(formData.date),
       duration: formData.duration,
+      durationMinutes: parseInt(formData.duration || '60'),
       totalReservations: reservations.length
     });
     
@@ -414,13 +415,14 @@ export function Reservations() {
         
         if (conflicts.length === 0) {
           availableTimes.push(startTime);
+          console.log('✅ Horario disponible:', startTime, 'hasta', endTime, `(${duration} min)`);
         } else {
-          console.log('❌ Horario no disponible:', startTime, 'conflictos:', conflicts.length);
+          console.log('❌ Horario no disponible:', startTime, 'hasta', endTime, `(${duration} min)`, 'conflictos:', conflicts.length);
         }
       }
     }
     
-    console.log('✅ Horarios disponibles calculados:', availableTimes);
+    console.log('✅ Horarios disponibles calculados para', duration, 'minutos:', availableTimes);
     return availableTimes;
   }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations]);
 
@@ -437,12 +439,23 @@ export function Reservations() {
     loadReservations();
   }, []);
 
-  // Recargar reservaciones cuando cambie el área o fecha para actualizar horarios disponibles
+  // Recargar reservaciones cuando cambie el área, fecha o duración para actualizar horarios disponibles
   useEffect(() => {
     if (formData.area && formData.date) {
       loadReservations();
     }
-  }, [formData.area, formData.date]);
+  }, [formData.area, formData.date, formData.duration]);
+
+  // Limpiar hora de inicio cuando cambien la fecha o duración
+  useEffect(() => {
+    if (formData.date || formData.duration) {
+      setFormData(prev => ({
+        ...prev,
+        startTime: '',
+        endTime: ''
+      }));
+    }
+  }, [formData.date, formData.duration]);
 
 
 
@@ -918,11 +931,16 @@ export function Reservations() {
                     </select>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-sm text-gray-500">
-                        {availableStartTimes.length} hora{availableStartTimes.length !== 1 ? 's' : ''} disponible{availableStartTimes.length !== 1 ? 's' : ''}
+                        {availableStartTimes.length} hora{availableStartTimes.length !== 1 ? 's' : ''} disponible{availableStartTimes.length !== 1 ? 's' : ''} para {formData.duration} min
                       </span>
                       {availableStartTimes.length > 0 && (
                         <span className="text-sm text-green-600">
                           ✓ Horarios libres
+                        </span>
+                      )}
+                      {availableStartTimes.length === 0 && formData.area && formData.date && formData.duration && (
+                        <span className="text-sm text-red-600">
+                          ⚠️ No hay horarios disponibles para {formData.duration} min
                         </span>
                       )}
                     </div>
