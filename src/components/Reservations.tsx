@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
+import { isWithinOfficeHours, isValidReservationDate } from '../utils/officeHoursUtils';
 
 interface Reservation {
   _id: string;
@@ -386,7 +387,7 @@ export function Reservations() {
     return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
   };
 
-  // Función para verificar si una fecha y hora están en el pasado
+  // Función para verificar si una fecha y hora están en el pasado o fuera de horarios de oficina
   const isDateAndTimeInPast = useCallback((date: string, startTime: string): boolean => {
     if (!date || !startTime) return false;
     
@@ -413,16 +414,23 @@ export function Reservations() {
     const [hours, minutes] = startTime.split(':').map(Number);
     reservationDate.setHours(hours, minutes, 0, 0);
     
-    console.log('🔍 Validación fecha/hora pasada:', {
+    // Verificar si está en el pasado
+    const isInPast = reservationDate < now;
+    
+    // Verificar si está dentro de horarios de oficina
+    const isWithinOfficeHoursCheck = isWithinOfficeHours(reservationDate, startTime, state.adminSettings);
+    
+    console.log('🔍 Validación fecha/hora:', {
       now: now.toISOString(),
       reservationDateTime: reservationDate.toISOString(),
-      isInPast: reservationDate < now,
+      isInPast,
+      isWithinOfficeHours: isWithinOfficeHoursCheck,
       date,
       startTime
     });
     
-    return reservationDate < now;
-  }, []);
+    return isInPast || !isWithinOfficeHoursCheck;
+  }, [state.adminSettings]);
 
   // Función para verificar si solo una fecha está en el pasado (sin hora)
   const isDateInPast = useCallback((date: string): boolean => {

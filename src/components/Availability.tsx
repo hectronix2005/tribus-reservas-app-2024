@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
+import { isOfficeDay, generateAvailableTimeSlots } from '../utils/officeHoursUtils';
 
 interface DayAvailability {
   date: string;
@@ -31,19 +32,17 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Generar los próximos días laborables (excluyendo sábados y domingos)
+  // Generar los próximos días de oficina según la configuración
   const generateNext15Days = (): string[] => {
     const days: string[] = [];
     const today = new Date();
     let currentDate = new Date(today);
     let daysAdded = 0;
     
-    // Continuar hasta tener 15 días laborables
+    // Continuar hasta tener 15 días de oficina
     while (daysAdded < 15) {
-      const dayOfWeek = currentDate.getDay(); // 0 = domingo, 6 = sábado
-      
-      // Solo incluir días de lunes a viernes (1-5)
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Verificar si es un día de oficina usando la configuración
+      if (isOfficeDay(currentDate, state.adminSettings.officeDays)) {
         const year = currentDate.getFullYear();
         const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
         const day = currentDate.getDate().toString().padStart(2, '0');
@@ -58,10 +57,15 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     return days;
   };
 
-  // Generar horarios de 1 hora (8:00 a 18:00) en formato AM/PM
+  // Generar horarios de 1 hora según la configuración de oficina en formato AM/PM
   const generateHourlySlots = (): string[] => {
     const slots: string[] = [];
-    for (let hour = 8; hour <= 18; hour++) {
+    
+    // Usar la configuración de horarios de oficina
+    const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
+    const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
+    
+    for (let hour = startHour; hour < endHour; hour++) {
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const displayHour = hour === 12 ? 12 : hour > 12 ? hour - 12 : hour;
       slots.push(`${displayHour}:00 ${ampm}`);

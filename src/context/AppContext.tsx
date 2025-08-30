@@ -61,6 +61,19 @@ const initialState: AppState = {
     businessHours: {
       start: '07:00',
       end: '18:00'
+    },
+    officeDays: {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false
+    },
+    officeHours: {
+      start: '08:00',
+      end: '18:00'
     }
   },
   selectedDate: getCurrentDateString(),

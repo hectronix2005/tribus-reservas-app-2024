@@ -51,6 +51,19 @@ export interface AdminSettings {
     start: string;
     end: string;
   };
+  officeDays: {
+    monday: boolean;
+    tuesday: boolean;
+    wednesday: boolean;
+    thursday: boolean;
+    friday: boolean;
+    saturday: boolean;
+    sunday: boolean;
+  };
+  officeHours: {
+    start: string;
+    end: string;
+  };
 }
 
 export interface User {

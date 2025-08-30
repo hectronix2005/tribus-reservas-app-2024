@@ -191,43 +191,135 @@ export function Admin() {
                   </label>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                                     <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                       Hora de inicio
-                     </label>
-                     <input
-                       type="time"
-                       value={state.adminSettings.businessHours.start}
-                       onChange={(e) => handleSettingsUpdate({
-                         ...state.adminSettings,
-                         businessHours: {
-                           ...state.adminSettings.businessHours,
-                           start: e.target.value
-                         }
-                       })}
-                       className="input-field"
-                     />
-                     <p className="text-xs text-gray-500 mt-1">Horario actual: 7:00 AM</p>
-                   </div>
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                       Hora de fin
-                     </label>
-                     <input
-                       type="time"
-                       value={state.adminSettings.businessHours.end}
-                       onChange={(e) => handleSettingsUpdate({
-                         ...state.adminSettings,
-                         businessHours: {
-                           ...state.adminSettings.businessHours,
-                           end: e.target.value
-                         }
-                       })}
-                       className="input-field"
-                     />
-                     <p className="text-xs text-gray-500 mt-1">Horario actual: 6:00 PM</p>
-                   </div>
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">Horarios de Oficina</h4>
+                  
+                  {/* Días de apertura */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Días de apertura
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { key: 'monday', label: 'Lunes' },
+                        { key: 'tuesday', label: 'Martes' },
+                        { key: 'wednesday', label: 'Miércoles' },
+                        { key: 'thursday', label: 'Jueves' },
+                        { key: 'friday', label: 'Viernes' },
+                        { key: 'saturday', label: 'Sábado' },
+                        { key: 'sunday', label: 'Domingo' }
+                      ].map(({ key, label }) => (
+                        <div key={key} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={key}
+                            checked={state.adminSettings.officeDays[key as keyof typeof state.adminSettings.officeDays]}
+                            onChange={(e) => handleSettingsUpdate({
+                              ...state.adminSettings,
+                              officeDays: {
+                                ...state.adminSettings.officeDays,
+                                [key]: e.target.checked
+                              }
+                            })}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          <label htmlFor={key} className="text-sm text-gray-700">
+                            {label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Horarios de oficina */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hora de apertura
+                      </label>
+                      <input
+                        type="time"
+                        value={state.adminSettings.officeHours.start}
+                        onChange={(e) => handleSettingsUpdate({
+                          ...state.adminSettings,
+                          officeHours: {
+                            ...state.adminSettings.officeHours,
+                            start: e.target.value
+                          }
+                        })}
+                        className="input-field"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Horario actual: {state.adminSettings.officeHours.start}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hora de cierre
+                      </label>
+                      <input
+                        type="time"
+                        value={state.adminSettings.officeHours.end}
+                        onChange={(e) => handleSettingsUpdate({
+                          ...state.adminSettings,
+                          officeHours: {
+                            ...state.adminSettings.officeHours,
+                            end: e.target.value
+                          }
+                        })}
+                        className="input-field"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Horario actual: {state.adminSettings.officeHours.end}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Configuración de Reservas</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hora de inicio (reservas)
+                      </label>
+                      <input
+                        type="time"
+                        value={state.adminSettings.businessHours.start}
+                        onChange={(e) => handleSettingsUpdate({
+                          ...state.adminSettings,
+                          businessHours: {
+                            ...state.adminSettings.businessHours,
+                            start: e.target.value
+                          }
+                        })}
+                        className="input-field"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Horario actual: {state.adminSettings.businessHours.start}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hora de fin (reservas)
+                      </label>
+                      <input
+                        type="time"
+                        value={state.adminSettings.businessHours.end}
+                        onChange={(e) => handleSettingsUpdate({
+                          ...state.adminSettings,
+                          businessHours: {
+                            ...state.adminSettings.businessHours,
+                            end: e.target.value
+                          }
+                        })}
+                        className="input-field"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Horario actual: {state.adminSettings.businessHours.end}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
