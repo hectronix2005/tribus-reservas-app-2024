@@ -37,6 +37,12 @@ interface ReservationFormData {
   templateId: string;
   requestedSeats: number;
   notes: string;
+  // Campos para reservaciones recurrentes (solo para admins)
+  isRecurring: boolean;
+  recurrenceType: 'daily' | 'weekly' | 'monthly' | 'custom';
+  recurrenceInterval: number; // Cada X días/semanas/meses
+  recurrenceEndDate: string; // Fecha de fin de la recurrencia
+  recurrenceDays: string[]; // Para recurrencia semanal: ['monday', 'tuesday', etc.]
 }
 
 export function Reservations() {
@@ -60,7 +66,13 @@ export function Reservations() {
     contactPhone: '',
     templateId: '',
     requestedSeats: 1,
-    notes: ''
+    notes: '',
+    // Campos para reservaciones recurrentes (solo para admins)
+    isRecurring: false,
+    recurrenceType: 'weekly',
+    recurrenceInterval: 1,
+    recurrenceEndDate: '',
+    recurrenceDays: ['monday']
   });
 
   // Función para manejar el cambio de área
@@ -740,21 +752,57 @@ export function Reservations() {
       setIsLoading(true);
       setError(null);
 
-      const reservationData = {
-        userId: currentUser.id,
-        userName: currentUser.name,
-        ...formData,
-        requestedSeats: formData.requestedSeats
-      };
+      // Verificar si es una reservación recurrente (solo para admins)
+      if (formData.isRecurring && currentUser?.role === 'admin') {
+        if (!formData.recurrenceEndDate) {
+          setError('Para reservaciones recurrentes, debe especificar una fecha de fin.');
+          return;
+        }
 
-      console.log('🔍 Datos de reservación a enviar:', reservationData);
+        // Generar fechas recurrentes
+        const recurringDates = generateRecurringDates(
+          formData.date,
+          formData.recurrenceType,
+          formData.recurrenceInterval,
+          formData.recurrenceEndDate,
+          formData.recurrenceDays
+        );
 
-      if (editingReservation) {
-        // Actualizar reservación existente
-        await reservationService.updateReservation(editingReservation._id, reservationData);
+        console.log('📅 Fechas recurrentes generadas:', recurringDates);
+
+        // Crear múltiples reservaciones
+        for (const date of recurringDates) {
+          const reservationData = {
+            userId: currentUser.id,
+            userName: currentUser.name,
+            ...formData,
+            date: date,
+            requestedSeats: formData.requestedSeats
+          };
+
+          console.log(`🔍 Creando reservación recurrente para ${date}:`, reservationData);
+          await reservationService.createReservation(reservationData);
+        }
+
+        console.log(`✅ Se crearon ${recurringDates.length} reservaciones recurrentes`);
       } else {
-        // Crear nueva reservación
-        await reservationService.createReservation(reservationData);
+        // Reservación única
+        const reservationData = {
+          userId: currentUser.id,
+          userName: currentUser.name,
+          ...formData,
+          requestedSeats: formData.requestedSeats
+        };
+
+        console.log('🔍 Datos de reservación a enviar:', reservationData);
+
+        if (editingReservation) {
+          // Actualizar reservación existente
+          await reservationService.updateReservation(editingReservation._id, reservationData);
+        } else {
+          // Crear nueva reservación
+          await reservationService.createReservation(reservationData);
+        }
       }
 
       // Recargar reservaciones
@@ -773,7 +821,13 @@ export function Reservations() {
         contactPhone: '',
         templateId: '',
         requestedSeats: 1,
-        notes: ''
+        notes: '',
+        // Campos para reservaciones recurrentes (solo para admins)
+        isRecurring: false,
+        recurrenceType: 'weekly',
+        recurrenceInterval: 1,
+        recurrenceEndDate: '',
+        recurrenceDays: ['monday']
       });
       setShowForm(false);
       setEditingReservation(null);
@@ -839,7 +893,13 @@ export function Reservations() {
       contactPhone: reservation.contactPhone,
       templateId: reservation.templateId || '',
       requestedSeats: reservation.requestedSeats || 1,
-      notes: reservation.notes
+      notes: reservation.notes,
+      // Campos para reservaciones recurrentes (solo para admins)
+      isRecurring: false,
+      recurrenceType: 'weekly',
+      recurrenceInterval: 1,
+      recurrenceEndDate: '',
+      recurrenceDays: ['monday']
     });
     setShowForm(true);
   };
@@ -859,7 +919,13 @@ export function Reservations() {
       contactPhone: '',
       templateId: '',
       requestedSeats: 1,
-      notes: ''
+      notes: '',
+      // Campos para reservaciones recurrentes (solo para admins)
+      isRecurring: false,
+      recurrenceType: 'weekly',
+      recurrenceInterval: 1,
+      recurrenceEndDate: '',
+      recurrenceDays: ['monday']
     });
     setError(null);
   };
@@ -896,6 +962,54 @@ export function Reservations() {
       case 'completed': return 'Completada';
       default: return 'Desconocido';
     }
+  };
+
+  // Función para generar fechas recurrentes
+  const generateRecurringDates = (startDate: string, recurrenceType: string, recurrenceInterval: number, recurrenceEndDate: string, recurrenceDays: string[] = []): string[] => {
+    const dates: string[] = [];
+    const start = new Date(startDate);
+    const end = new Date(recurrenceEndDate);
+    
+    if (start > end) return dates;
+    
+    let currentDate = new Date(start);
+    
+    while (currentDate <= end) {
+      let shouldInclude = false;
+      
+      switch (recurrenceType) {
+        case 'daily':
+          shouldInclude = true;
+          currentDate.setDate(currentDate.getDate() + recurrenceInterval);
+          break;
+          
+        case 'weekly':
+          const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          if (recurrenceDays.includes(dayOfWeek)) {
+            shouldInclude = true;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+          
+        case 'monthly':
+          shouldInclude = true;
+          currentDate.setMonth(currentDate.getMonth() + recurrenceInterval);
+          break;
+          
+        default:
+          shouldInclude = true;
+          currentDate.setDate(currentDate.getDate() + 1);
+      }
+      
+      if (shouldInclude && currentDate <= end) {
+        const year = currentDate.getFullYear();
+        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+        const day = currentDate.getDate().toString().padStart(2, '0');
+        dates.push(`${year}-${month}-${day}`);
+      }
+    }
+    
+    return dates;
   };
 
   return (
@@ -1317,6 +1431,133 @@ export function Reservations() {
                 placeholder="Notas adicionales..."
               />
             </div>
+
+            {/* Sección de Reservaciones Recurrentes (solo para admins) */}
+            {currentUser?.role === 'admin' && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <input
+                    type="checkbox"
+                    id="isRecurring"
+                    checked={formData.isRecurring}
+                    onChange={(e) => setFormData({...formData, isRecurring: e.target.checked})}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700">
+                    Crear reservación recurrente
+                  </label>
+                </div>
+
+                {formData.isRecurring && (
+                  <div className="space-y-4 bg-gray-50 p-4 rounded-md">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tipo de Recurrencia
+                        </label>
+                        <select
+                          value={formData.recurrenceType}
+                          onChange={(e) => setFormData({...formData, recurrenceType: e.target.value as any})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="daily">Diaria</option>
+                          <option value="weekly">Semanal</option>
+                          <option value="monthly">Mensual</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Intervalo
+                        </label>
+                        <select
+                          value={formData.recurrenceInterval}
+                          onChange={(e) => setFormData({...formData, recurrenceInterval: parseInt(e.target.value)})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value={1}>Cada 1</option>
+                          <option value={2}>Cada 2</option>
+                          <option value={3}>Cada 3</option>
+                          <option value={4}>Cada 4</option>
+                          <option value={5}>Cada 5</option>
+                          <option value={6}>Cada 6</option>
+                          <option value={7}>Cada 7</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Fecha de Fin
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.recurrenceEndDate}
+                          onChange={(e) => setFormData({...formData, recurrenceEndDate: e.target.value})}
+                          min={formData.date}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          required={formData.isRecurring}
+                        />
+                      </div>
+                    </div>
+
+                    {formData.recurrenceType === 'weekly' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Días de la Semana
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {[
+                            { value: 'monday', label: 'Lunes' },
+                            { value: 'tuesday', label: 'Martes' },
+                            { value: 'wednesday', label: 'Miércoles' },
+                            { value: 'thursday', label: 'Jueves' },
+                            { value: 'friday', label: 'Viernes' },
+                            { value: 'saturday', label: 'Sábado' },
+                            { value: 'sunday', label: 'Domingo' }
+                          ].map((day) => (
+                            <div key={day.value} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={day.value}
+                                checked={formData.recurrenceDays.includes(day.value)}
+                                onChange={(e) => {
+                                  const newDays = e.target.checked
+                                    ? [...formData.recurrenceDays, day.value]
+                                    : formData.recurrenceDays.filter(d => d !== day.value);
+                                  setFormData({...formData, recurrenceDays: newDays});
+                                }}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                              />
+                              <label htmlFor={day.value} className="text-sm text-gray-700">
+                                {day.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-sm text-gray-600">
+                      <p><strong>Vista previa:</strong> Se crearán reservaciones desde {formData.date} hasta {formData.recurrenceEndDate}</p>
+                      {formData.recurrenceType === 'weekly' && formData.recurrenceDays.length > 0 && (
+                        <p>Días seleccionados: {formData.recurrenceDays.map(day => {
+                          const dayNames = {
+                            monday: 'Lunes',
+                            tuesday: 'Martes',
+                            wednesday: 'Miércoles',
+                            thursday: 'Jueves',
+                            friday: 'Viernes',
+                            saturday: 'Sábado',
+                            sunday: 'Domingo'
+                          };
+                          return dayNames[day as keyof typeof dayNames];
+                        }).join(', ')}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
