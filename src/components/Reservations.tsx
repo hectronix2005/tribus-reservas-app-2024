@@ -850,6 +850,40 @@ export function Reservations() {
                 )}
               </div>
 
+              {!isFullDayReservation && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Duración (minutos)
+                  </label>
+                  <select
+                    value={formData.duration || '60'}
+                    onChange={(e) => {
+                      const duration = e.target.value;
+                      const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
+                      setFormData({...formData, duration, endTime});
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="30">30 minutos</option>
+                    <option value="60">1 hora</option>
+                    <option value="90">1.5 horas</option>
+                    <option value="120">2 horas</option>
+                    <option value="180">3 horas</option>
+                    <option value="240">4 horas</option>
+                    <option value="300">5 horas</option>
+                    <option value="360">6 horas</option>
+                    <option value="420">7 horas</option>
+                    <option value="480">8 horas</option>
+                  </select>
+                  {formData.startTime && formData.duration && (
+                    <div className="text-sm text-gray-600 mt-1">
+                      <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre del Solicitante
@@ -944,38 +978,6 @@ export function Reservations() {
                         </span>
                       )}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duración (minutos)
-                    </label>
-                    <select
-                      value={formData.duration || '60'}
-                      onChange={(e) => {
-                        const duration = e.target.value;
-                        const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
-                        setFormData({...formData, duration, endTime});
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      required
-                    >
-                      <option value="30">30 minutos</option>
-                      <option value="60">1 hora</option>
-                      <option value="90">1.5 horas</option>
-                      <option value="120">2 horas</option>
-                      <option value="180">3 horas</option>
-                      <option value="240">4 horas</option>
-                      <option value="300">5 horas</option>
-                      <option value="360">6 horas</option>
-                      <option value="420">7 horas</option>
-                      <option value="480">8 horas</option>
-                    </select>
-                    {formData.startTime && formData.duration && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
-                      </div>
-                    )}
                   </div>
 
                   {/* Mostrar reservaciones existentes para la fecha y área seleccionadas */}
