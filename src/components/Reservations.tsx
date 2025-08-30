@@ -529,43 +529,55 @@ export function Reservations() {
 
   // Escuchar evento de clic en horario desde la vista de disponibilidad
   useEffect(() => {
-    const handleAvailabilityHourClick = (event: CustomEvent) => {
-      const { area, date, hour } = event.detail;
+    const handleAvailabilityHourClick = (event: any) => {
+      console.log('🎯 Evento recibido:', event);
       
-      console.log('🎯 Evento de disponibilidad recibido:', { area, date, hour });
-      
-      // Pre-llenar el formulario con los datos seleccionados
-      setFormData(prevData => ({
-        ...prevData,
-        area: area.name,
-        date: date,
-        startTime: hour,
-        endTime: addMinutesToTime(hour, parseInt(prevData.duration || '60')),
-        contactPerson: state.auth.currentUser?.name || '',
-        contactEmail: state.auth.currentUser?.email || '',
-        teamName: '',
-        contactPhone: '',
-        templateId: '',
-        requestedSeats: area.category === 'SALA' ? area.capacity : 1,
-        notes: ''
-      }));
-      
-      // Abrir el formulario
-      setShowForm(true);
-      setEditingReservation(null);
-      
-      // Limpiar cualquier error previo
-      setError(null);
-      
-      console.log('✅ Formulario pre-llenado y abierto');
+      if (event.detail) {
+        const { area, date, hour } = event.detail;
+        
+        console.log('🎯 Evento de disponibilidad recibido:', { area, date, hour });
+        
+        // Usar setTimeout para asegurar que el estado se actualice correctamente
+        setTimeout(() => {
+          // Pre-llenar el formulario con los datos seleccionados
+          setFormData(prevData => {
+            const newData = {
+              ...prevData,
+              area: area.name,
+              date: date,
+              startTime: hour,
+              endTime: addMinutesToTime(hour, parseInt(prevData.duration || '60')),
+              contactPerson: state.auth.currentUser?.name || '',
+              contactEmail: state.auth.currentUser?.email || '',
+              teamName: '',
+              contactPhone: '',
+              templateId: '',
+              requestedSeats: area.category === 'SALA' ? area.capacity : 1,
+              notes: ''
+            };
+            
+            console.log('📝 Nuevos datos del formulario:', newData);
+            return newData;
+          });
+          
+          // Abrir el formulario
+          setShowForm(true);
+          setEditingReservation(null);
+          
+          // Limpiar cualquier error previo
+          setError(null);
+          
+          console.log('✅ Formulario pre-llenado y abierto');
+        }, 100);
+      }
     };
 
     // Agregar event listener
-    window.addEventListener('availabilityHourClick', handleAvailabilityHourClick as EventListener);
+    window.addEventListener('availabilityHourClick', handleAvailabilityHourClick);
 
     // Cleanup
     return () => {
-      window.removeEventListener('availabilityHourClick', handleAvailabilityHourClick as EventListener);
+      window.removeEventListener('availabilityHourClick', handleAvailabilityHourClick);
     };
   }, [state.auth.currentUser, state.areas]);
 
@@ -837,6 +849,33 @@ export function Reservations() {
         >
           <Plus className="w-5 h-5" />
           Nueva Reservación
+        </button>
+        
+        {/* Botón de prueba temporal para verificar la funcionalidad */}
+        <button
+          onClick={() => {
+            console.log('🧪 Prueba manual de pre-llenado');
+            setFormData(prevData => ({
+              ...prevData,
+              area: 'Sala Pikasso',
+              date: '2025-08-30',
+              startTime: '09:00',
+              endTime: '10:00',
+              contactPerson: state.auth.currentUser?.name || '',
+              contactEmail: state.auth.currentUser?.email || '',
+              teamName: 'Equipo de Prueba',
+              contactPhone: '',
+              templateId: '',
+              requestedSeats: 15,
+              notes: 'Prueba manual'
+            }));
+            setShowForm(true);
+            setEditingReservation(null);
+            setError(null);
+          }}
+          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md flex items-center gap-2"
+        >
+          🧪 Prueba Manual
         </button>
       </div>
 

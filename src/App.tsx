@@ -32,13 +32,16 @@ function AppContent() {
     // Cambiar a la vista de reservaciones
     setCurrentView('reservations');
     
-    // Emitir un evento personalizado para que Reservations.tsx pueda escucharlo
-    const event = new CustomEvent('availabilityHourClick', {
-      detail: { area, date, hour }
-    });
-    window.dispatchEvent(event);
-    
-    console.log('📡 Evento availabilityHourClick disparado');
+    // Usar setTimeout para asegurar que la navegación se complete antes de disparar el evento
+    setTimeout(() => {
+      // Emitir un evento personalizado para que Reservations.tsx pueda escucharlo
+      const event = new CustomEvent('availabilityHourClick', {
+        detail: { area, date, hour }
+      });
+      window.dispatchEvent(event);
+      
+      console.log('📡 Evento availabilityHourClick disparado');
+    }, 200);
   };
 
   // Si no está autenticado, mostrar login
