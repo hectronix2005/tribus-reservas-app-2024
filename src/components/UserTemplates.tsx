@@ -18,8 +18,8 @@ export function UserTemplates() {
     name: '',
     description: '',
     groupName: '',
-    contactPerson: '',
-    contactEmail: '',
+    contactPerson: currentUser?.name || '',
+    contactEmail: currentUser?.email || '',
     contactPhone: '',
     notes: ''
   });
@@ -61,6 +61,17 @@ export function UserTemplates() {
     loadTemplates();
   }, []);
 
+  // Actualizar formulario cuando cambie el usuario
+  useEffect(() => {
+    if (currentUser && !showForm) {
+      setFormData(prev => ({
+        ...prev,
+        contactPerson: currentUser.name,
+        contactEmail: currentUser.email
+      }));
+    }
+  }, [currentUser, showForm]);
+
   const loadTemplates = async () => {
     try {
       setIsLoading(true);
@@ -93,8 +104,8 @@ export function UserTemplates() {
       return;
     }
 
-    if (!formData.contactEmail.trim()) {
-      setError('El email de contacto es requerido');
+    if (!currentUser?.email) {
+      setError('No se puede identificar tu email de contacto');
       return;
     }
 
@@ -106,7 +117,7 @@ export function UserTemplates() {
       const templateData = {
         ...formData,
         contactPerson: formData.contactPerson || currentUser.name,
-        contactEmail: formData.contactEmail || currentUser.email,
+        contactEmail: currentUser.email, // Siempre usar el email del usuario logueado
         createdBy: currentUser.id, // Agregar el ID del usuario creador
         userId: currentUser.id, // Para compatibilidad
         isActive: true
@@ -130,8 +141,8 @@ export function UserTemplates() {
         name: '',
         description: '',
         groupName: '',
-        contactPerson: '',
-        contactEmail: '',
+        contactPerson: currentUser?.name || '',
+        contactEmail: currentUser?.email || '',
         contactPhone: '',
         notes: ''
       });
@@ -158,7 +169,7 @@ export function UserTemplates() {
       description: template.description || '',
       groupName: template.groupName,
       contactPerson: template.contactPerson,
-      contactEmail: template.contactEmail,
+      contactEmail: currentUser?.email || '', // Siempre usar el email del usuario logueado
       contactPhone: template.contactPhone || '',
       notes: template.notes || ''
     });
@@ -194,8 +205,8 @@ export function UserTemplates() {
       name: '',
       description: '',
       groupName: '',
-      contactPerson: '',
-      contactEmail: '',
+      contactPerson: currentUser?.name || '',
+      contactEmail: currentUser?.email || '',
       contactPhone: '',
       notes: ''
     });
@@ -309,12 +320,14 @@ export function UserTemplates() {
                 </label>
                 <input
                   type="email"
-                  value={formData.contactEmail}
-                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder={currentUser.email}
-                  required
+                  value={currentUser?.email || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                  placeholder="Tu email de contacto"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Usando tu email de cuenta: {currentUser?.email}
+                </p>
               </div>
 
               <div>
