@@ -24,6 +24,13 @@ interface Reservation {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  // Información del usuario que creó la reserva (auditoría)
+  createdBy?: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userRole: 'admin' | 'user';
+  };
 }
 
 interface ReservationFormData {
@@ -1831,6 +1838,13 @@ export function Reservations() {
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400">📋</span>
                           <span><strong>Plantilla:</strong> {state.templates.find(t => t.id === reservation.templateId)?.name || 'Plantilla'}</span>
+                        </div>
+                      )}
+
+                      {reservation.createdBy && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">👤</span>
+                          <span><strong>Creado por:</strong> {reservation.createdBy.userName} ({reservation.createdBy.userRole})</span>
                         </div>
                       )}
                     </div>

@@ -100,6 +100,27 @@ const reservationSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+  // Campo para registrar qué usuario creó la reserva (auditoría)
+  createdBy: {
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User', 
+      required: true 
+    },
+    userName: { 
+      type: String, 
+      required: true 
+    },
+    userEmail: { 
+      type: String, 
+      required: true 
+    },
+    userRole: { 
+      type: String, 
+      enum: ['admin', 'user'], 
+      required: true 
+    }
+  },
   area: { 
     type: String, 
     required: true 
@@ -954,7 +975,14 @@ app.post('/api/reservations', async (req, res) => {
       contactPhone,
       templateId: templateId || null,
       requestedSeats: finalRequestedSeats,
-      notes: notes || ''
+      notes: notes || '',
+      // Registrar información del usuario que crea la reserva
+      createdBy: {
+        userId: user._id,
+        userName: user.name,
+        userEmail: user.email,
+        userRole: user.role
+      }
     });
 
     await reservation.save();
