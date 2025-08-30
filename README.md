@@ -38,7 +38,7 @@ TRIBUS es una aplicación web moderna para gestionar reservas de puestos de trab
 1. **Clonar el repositorio**
    ```bash
    git clone <url-del-repositorio>
-   cd tribus-reservas
+   cd tribus-reservas-app-2024
    ```
 
 2. **Instalar dependencias**
@@ -46,13 +46,29 @@ TRIBUS es una aplicación web moderna para gestionar reservas de puestos de trab
    npm install
    ```
 
-3. **Iniciar el servidor de desarrollo**
+3. **Iniciar servidores de desarrollo (Recomendado)**
    ```bash
-   npm start
+   ./start-dev.sh
+   ```
+   
+   **O manualmente:**
+   ```bash
+   # Terminal 1: Backend
+   NODE_ENV=development PORT=3001 node server.js
+   
+   # Terminal 2: Frontend
+   npm run dev
    ```
 
 4. **Abrir en el navegador**
    La aplicación estará disponible en `http://localhost:3000`
+
+### Scripts Útiles
+
+- **Iniciar desarrollo**: `./start-dev.sh`
+- **Detener servidores**: `./stop-dev.sh`
+- **Compilar para producción**: `npm run build`
+- **Ejecutar tests**: `npm test`
 
 ## 🎯 Uso de la Aplicación
 
