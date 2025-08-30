@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, Clock } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 
@@ -32,7 +32,8 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
-  const [areaFilter, setAreaFilter] = useState<string>('all'); // Nuevo estado para el filtro
+  const [areaFilter, setAreaFilter] = useState<string>('all'); // Filtro general
+  const [selectedArea, setSelectedArea] = useState<string>('all'); // Área específica seleccionada
 
   // Generar días del mes actual
   const generateMonthDays = (date: Date): Date[] => {
@@ -134,14 +135,38 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
   // Obtener áreas filtradas según el filtro seleccionado
   const getFilteredAreas = () => {
-    if (areaFilter === 'all') {
-      return state.areas;
-    } else if (areaFilter === 'hot_desk') {
-      return state.areas.filter(area => area.category === 'HOT_DESK');
+    let filteredAreas = state.areas;
+
+    // Aplicar filtro por categoría
+    if (areaFilter === 'hot_desk') {
+      filteredAreas = state.areas.filter(area => area.category === 'HOT_DESK');
     } else if (areaFilter === 'meeting_rooms') {
-      return state.areas.filter(area => area.category === 'SALA');
+      filteredAreas = state.areas.filter(area => area.category === 'SALA');
     }
-    return state.areas;
+
+    // Aplicar filtro por área específica
+    if (selectedArea !== 'all') {
+      filteredAreas = filteredAreas.filter(area => area.id === selectedArea);
+    }
+
+    return filteredAreas;
+  };
+
+  // Obtener opciones de áreas para el selector
+  const getAreaOptions = () => {
+    const hotDeskAreas = state.areas.filter(area => area.category === 'HOT_DESK');
+    const salaAreas = state.areas.filter(area => area.category === 'SALA');
+    
+    return {
+      hotDesk: hotDeskAreas,
+      salas: salaAreas
+    };
+  };
+
+  // Limpiar filtros
+  const clearFilters = () => {
+    setAreaFilter('all');
+    setSelectedArea('all');
   };
 
   // Cargar disponibilidad
@@ -258,6 +283,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     timeZone: 'America/Bogota'
   });
   const filteredAreas = getFilteredAreas();
+  const areaOptions = getAreaOptions();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -315,12 +341,15 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               ))}
             </div>
 
-            {/* Filtro de Áreas */}
+            {/* Filtro de Categoría */}
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-slate-600" />
               <select
                 value={areaFilter}
-                onChange={(e) => setAreaFilter(e.target.value)}
+                onChange={(e) => {
+                  setAreaFilter(e.target.value);
+                  setSelectedArea('all'); // Reset área específica cuando cambia categoría
+                }}
                 className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               >
                 <option value="all">Todas las áreas</option>
@@ -328,6 +357,32 @@ export function Availability({ onHourClick }: AvailabilityProps) {
                 <option value="meeting_rooms">Solo Salas de Reunión</option>
               </select>
             </div>
+
+            {/* Filtro de Área Específica */}
+            {areaFilter !== 'all' && (
+              <div className="flex items-center space-x-2">
+                <Clock className="w-4 h-4 text-slate-600" />
+                <select
+                  value={selectedArea}
+                  onChange={(e) => setSelectedArea(e.target.value)}
+                  className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                >
+                  <option value="all">
+                    {areaFilter === 'hot_desk' ? 'Todas las áreas Hot Desk' : 'Todas las salas'}
+                  </option>
+                  {areaFilter === 'hot_desk' && areaOptions.hotDesk.map(area => (
+                    <option key={area.id} value={area.id}>
+                      {area.name}
+                    </option>
+                  ))}
+                  {areaFilter === 'meeting_rooms' && areaOptions.salas.map(area => (
+                    <option key={area.id} value={area.id}>
+                      {area.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <button className="btn-primary">
@@ -337,23 +392,30 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         </div>
 
         {/* Información del Filtro Activo */}
-        {areaFilter !== 'all' && (
+        {(areaFilter !== 'all' || selectedArea !== 'all') && (
           <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Filter className="w-4 h-4 text-primary-600" />
                 <span className="text-sm font-medium text-primary-800">
-                  Filtro activo: {areaFilter === 'hot_desk' ? 'Hot Desk' : 'Salas de Reunión'}
+                  Filtro activo: {
+                    areaFilter === 'hot_desk' ? 'Hot Desk' : 
+                    areaFilter === 'meeting_rooms' ? 'Salas de Reunión' : 
+                    'Todas las áreas'
+                  }
+                  {selectedArea !== 'all' && (
+                    <span> - {state.areas.find(a => a.id === selectedArea)?.name}</span>
+                  )}
                 </span>
                 <span className="text-xs text-primary-600">
                   ({filteredAreas.length} {filteredAreas.length === 1 ? 'área' : 'áreas'} mostradas)
                 </span>
               </div>
               <button
-                onClick={() => setAreaFilter('all')}
+                onClick={clearFilters}
                 className="text-xs text-primary-600 hover:text-primary-800 underline"
               >
-                Limpiar filtro
+                Limpiar filtros
               </button>
             </div>
           </div>
@@ -433,7 +495,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
                         </div>
                       );
                     } else {
-                      // Salas: Mostrar horarios disponibles
+                      // Salas: Mostrar bloques de hora individuales
                       const hourlySlots = areaStatus.hourlySlots ?? {};
                       const availableHours = generateHourlySlots().filter(hour => {
                         const hourStatus = hourlySlots[hour];
@@ -442,19 +504,48 @@ export function Availability({ onHourClick }: AvailabilityProps) {
                       
                       if (availableHours.length === 0) return null;
                       
-                      return (
-                        <div
-                          key={area.id}
-                          className="text-xs p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
-                          onClick={() => handleHourClick(area, date, availableHours[0])}
-                          title={`${area.name} - ${availableHours.length} horarios disponibles`}
-                        >
-                          <div className="font-medium truncate">{area.name}</div>
-                          <div className="text-[10px]">
-                            {availableHours.length} horarios libres
+                      // Si solo hay una sala seleccionada, mostrar bloques de hora individuales
+                      if (selectedArea === area.id || (selectedArea === 'all' && areaFilter === 'meeting_rooms')) {
+                        return (
+                          <div key={area.id} className="space-y-1">
+                            <div className="text-[10px] font-medium text-slate-700 truncate">
+                              {area.name}
+                            </div>
+                            <div className="grid grid-cols-2 gap-1">
+                              {availableHours.slice(0, 4).map((hour) => (
+                                <button
+                                  key={hour}
+                                  className="text-[8px] p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
+                                  onClick={() => handleHourClick(area, date, hour)}
+                                  title={`Reservar ${area.name} a las ${hour}`}
+                                >
+                                  {hour}
+                                </button>
+                              ))}
+                              {availableHours.length > 4 && (
+                                <div className="text-[8px] p-1 rounded border bg-blue-100 border-blue-300 text-blue-900 text-center">
+                                  +{availableHours.length - 4}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      );
+                        );
+                      } else {
+                        // Vista general: mostrar resumen
+                        return (
+                          <div
+                            key={area.id}
+                            className="text-xs p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
+                            onClick={() => handleHourClick(area, date, availableHours[0])}
+                            title={`${area.name} - ${availableHours.length} horarios disponibles`}
+                          >
+                            <div className="font-medium truncate">{area.name}</div>
+                            <div className="text-[10px]">
+                              {availableHours.length} horarios libres
+                            </div>
+                          </div>
+                        );
+                      }
                     }
                   })}
                 </div>
@@ -518,19 +609,19 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Filtros:</strong> Usa el selector para ver solo Hot Desk o Salas
+              <strong>Filtros:</strong> Usa los selectores para filtrar por categoría y área específica
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Bloques de hora:</strong> Las salas muestran horarios individuales clickeables
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Reservas:</strong> Haz clic en cualquier bloque azul para crear una reserva
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
               <strong>Navegación:</strong> Usa las flechas para cambiar de mes
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 mr-2">•</span>
-              <strong>Reservas:</strong> Haz clic en los bloques azules para reservar
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 mr-2">•</span>
-              <strong>Hot Desk:</strong> Ver contadores de espacios disponibles
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
