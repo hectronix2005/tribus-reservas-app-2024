@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
-import { isOfficeDay, generateAvailableTimeSlots } from '../utils/officeHoursUtils';
 
 interface DayAvailability {
   date: string;
@@ -31,26 +30,23 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
 
-  // Generar los próximos días de oficina según la configuración
-  const generateNext15Days = (): string[] => {
-    const days: string[] = [];
-    const today = new Date();
-    let currentDate = new Date(today);
-    let daysAdded = 0;
+  // Generar días del mes actual
+  const generateMonthDays = (date: Date): Date[] => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
     
-    // Continuar hasta tener 15 días de oficina
-    while (daysAdded < 15) {
-      // Verificar si es un día de oficina usando la configuración
-      if (isOfficeDay(currentDate, state.adminSettings.officeDays)) {
-        const year = currentDate.getFullYear();
-        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-        const day = currentDate.getDate().toString().padStart(2, '0');
-        days.push(`${year}-${month}-${day}`);
-        daysAdded++;
-      }
-      
-      // Avanzar al siguiente día
+    const days: Date[] = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= lastDay || days.length < 42) {
+      days.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
@@ -65,63 +61,26 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
     const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
     
-    // Solo mostrar logs en desarrollo para evitar spam
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🕐 Generando horarios de disponibilidad:', {
-        officeHours: state.adminSettings.officeHours,
-        startHour,
-        endHour,
-        adminSettings: state.adminSettings
-      });
-    }
-    
     for (let hour = startHour; hour < endHour; hour++) {
       const ampm = hour >= 12 ? 'PM' : 'AM';
       const displayHour = hour === 12 ? 12 : hour > 12 ? hour - 12 : hour;
       const timeSlot = `${displayHour}:00 ${ampm}`;
       slots.push(timeSlot);
-      
-      // Solo mostrar logs en desarrollo para evitar spam
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`  📅 Horario generado: ${hour}:00 (${timeSlot})`);
-      }
-    }
-    
-    // Solo mostrar logs en desarrollo para evitar spam
-    if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Horarios generados:', slots);
     }
     
     return slots;
   };
 
-  // Formatear fecha para mostrar
-  const formatDateForDisplay = (dateString: string): string => {
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
-    };
-    return date.toLocaleDateString('es-ES', {
-      ...options,
-      timeZone: 'America/Bogota'
-    });
-  };
-
-  // Formatear fecha corta (DD/MM)
-  const formatDateShort = (dateString: string): string => {
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    return `${day}/${month}`;
-  };
-
   // Verificar si es hoy
-  const isToday = (dateString: string): boolean => {
+  const isToday = (date: Date): boolean => {
     const today = new Date();
-    const date = new Date(dateString);
     return date.toDateString() === today.toDateString();
+  };
+
+  // Verificar si es el mes actual
+  const isCurrentMonth = (date: Date): boolean => {
+    const today = new Date();
+    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
   // Convertir formato AM/PM a formato 24 horas para comparaciones
@@ -139,26 +98,37 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     return `${hour24.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
-  // Convertir formato 24 horas a formato AM/PM para mostrar
-  const convertTo12Hour = (time24h: string): string => {
-    const [hours, minutes] = time24h.split(':').map(Number);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const displayHour = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    return `${displayHour}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-  };
-
   // Manejar clic en horario disponible
-  const handleHourClick = (area: any, date: string, hour: string) => {
-    console.log('🖱️ Clic en horario disponible:', { area: area.name, date, hour });
+  const handleHourClick = (area: any, date: Date, hour: string) => {
+    console.log('🖱️ Clic en horario disponible:', { area: area.name, date: date.toISOString().split('T')[0], hour });
     
     if (onHourClick) {
-      // Convertir el horario AM/PM a formato 24 horas para enviar al backend
       const hour24 = convertTo24Hour(hour);
-      console.log('🔄 Horario convertido:', { original: hour, converted: hour24 });
-      onHourClick(area, date, hour24);
-    } else {
-      console.log('❌ onHourClick no está disponible');
+      onHourClick(area, date.toISOString().split('T')[0], hour24);
     }
+  };
+
+  // Navegar al mes anterior
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() - 1);
+      return newMonth;
+    });
+  };
+
+  // Navegar al mes siguiente
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() + 1);
+      return newMonth;
+    });
+  };
+
+  // Ir al mes actual
+  const goToCurrentMonth = () => {
+    setCurrentMonth(new Date());
   };
 
   // Cargar disponibilidad
@@ -167,15 +137,16 @@ export function Availability({ onHourClick }: AvailabilityProps) {
       setIsLoading(true);
       setError(null);
 
-      const days = generateNext15Days();
-      const hourlySlots = generateHourlySlots();
       const reservations = await reservationService.getAllReservations();
       const areas = state.areas;
 
-      const availabilityData: DayAvailability[] = days.map(date => {
+      // Generar disponibilidad para el mes actual
+      const monthDays = generateMonthDays(currentMonth);
+      const availabilityData: DayAvailability[] = monthDays.map(date => {
+        const dateString = date.toISOString().split('T')[0];
         const dayReservations = reservations.filter(reservation => {
           const reservationDate = new Date(reservation.date).toISOString().split('T')[0];
-          return reservationDate === date && reservation.status === 'active';
+          return reservationDate === dateString && reservation.status === 'active';
         });
 
         const areasAvailability: { [areaName: string]: any } = {};
@@ -186,7 +157,6 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           );
           
           if (area.category === 'HOT_DESK') {
-            // Para Hot Desk: calcular espacios disponibles
             const totalReservedSeats = areaReservations.reduce((total, reservation) => {
               return total + (reservation.requestedSeats || 0);
             }, 0);
@@ -200,11 +170,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               totalSpaces: area.capacity
             };
           } else {
-            // Para Salas: calcular disponibilidad por hora
+            const hourlySlots = generateHourlySlots();
             const hourlyAvailability: { [hour: string]: { isAvailable: boolean; reservations: any[] } } = {};
             
             hourlySlots.forEach(hour => {
-              // Convertir el horario AM/PM a formato 24 horas para comparaciones
               const hour24 = convertTo24Hour(hour);
               
               const hourReservations = areaReservations.filter(reservation => {
@@ -228,7 +197,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         });
 
         return {
-          date,
+          date: dateString,
           areas: areasAvailability
         };
       });
@@ -240,7 +209,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state.areas]);
+  }, [state.areas, currentMonth]);
 
   useEffect(() => {
     if (state.areas.length > 0) {
@@ -269,229 +238,240 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     );
   }
 
+  const monthDays = generateMonthDays(currentMonth);
+  const monthName = currentMonth.toLocaleDateString('es-ES', { 
+    month: 'long', 
+    year: 'numeric',
+    timeZone: 'America/Bogota'
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Disponibilidad</h1>
-        <p className="text-gray-600 mt-2">Vista de calendario de los próximos 15 días</p>
-      </div>
-
-      {/* Calendario de Disponibilidad */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Calendar className="w-5 h-5 mr-2" />
-            Calendario de Disponibilidad
-          </h3>
+      {/* Header del Calendario */}
+      <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-primary">Disponibilidad</h1>
+            <p className="text-slate-600 mt-2">Vista de calendario estilo Google Calendar</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={goToCurrentMonth}
+              className="btn-secondary"
+            >
+              Hoy
+            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={goToPreviousMonth}
+                className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-slate-600" />
+              </button>
+              <button
+                onClick={goToNextMonth}
+                className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="text-xl font-semibold text-slate-900 capitalize">
+              {monthName}
+            </div>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-b border-gray-200">
-                  Área
-                </th>
-                {availability.map((day) => (
-                  <th key={day.date} className="px-2 py-3 text-center text-xs font-medium text-gray-700 border-b border-gray-200 min-w-[120px]">
-                    <div className="flex flex-col items-center">
-                      <span className={`font-semibold ${isToday(day.date) ? 'text-primary-600' : 'text-gray-900'}`}>
-                        {formatDateShort(day.date)}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {formatDateForDisplay(day.date)}
-                      </span>
-                      {isToday(day.date) && (
-                        <span className="text-xs text-primary-600 font-medium">HOY</span>
-                      )}
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {state.areas.map((area, areaIndex) => (
-                <tr key={area.id} className={areaIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 border-b border-gray-200">
-                    <div className="flex items-center">
-                      <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{area.name}</span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({area.capacity} puestos)
-                      </span>
-                      <span className="ml-2 text-xs text-gray-400">
-                        {area.category === 'HOT_DESK' ? 'Hot Desk' : 'Sala'}
-                      </span>
-                    </div>
-                  </td>
-                  {availability.map((day) => {
-                    const areaStatus = day.areas[area.name];
+        {/* Controles de Vista */}
+        <div className="flex items-center space-x-4">
+          <div className="flex bg-slate-100 rounded-xl p-1">
+            {(['month', 'week', 'day'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  viewMode === mode
+                    ? 'bg-white text-slate-900 shadow-soft'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'}
+              </button>
+            ))}
+          </div>
+          <button className="btn-primary">
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Reserva
+          </button>
+        </div>
+      </div>
+
+      {/* Calendario Principal */}
+      <div className="bg-white rounded-2xl shadow-soft border border-white/20 overflow-hidden">
+        {/* Header de días de la semana */}
+        <div className="grid grid-cols-7 bg-slate-50/80 backdrop-blur-sm border-b border-slate-200">
+          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+            <div key={day} className="p-4 text-center">
+              <div className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
+                {day}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Días del calendario */}
+        <div className="grid grid-cols-7">
+          {monthDays.map((date, index) => {
+            const dateString = date.toISOString().split('T')[0];
+            const dayAvailability = availability.find(day => day.date === dateString);
+            const isCurrentMonthDay = isCurrentMonth(date);
+            const isTodayDate = isToday(date);
+            
+            return (
+              <div
+                key={index}
+                className={`min-h-[120px] border-r border-b border-slate-100 p-2 ${
+                  !isCurrentMonthDay ? 'bg-slate-50/50' : 'bg-white'
+                } ${isTodayDate ? 'bg-primary-50/30' : ''}`}
+              >
+                {/* Número del día */}
+                <div className={`text-sm font-medium mb-2 ${
+                  isTodayDate 
+                    ? 'text-primary-600 font-bold' 
+                    : !isCurrentMonthDay 
+                      ? 'text-slate-400' 
+                      : 'text-slate-900'
+                }`}>
+                  {date.getDate()}
+                  {isTodayDate && (
+                    <span className="ml-1 text-xs bg-primary-600 text-white px-2 py-1 rounded-full">
+                      HOY
+                    </span>
+                  )}
+                </div>
+
+                {/* Eventos/Disponibilidad del día */}
+                <div className="space-y-1">
+                  {state.areas.map((area) => {
+                    if (!dayAvailability?.areas[area.name]) return null;
+                    
+                    const areaStatus = dayAvailability.areas[area.name];
                     
                     if (area.category === 'HOT_DESK') {
-                      // Renderizado para Hot Desk
-                      const availableSpaces = areaStatus?.availableSpaces ?? area.capacity;
-                      const totalSpaces = areaStatus?.totalSpaces ?? area.capacity;
+                      // Hot Desk: Mostrar contador de espacios
+                      const availableSpaces = areaStatus.availableSpaces ?? area.capacity;
+                      const totalSpaces = areaStatus.totalSpaces ?? area.capacity;
                       const isAvailable = availableSpaces > 0;
                       
                       return (
-                        <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
-                          <div className={`flex flex-col items-center justify-center min-h-[60px] p-2 rounded-md ${
+                        <div
+                          key={area.id}
+                          className={`text-xs p-1 rounded border ${
                             isAvailable 
-                              ? 'bg-white text-gray-900 border border-gray-200' 
-                              : 'bg-gray-200 text-gray-900 border border-gray-300'
-                          }`}>
-                            <div className="flex flex-col items-center">
-                              {isAvailable ? (
-                                <CheckCircle className="w-4 h-4 text-green-600 mb-1" />
-                              ) : (
-                                <XCircle className="w-4 h-4 text-red-600 mb-1" />
-                              )}
-                              <span className="text-xs font-medium">
-                                {availableSpaces}/{totalSpaces}
-                              </span>
-                              <span className="text-xs text-gray-600">
-                                espacios libres
-                              </span>
-                            </div>
+                              ? 'bg-green-50 border-green-200 text-green-800' 
+                              : 'bg-red-50 border-red-200 text-red-800'
+                          }`}
+                        >
+                          <div className="font-medium truncate">{area.name}</div>
+                          <div className="text-[10px]">
+                            {availableSpaces}/{totalSpaces} libres
                           </div>
-                        </td>
+                        </div>
                       );
                     } else {
-                                             // Renderizado para Salas (bloques de hora)
-                       const hourlySlots = areaStatus?.hourlySlots ?? {};
-                       const reservations = areaStatus?.reservations ?? [];
-                       
-                       // Filtrar solo los horarios disponibles
-                       const availableHours = generateHourlySlots().filter(hour => {
-                         const hourStatus = hourlySlots[hour];
-                         return hourStatus?.isAvailable ?? true;
-                       });
-                       
-                       return (
-                         <td key={`${area.id}-${day.date}`} className="px-2 py-3 text-center border-b border-gray-200">
-                           <div className="min-h-[120px] p-1">
-                             {availableHours.length > 0 ? (
-                               <div className="grid grid-cols-2 gap-1">
-                                 {availableHours.map((hour) => (
-                                   <button
-                                     key={hour}
-                                     className="text-xs p-1 rounded border bg-white text-gray-900 border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer"
-                                     title={`Hacer clic para reservar ${area.name} a las ${hour}`}
-                                     onClick={() => handleHourClick(area, day.date, hour)}
-                                   >
-                                     <div className="font-medium">{hour}</div>
-                                     <div className="text-[10px] text-green-600">✓ Libre</div>
-                                   </button>
-                                 ))}
-                               </div>
-                             ) : (
-                               <div className="flex items-center justify-center h-full">
-                                 <div className="text-xs text-gray-500">
-                                   <div>Sin horarios</div>
-                                   <div>disponibles</div>
-                                 </div>
-                               </div>
-                             )}
-                           </div>
-                         </td>
-                       );
+                      // Salas: Mostrar horarios disponibles
+                      const hourlySlots = areaStatus.hourlySlots ?? {};
+                      const availableHours = generateHourlySlots().filter(hour => {
+                        const hourStatus = hourlySlots[hour];
+                        return hourStatus?.isAvailable ?? true;
+                      });
+                      
+                      if (availableHours.length === 0) return null;
+                      
+                      return (
+                        <div
+                          key={area.id}
+                          className="text-xs p-1 rounded border bg-blue-50 border-blue-200 text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => handleHourClick(area, date, availableHours[0])}
+                          title={`${area.name} - ${availableHours.length} horarios disponibles`}
+                        >
+                          <div className="font-medium truncate">{area.name}</div>
+                          <div className="text-[10px]">
+                            {availableHours.length} horarios libres
+                          </div>
+                        </div>
+                      );
                     }
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Leyenda */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-          <div className="flex flex-col space-y-3">
-            <div className="text-center text-sm font-medium text-gray-700 mb-2">
-              Leyenda de Disponibilidad
-            </div>
-            <div className="flex items-center justify-center space-x-6 text-sm">
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
-                <span className="text-gray-700">Libre</span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded mr-2"></div>
-                <span className="text-gray-700">Ocupado</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-primary-100 border border-primary-200 rounded mr-2"></div>
-                <span className="text-primary-700 font-medium">Hoy</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-center space-x-6 text-sm text-gray-600">
-              <div className="flex items-center">
-                <span className="mr-2">🏢</span>
-                <span>Salas: Solo horarios libres (8:00 AM - 6:00 PM)</span>
-              </div>
-              <div className="flex items-center">
-                <span className="mr-2">💺</span>
-                <span>Hot Desk: Contador de espacios libres</span>
-              </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Información adicional */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Clock className="w-5 h-5 mr-2" />
-            Resumen de Disponibilidad
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-primary-600" />
+            Resumen del Mes
           </h4>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-gray-600">Total de áreas:</span>
+              <span className="text-slate-600">Total de áreas:</span>
               <span className="font-medium">{state.areas.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Días mostrados:</span>
-              <span className="font-medium">15 días</span>
+              <span className="text-slate-600">Días mostrados:</span>
+              <span className="font-medium">{monthDays.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Período:</span>
-              <span className="font-medium">
-                {availability.length > 0 && (
-                  <>
-                    {formatDateForDisplay(availability[0].date)} - {formatDateForDisplay(availability[availability.length - 1].date)}
-                  </>
-                )}
-              </span>
+              <span className="text-slate-600">Mes actual:</span>
+              <span className="font-medium capitalize">{monthName}</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Instrucciones</h4>
-          <ul className="space-y-2 text-sm text-gray-600">
+        <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4">Leyenda</h4>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-100 border border-green-200 rounded mr-2"></div>
+              <span className="text-slate-700">Hot Desk disponible</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded mr-2"></div>
+              <span className="text-slate-700">Sala con horarios libres</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-red-100 border border-red-200 rounded mr-2"></div>
+              <span className="text-slate-700">Hot Desk ocupado</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-primary-100 border border-primary-200 rounded mr-2"></div>
+              <span className="text-slate-700">Día actual</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6">
+          <h4 className="text-lg font-semibold text-slate-900 mb-4">Instrucciones</h4>
+          <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Salas:</strong> Solo se muestran horarios libres (8:00 AM - 6:00 PM). Haz clic para crear una reservación
+              <strong>Navegación:</strong> Usa las flechas para cambiar de mes
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Hot Desk:</strong> Se muestra el contador de espacios libres (disponibles/total)
+              <strong>Reservas:</strong> Haz clic en los bloques azules para reservar
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              Los horarios libres son botones clickeables que abren el formulario de reservación
+              <strong>Hot Desk:</strong> Ver contadores de espacios disponibles
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              El día actual está marcado como "HOY"
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 mr-2">•</span>
-              Se muestran los próximos 15 días desde hoy
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 mr-2">•</span>
-              Pasa el mouse sobre los bloques para ver detalles
+              <strong>Hoy:</strong> El día actual está marcado con "HOY"
             </li>
           </ul>
         </div>
