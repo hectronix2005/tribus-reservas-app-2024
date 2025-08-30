@@ -15,6 +15,7 @@ export function Admin() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
 
   // Cargar configuración al inicializar el componente
   useEffect(() => {
@@ -144,6 +145,20 @@ export function Admin() {
       const end = new Date(endDate);
       return reservationDate >= start && reservationDate <= end;
     });
+  };
+
+  const handleStartDateChange = (date: string) => {
+    setIsFiltering(true);
+    setStartDate(date);
+    // Simular un pequeño delay para mostrar el efecto de filtrado
+    setTimeout(() => setIsFiltering(false), 300);
+  };
+
+  const handleEndDateChange = (date: string) => {
+    setIsFiltering(true);
+    setEndDate(date);
+    // Simular un pequeño delay para mostrar el efecto de filtrado
+    setTimeout(() => setIsFiltering(false), 300);
   };
 
   const getStatusBadge = (status: string) => {
@@ -501,12 +516,32 @@ export function Admin() {
             <div className="card">
               <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Filtrar por rango de fechas
-                  </label>
-                  <span className="text-sm text-gray-500">
-                    {getReservationsByDateRange(startDate, endDate).length} de {state.reservations.length} reservaciones
-                  </span>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Filtrar por rango de fechas
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Las reservaciones se filtran automáticamente al cambiar las fechas
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm text-gray-500">
+                      {getReservationsByDateRange(startDate, endDate).length} de {state.reservations.length} reservaciones
+                    </span>
+                    <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      {isFiltering ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                          Filtrando...
+                        </>
+                      ) : (
+                        <>
+                          <span>✓</span>
+                          Filtrado automático activo
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-4 items-end">
                   <div>
@@ -516,7 +551,7 @@ export function Admin() {
                     <input
                       type="date"
                       value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                       className="input-field"
                     />
                   </div>
@@ -527,7 +562,7 @@ export function Admin() {
                     <input
                       type="date"
                       value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
                       className="input-field"
                     />
                   </div>
@@ -535,6 +570,14 @@ export function Admin() {
               </div>
 
               <div className="overflow-x-auto">
+                {isFiltering && (
+                  <div className="flex items-center justify-center py-4 bg-blue-50 border-b border-blue-200">
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm">Actualizando filtros...</span>
+                    </div>
+                  </div>
+                )}
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -648,10 +691,13 @@ export function Admin() {
                 </table>
               </div>
 
-                              {getReservationsByDateRange(startDate, endDate).length === 0 && (
+              {getReservationsByDateRange(startDate, endDate).length === 0 && (
                 <div className="text-center py-8">
                   <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No hay reservas para esta fecha</p>
+                  <p className="text-gray-500 mb-2">No hay reservaciones en el rango seleccionado</p>
+                  <p className="text-xs text-gray-400">
+                    Rango: {new Date(startDate).toLocaleDateString('es-ES')} - {new Date(endDate).toLocaleDateString('es-ES')}
+                  </p>
                 </div>
               )}
             </div>
