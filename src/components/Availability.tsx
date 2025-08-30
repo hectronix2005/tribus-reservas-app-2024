@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 
@@ -32,6 +32,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [error, setError] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [areaFilter, setAreaFilter] = useState<string>('all'); // Nuevo estado para el filtro
 
   // Generar días del mes actual
   const generateMonthDays = (date: Date): Date[] => {
@@ -129,6 +130,18 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   // Ir al mes actual
   const goToCurrentMonth = () => {
     setCurrentMonth(new Date());
+  };
+
+  // Obtener áreas filtradas según el filtro seleccionado
+  const getFilteredAreas = () => {
+    if (areaFilter === 'all') {
+      return state.areas;
+    } else if (areaFilter === 'hot_desk') {
+      return state.areas.filter(area => area.category === 'HOT_DESK');
+    } else if (areaFilter === 'meeting_rooms') {
+      return state.areas.filter(area => area.category === 'SALA');
+    }
+    return state.areas;
   };
 
   // Cargar disponibilidad
@@ -244,6 +257,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     year: 'numeric',
     timeZone: 'America/Bogota'
   });
+  const filteredAreas = getFilteredAreas();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -281,28 +295,69 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           </div>
         </div>
 
-        {/* Controles de Vista */}
-        <div className="flex items-center space-x-4">
-          <div className="flex bg-slate-100 rounded-xl p-1">
-            {(['month', 'week', 'day'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  viewMode === mode
-                    ? 'bg-white text-slate-900 shadow-soft'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+        {/* Controles de Vista y Filtros */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            {/* Selector de Vista */}
+            <div className="flex bg-slate-100 rounded-xl p-1">
+              {(['month', 'week', 'day'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    viewMode === mode
+                      ? 'bg-white text-slate-900 shadow-soft'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'}
+                </button>
+              ))}
+            </div>
+
+            {/* Filtro de Áreas */}
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-slate-600" />
+              <select
+                value={areaFilter}
+                onChange={(e) => setAreaFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               >
-                {mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'}
-              </button>
-            ))}
+                <option value="all">Todas las áreas</option>
+                <option value="hot_desk">Solo Hot Desk</option>
+                <option value="meeting_rooms">Solo Salas de Reunión</option>
+              </select>
+            </div>
           </div>
+
           <button className="btn-primary">
             <Plus className="w-4 h-4 mr-2" />
             Nueva Reserva
           </button>
         </div>
+
+        {/* Información del Filtro Activo */}
+        {areaFilter !== 'all' && (
+          <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-primary-600" />
+                <span className="text-sm font-medium text-primary-800">
+                  Filtro activo: {areaFilter === 'hot_desk' ? 'Hot Desk' : 'Salas de Reunión'}
+                </span>
+                <span className="text-xs text-primary-600">
+                  ({filteredAreas.length} {filteredAreas.length === 1 ? 'área' : 'áreas'} mostradas)
+                </span>
+              </div>
+              <button
+                onClick={() => setAreaFilter('all')}
+                className="text-xs text-primary-600 hover:text-primary-800 underline"
+              >
+                Limpiar filtro
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Calendario Principal */}
@@ -351,7 +406,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
                 {/* Eventos/Disponibilidad del día */}
                 <div className="space-y-1">
-                  {state.areas.map((area) => {
+                  {filteredAreas.map((area) => {
                     if (!dayAvailability?.areas[area.name]) return null;
                     
                     const areaStatus = dayAvailability.areas[area.name];
@@ -422,6 +477,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               <span className="font-medium">{state.areas.length}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-slate-600">Áreas mostradas:</span>
+              <span className="font-medium">{filteredAreas.length}</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-slate-600">Días mostrados:</span>
               <span className="font-medium">{monthDays.length}</span>
             </div>
@@ -457,6 +516,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6">
           <h4 className="text-lg font-semibold text-slate-900 mb-4">Instrucciones</h4>
           <ul className="space-y-2 text-sm text-slate-600">
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Filtros:</strong> Usa el selector para ver solo Hot Desk o Salas
+            </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
               <strong>Navegación:</strong> Usa las flechas para cambiar de mes
