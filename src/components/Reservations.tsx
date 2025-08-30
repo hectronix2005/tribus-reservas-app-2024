@@ -906,6 +906,28 @@ export function Reservations() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Reservaciones existentes para {formData.area} el {formatDateWithDay(formData.date)}:
                       </label>
+                      {(() => {
+                        // Debug: Mostrar información de fechas
+                        console.log('🔍 Debug - Fechas en reservaciones existentes:', {
+                          formDataDate: formData.date,
+                          formDataDateFormatted: formatDateWithDay(formData.date),
+                          totalReservations: reservations.length,
+                          matchingReservations: reservations.filter(r => {
+                            const reservationDate = normalizeDate(r.date);
+                            const formDate = normalizeDate(formData.date);
+                            return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                          }).map(r => ({
+                            id: r._id,
+                            area: r.area,
+                            originalDate: r.date,
+                            normalizedDate: normalizeDate(r.date),
+                            formattedDate: formatDateWithDay(r.date),
+                            startTime: r.startTime,
+                            endTime: r.endTime
+                          }))
+                        });
+                        return null;
+                      })()}
                       <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
                         {reservations
                           .filter(r => {
