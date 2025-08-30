@@ -165,6 +165,31 @@ const reservationSchema = new mongoose.Schema({
 
 const Reservation = mongoose.model('Reservation', reservationSchema);
 
+// Modelo de Configuración de Admin
+const adminSettingsSchema = new mongoose.Schema({
+  officeDays: {
+    monday: { type: Boolean, default: true },
+    tuesday: { type: Boolean, default: true },
+    wednesday: { type: Boolean, default: true },
+    thursday: { type: Boolean, default: true },
+    friday: { type: Boolean, default: true },
+    saturday: { type: Boolean, default: false },
+    sunday: { type: Boolean, default: false }
+  },
+  officeHours: {
+    start: { type: String, default: '08:00' },
+    end: { type: String, default: '18:00' }
+  },
+  businessHours: {
+    start: { type: String, default: '08:00' },
+    end: { type: String, default: '18:00' }
+  },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+const AdminSettings = mongoose.model('AdminSettings', adminSettingsSchema);
+
 // Modelo de Área
 const areaSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
@@ -1056,6 +1081,80 @@ app.delete('/api/reservations/:id', async (req, res) => {
 
   } catch (error) {
     console.error('Error eliminando reservación:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoints para configuración de admin
+// Obtener configuración de admin
+app.get('/api/admin/settings', async (req, res) => {
+  try {
+    // Buscar la configuración existente o crear una por defecto
+    let settings = await AdminSettings.findOne();
+    
+    if (!settings) {
+      // Crear configuración por defecto si no existe
+      settings = new AdminSettings();
+      await settings.save();
+      console.log('✅ Configuración de admin creada por defecto');
+    }
+    
+    res.json(settings);
+  } catch (error) {
+    console.error('Error obteniendo configuración de admin:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Guardar configuración de admin
+app.post('/api/admin/settings', async (req, res) => {
+  try {
+    const { officeDays, officeHours, businessHours } = req.body;
+    
+    // Buscar la configuración existente o crear una nueva
+    let settings = await AdminSettings.findOne();
+    
+    if (!settings) {
+      settings = new AdminSettings();
+    }
+    
+    // Actualizar configuración
+    if (officeDays) {
+      settings.officeDays = {
+        ...settings.officeDays,
+        ...officeDays
+      };
+    }
+    
+    if (officeHours) {
+      settings.officeHours = {
+        ...settings.officeHours,
+        ...officeHours
+      };
+    }
+    
+    if (businessHours) {
+      settings.businessHours = {
+        ...settings.businessHours,
+        ...businessHours
+      };
+    }
+    
+    settings.updatedAt = new Date();
+    await settings.save();
+    
+    console.log('✅ Configuración de admin guardada:', {
+      officeDays: settings.officeDays,
+      officeHours: settings.officeHours,
+      businessHours: settings.businessHours
+    });
+    
+    res.json({
+      message: 'Configuración guardada exitosamente',
+      settings
+    });
+  } catch (error) {
+    console.error('Error guardando configuración de admin:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
