@@ -121,7 +121,12 @@ export function Reservations() {
       if (date.includes('T')) {
         const [year, month, day] = date.split('T')[0].split('-').map(Number);
         dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        // Si es formato YYYY-MM-DD (2025-08-31), parsear directamente
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
       } else {
+        // Para otros formatos, usar el constructor de Date
         dateObj = new Date(date);
       }
     } else {
@@ -141,7 +146,8 @@ export function Reservations() {
       displayFormat: formatDateForDisplay(date),
       displayWithDay: formatDateWithDay(date),
       type: typeof date,
-      isISO: typeof date === 'string' && date.includes('T')
+      isISO: typeof date === 'string' && date.includes('T'),
+      isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
     });
     
     return normalizedDate;
