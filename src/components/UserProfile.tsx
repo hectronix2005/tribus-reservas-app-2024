@@ -311,7 +311,9 @@ export function UserProfile() {
               Último Acceso
             </label>
             <span className="text-sm text-gray-600">
-              {currentUser.lastLogin ? new Date(currentUser.lastLogin).toLocaleDateString('es-ES') : 'No disponible'}
+              {currentUser.lastLogin ? new Date(currentUser.lastLogin).toLocaleDateString('es-ES', {
+  timeZone: 'America/Bogota'
+}) : 'No disponible'}
             </span>
           </div>
         </div>

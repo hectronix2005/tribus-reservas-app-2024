@@ -210,12 +210,13 @@ export function Reservations() {
       dateObj = date;
     }
     
-    // Formato: "Viernes, 30 de agosto de 2025"
+    // Formato: "Viernes, 30 de agosto de 2025" - Zona horaria Colombia
     return dateObj.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -250,14 +251,16 @@ export function Reservations() {
       dateObj = date;
     }
     
-    // Formato: "30/08/2025 - Viernes"
+    // Formato: "30/08/2025 - Viernes" - Zona horaria Colombia
     const shortDate = dateObj.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'America/Bogota'
     });
     const dayName = dateObj.toLocaleDateString('es-ES', {
-      weekday: 'long'
+      weekday: 'long',
+      timeZone: 'America/Bogota'
     });
     
     return `${shortDate} - ${dayName}`;
@@ -714,7 +717,10 @@ export function Reservations() {
       console.log('🔍 Validando día de oficina:', {
         selectedDate: selectedDate.toISOString(),
         dayOfWeek: selectedDate.getDay(),
-        dayName: selectedDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        dayName: selectedDate.toLocaleDateString('en-US', { 
+          weekday: 'long',
+          timeZone: 'America/Bogota'
+        }),
         officeDays: officeDays,
         adminSettings: state.adminSettings,
         isOfficeDay: isOfficeDay(selectedDate, officeDays)
@@ -1035,7 +1041,10 @@ export function Reservations() {
           break;
           
         case 'weekly':
-          const dayOfWeek = currentDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          const dayOfWeek = currentDate.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            timeZone: 'America/Bogota'
+          }).toLowerCase();
           if (recurrenceDays.includes(dayOfWeek)) {
             shouldInclude = true;
           }

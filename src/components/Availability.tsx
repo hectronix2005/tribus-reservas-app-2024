@@ -81,7 +81,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
       month: 'short', 
       day: 'numeric' 
     };
-    return date.toLocaleDateString('es-ES', options);
+    return date.toLocaleDateString('es-ES', {
+      ...options,
+      timeZone: 'America/Bogota'
+    });
   };
 
   // Formatear fecha corta (DD/MM)

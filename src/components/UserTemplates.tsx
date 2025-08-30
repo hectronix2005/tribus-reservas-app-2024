@@ -477,7 +477,9 @@ export function UserTemplates() {
                      )}
                      
                      <div className="mt-2 text-xs text-gray-400">
-                       <span className="font-medium">Creada:</span> {new Date(template.createdAt).toLocaleDateString('es-ES')}
+                       <span className="font-medium">Creada:</span> {new Date(template.createdAt).toLocaleDateString('es-ES', {
+  timeZone: 'America/Bogota'
+})}
                        {template.createdBy && template.createdBy === currentUser?.id && (
                          <span className="ml-2 text-primary-600">✓ Tu plantilla</span>
                        )}
