@@ -30,25 +30,19 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'total' | 'week' | 'day'>('total');
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]); // Array de IDs de áreas seleccionadas
 
-  // Generar días del mes actual
-  const generateMonthDays = (date: Date): Date[] => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
+  // Generar los próximos 15 días a partir de hoy
+  const generateNext15Days = (): Date[] => {
     const days: Date[] = [];
-    const currentDate = new Date(startDate);
+    const today = new Date();
     
-    while (currentDate <= lastDay || days.length < 42) {
-      days.push(new Date(currentDate));
-      currentDate.setDate(currentDate.getDate() + 1);
+    for (let i = 0; i < 15; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      days.push(date);
     }
     
     return days;
@@ -78,12 +72,6 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     return date.toDateString() === today.toDateString();
   };
 
-  // Verificar si es el mes actual
-  const isCurrentMonth = (date: Date): boolean => {
-    const today = new Date();
-    return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
-  };
-
   // Convertir formato AM/PM a formato 24 horas para comparaciones
   const convertTo24Hour = (time12h: string): string => {
     const [time, period] = time12h.split(' ');
@@ -109,27 +97,27 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     }
   };
 
-  // Navegar al mes anterior
-  const goToPreviousMonth = () => {
-    setCurrentMonth(prev => {
-      const newMonth = new Date(prev);
-      newMonth.setMonth(newMonth.getMonth() - 1);
-      return newMonth;
+  // Navegar al día anterior
+  const goToPreviousDay = () => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() - 1);
+      return newDate;
     });
   };
 
-  // Navegar al mes siguiente
-  const goToNextMonth = () => {
-    setCurrentMonth(prev => {
-      const newMonth = new Date(prev);
-      newMonth.setMonth(newMonth.getMonth() + 1);
-      return newMonth;
+  // Navegar al día siguiente
+  const goToNextDay = () => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setDate(newDate.getDate() + 1);
+      return newDate;
     });
   };
 
-  // Ir al mes actual
-  const goToCurrentMonth = () => {
-    setCurrentMonth(new Date());
+  // Ir al día actual
+  const goToCurrentDay = () => {
+    setCurrentDate(new Date());
   };
 
   // Obtener áreas filtradas según las áreas seleccionadas
@@ -187,9 +175,9 @@ export function Availability({ onHourClick }: AvailabilityProps) {
       const reservations = await reservationService.getAllReservations();
       const areas = state.areas;
 
-      // Generar disponibilidad para el mes actual
-      const monthDays = generateMonthDays(currentMonth);
-      const availabilityData: DayAvailability[] = monthDays.map(date => {
+      // Generar disponibilidad para los próximos 15 días
+      const days = generateNext15Days();
+      const availabilityData: DayAvailability[] = days.map(date => {
         const dateString = date.toISOString().split('T')[0];
         const dayReservations = reservations.filter(reservation => {
           const reservationDate = new Date(reservation.date).toISOString().split('T')[0];
@@ -256,7 +244,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state.areas, currentMonth]);
+  }, [state.areas]);
 
   useEffect(() => {
     if (state.areas.length > 0) {
@@ -285,13 +273,39 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     );
   }
 
-  const monthDays = generateMonthDays(currentMonth);
-  const monthName = currentMonth.toLocaleDateString('es-ES', { 
-    month: 'long', 
-    year: 'numeric',
-    timeZone: 'America/Bogota'
-  });
+  const days = generateNext15Days();
   const filteredAreas = getFilteredAreas();
+
+  // Formatear fecha para mostrar
+  const formatDateForDisplay = (date: Date): string => {
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'America/Bogota'
+    });
+  };
+
+  // Obtener días según el modo de vista
+  const getDaysToShow = () => {
+    if (viewMode === 'total') {
+      return days;
+    } else if (viewMode === 'week') {
+      // Mostrar 7 días a partir del día actual
+      const today = new Date();
+      const weekDays: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        weekDays.push(date);
+      }
+      return weekDays;
+    } else { // day
+      return [currentDate];
+    }
+  };
+
+  const daysToShow = getDaysToShow();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -300,32 +314,36 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gradient-primary">Disponibilidad</h1>
-            <p className="text-slate-600 mt-2">Vista de calendario estilo Google Calendar</p>
+            <p className="text-slate-600 mt-2">Vista de calendario de los próximos 15 días</p>
           </div>
           <div className="flex items-center space-x-3">
             <button
-              onClick={goToCurrentMonth}
+              onClick={goToCurrentDay}
               className="btn-secondary"
             >
               Hoy
             </button>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={goToPreviousMonth}
-                className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-slate-600" />
-              </button>
-              <button
-                onClick={goToNextMonth}
-                className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
-              >
-                <ChevronRight className="w-5 h-5 text-slate-600" />
-              </button>
-            </div>
-            <div className="text-xl font-semibold text-slate-900 capitalize">
-              {monthName}
-            </div>
+            {viewMode === 'day' && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={goToPreviousDay}
+                  className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-slate-600" />
+                </button>
+                <button
+                  onClick={goToNextDay}
+                  className="p-2 rounded-xl hover:bg-slate-100 transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+            )}
+            {viewMode === 'day' && (
+              <div className="text-lg font-semibold text-slate-900">
+                {formatDateForDisplay(currentDate)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -334,7 +352,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           <div className="flex items-center space-x-4">
             {/* Selector de Vista */}
             <div className="flex bg-slate-100 rounded-xl p-1">
-              {(['month', 'week', 'day'] as const).map((mode) => (
+              {(['total', 'week', 'day'] as const).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
@@ -344,7 +362,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  {mode === 'month' ? 'Mes' : mode === 'week' ? 'Semana' : 'Día'}
+                  {mode === 'total' ? 'Total (15 días)' : mode === 'week' ? 'Semana (7 días)' : 'Día'}
                 </button>
               ))}
             </div>
@@ -470,26 +488,23 @@ export function Availability({ onHourClick }: AvailabilityProps) {
 
         {/* Días del calendario */}
         <div className="grid grid-cols-7">
-          {monthDays.map((date, index) => {
+          {daysToShow.map((date, index) => {
             const dateString = date.toISOString().split('T')[0];
             const dayAvailability = availability.find(day => day.date === dateString);
-            const isCurrentMonthDay = isCurrentMonth(date);
             const isTodayDate = isToday(date);
             
             return (
               <div
                 key={index}
                 className={`min-h-[120px] border-r border-b border-slate-100 p-2 ${
-                  !isCurrentMonthDay ? 'bg-slate-50/50' : 'bg-white'
-                } ${isTodayDate ? 'bg-primary-50/30' : ''}`}
+                  isTodayDate ? 'bg-primary-50/30' : 'bg-white'
+                }`}
               >
                 {/* Número del día */}
                 <div className={`text-sm font-medium mb-2 ${
                   isTodayDate 
                     ? 'text-primary-600 font-bold' 
-                    : !isCurrentMonthDay 
-                      ? 'text-slate-400' 
-                      : 'text-slate-900'
+                    : 'text-slate-900'
                 }`}>
                   {date.getDate()}
                   {isTodayDate && (
@@ -576,7 +591,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         <div className="bg-white rounded-2xl shadow-soft border border-white/20 p-6">
           <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
             <Calendar className="w-5 h-5 mr-2 text-primary-600" />
-            Resumen del Mes
+            Resumen de Disponibilidad
           </h4>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -593,11 +608,17 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">Días mostrados:</span>
-              <span className="font-medium">{monthDays.length}</span>
+              <span className="font-medium">{daysToShow.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">Mes actual:</span>
-              <span className="font-medium capitalize">{monthName}</span>
+              <span className="text-slate-600">Período:</span>
+              <span className="font-medium">
+                {daysToShow.length > 0 && (
+                  <>
+                    {formatDateForDisplay(daysToShow[0])} - {formatDateForDisplay(daysToShow[daysToShow.length - 1])}
+                  </>
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -629,11 +650,19 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Filtro de áreas:</strong> Selecciona las áreas que quieres ver en el calendario
+              <strong>Vista Total:</strong> Muestra los próximos 15 días
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Filtros rápidos:</strong> Usa los botones para seleccionar por categoría
+              <strong>Vista Semana:</strong> Muestra los próximos 7 días
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Vista Día:</strong> Muestra un día específico con navegación
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Filtro de áreas:</strong> Selecciona las áreas que quieres ver
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
@@ -642,10 +671,6 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
               <strong>Reservas:</strong> Haz clic en cualquier bloque azul para crear una reserva
-            </li>
-            <li className="flex items-start">
-              <span className="text-primary-600 mr-2">•</span>
-              <strong>Navegación:</strong> Usa las flechas para cambiar de mes
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
