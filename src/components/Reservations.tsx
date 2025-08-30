@@ -3,6 +3,7 @@ import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'luc
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
 import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
+import { normalizeDateConsistent, testDateNormalization } from '../utils/dateConversionUtils';
 
 interface Reservation {
   _id: string;
@@ -134,43 +135,13 @@ export function Reservations() {
 
   // Función para normalizar fechas a formato DD-MM-YY (para comparaciones internas)
   const normalizeDate = useCallback((date: string | Date): string => {
-    let dateObj: Date;
-    
-    if (typeof date === 'string') {
-      // Si ya es formato DD-MM-YY, retornarlo tal como está
-      if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-      }
-      // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha
-      else if (date.includes('T')) {
-        const [year, month, day] = date.split('T')[0].split('-').map(Number);
-        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        // Si es formato YYYY-MM-DD (2025-08-31), parsear directamente
-        const [year, month, day] = date.split('-').map(Number);
-        dateObj = new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexed months
-      } else {
-        // Para otros formatos, usar el constructor de Date
-        dateObj = new Date(date);
-      }
-    } else {
-      dateObj = date;
-    }
-    
-    // Convertir a formato DD-MM-YY
-    const day = dateObj.getDate().toString().padStart(2, '0');
-    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-    const year = dateObj.getFullYear().toString().slice(-2); // Solo los últimos 2 dígitos del año
-    
-    const normalizedDate = `${day}-${month}-${year}`;
+    const normalizedDate = normalizeDateConsistent(date);
     
     // Solo mostrar logs en desarrollo para evitar spam
     if (process.env.NODE_ENV === 'development') {
       console.log('📅 Normalización de fecha:', {
         original: date,
         normalized: normalizedDate,
-        displayFormat: formatDateForDisplay(date),
-        displayWithDay: formatDateWithDay(date),
         type: typeof date,
         isISO: typeof date === 'string' && date.includes('T'),
         isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date),
@@ -604,6 +575,28 @@ export function Reservations() {
   // Cargar reservaciones al montar el componente
   useEffect(() => {
     loadReservations();
+  }, []);
+
+  // useEffect temporal para probar la normalización de fechas
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 Ejecutando pruebas de normalización de fechas...');
+      testDateNormalization();
+      
+      // Pruebas específicas para verificar consistencia
+      const testDate = '2025-08-30T00:00:00.000Z';
+      const normalized1 = normalizeDateConsistent(testDate);
+      const normalized2 = normalizeDateConsistent('2025-08-30');
+      const normalized3 = normalizeDateConsistent('30-08-25');
+      
+      console.log('🔍 Pruebas de consistencia:', {
+        testDate,
+        normalized1,
+        normalized2,
+        normalized3,
+        allEqual: normalized1 === normalized2 && normalized2 === normalized3
+      });
+    }
   }, []);
 
   // Escuchar evento de clic en horario desde la vista de disponibilidad

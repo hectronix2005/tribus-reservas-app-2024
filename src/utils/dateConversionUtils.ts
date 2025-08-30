@@ -65,3 +65,58 @@ export const isValidDate = (dateString: string): boolean => {
     return false;
   }
 };
+
+// Función para normalizar fechas a formato DD-MM-YY de manera consistente
+export const normalizeDateConsistent = (date: string | Date): string => {
+  let dateObj: Date;
+  
+  if (typeof date === 'string') {
+    // Si ya es formato DD-MM-YY, retornarlo tal como está
+    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    // Si es formato ISO string (2025-08-30T00:00:00.000Z), extraer solo la fecha en UTC
+    else if (date.includes('T')) {
+      // Para fechas ISO, siempre usar UTC para evitar problemas de zona horaria
+      const [year, month, day] = date.split('T')[0].split('-').map(Number);
+      // Crear fecha en UTC para evitar conversiones de zona horaria
+      dateObj = new Date(Date.UTC(year, month - 1, day));
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Si es formato YYYY-MM-DD, parsear directamente
+      const [year, month, day] = date.split('-').map(Number);
+      dateObj = new Date(year, month - 1, day);
+    } else {
+      // Para otros formatos, usar el constructor de Date
+      dateObj = new Date(date);
+    }
+  } else {
+    dateObj = date;
+  }
+  
+  // Convertir a formato DD-MM-YY usando UTC para evitar problemas de zona horaria
+  const day = dateObj.getUTCDate().toString().padStart(2, '0');
+  const month = (dateObj.getUTCMonth() + 1).toString().padStart(2, '0');
+  const year = dateObj.getUTCFullYear().toString().slice(-2);
+  
+  return `${day}-${month}-${year}`;
+};
+
+// Función para probar la normalización de fechas
+export const testDateNormalization = () => {
+  const testCases = [
+    '2025-08-30T00:00:00.000Z',
+    '2025-08-30',
+    '30-08-25',
+    new Date('2025-08-30T00:00:00.000Z')
+  ];
+  
+  console.log('🧪 Pruebas de normalización de fechas:');
+  testCases.forEach((testCase, index) => {
+    const normalized = normalizeDateConsistent(testCase);
+    console.log(`Test ${index + 1}:`, {
+      input: testCase,
+      normalized,
+      type: typeof testCase
+    });
+  });
+};
