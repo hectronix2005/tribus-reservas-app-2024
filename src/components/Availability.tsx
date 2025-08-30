@@ -34,15 +34,44 @@ export function Availability({ onHourClick }: AvailabilityProps) {
   const [viewMode, setViewMode] = useState<'total' | 'week' | 'day'>('total');
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]); // Array de IDs de áreas seleccionadas
 
-  // Generar los próximos 15 días a partir de hoy
+  // Verificar si un día es día de oficina
+  const isOfficeDay = (date: Date): boolean => {
+    if (!state.adminSettings.officeDays) return true; // Si no hay configuración, mostrar todos los días
+    
+    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek] as keyof typeof state.adminSettings.officeDays;
+    
+    return state.adminSettings.officeDays[dayName] || false;
+  };
+
+  // Verificar si una hora está dentro del horario de oficina
+  const isWithinOfficeHours = (hour: string): boolean => {
+    if (!state.adminSettings.officeHours) return true; // Si no hay configuración, mostrar todas las horas
+    
+    const hour24 = convertTo24Hour(hour);
+    const [hourNum] = hour24.split(':').map(Number);
+    
+    const [startHour] = state.adminSettings.officeHours.start.split(':').map(Number);
+    const [endHour] = state.adminSettings.officeHours.end.split(':').map(Number);
+    
+    return hourNum >= startHour && hourNum < endHour;
+  };
+
+  // Generar los próximos 15 días a partir de hoy, filtrando solo días de oficina
   const generateNext15Days = (): Date[] => {
     const days: Date[] = [];
     const today = new Date();
+    let currentDate = new Date(today);
+    let daysFound = 0;
     
-    for (let i = 0; i < 15; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      days.push(date);
+    // Buscar los próximos 15 días de oficina
+    while (daysFound < 15) {
+      if (isOfficeDay(currentDate)) {
+        days.push(new Date(currentDate));
+        daysFound++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
     
     return days;
@@ -97,27 +126,50 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     }
   };
 
-  // Navegar al día anterior
+  // Navegar al día anterior (solo días de oficina)
   const goToPreviousDay = () => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() - 1);
+      
+      // Buscar el día de oficina anterior más cercano
+      while (!isOfficeDay(newDate)) {
+        newDate.setDate(newDate.getDate() - 1);
+      }
+      
       return newDate;
     });
   };
 
-  // Navegar al día siguiente
+  // Navegar al día siguiente (solo días de oficina)
   const goToNextDay = () => {
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       newDate.setDate(newDate.getDate() + 1);
+      
+      // Buscar el día de oficina siguiente más cercano
+      while (!isOfficeDay(newDate)) {
+        newDate.setDate(newDate.getDate() + 1);
+      }
+      
       return newDate;
     });
   };
 
-  // Ir al día actual
+  // Ir al día actual (o al siguiente día de oficina si hoy no lo es)
   const goToCurrentDay = () => {
-    setCurrentDate(new Date());
+    const today = new Date();
+    if (isOfficeDay(today)) {
+      setCurrentDate(today);
+    } else {
+      // Buscar el siguiente día de oficina
+      const nextOfficeDay = new Date(today);
+      nextOfficeDay.setDate(today.getDate() + 1);
+      while (!isOfficeDay(nextOfficeDay)) {
+        nextOfficeDay.setDate(nextOfficeDay.getDate() + 1);
+      }
+      setCurrentDate(nextOfficeDay);
+    }
   };
 
   // Obtener áreas filtradas según las áreas seleccionadas
@@ -175,7 +227,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
       const reservations = await reservationService.getAllReservations();
       const areas = state.areas;
 
-      // Generar disponibilidad para los próximos 15 días
+      // Generar disponibilidad para los próximos 15 días de oficina
       const days = generateNext15Days();
       const availabilityData: DayAvailability[] = days.map(date => {
         const dateString = date.toISOString().split('T')[0];
@@ -244,7 +296,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [state.areas]);
+  }, [state.areas, state.adminSettings]);
 
   useEffect(() => {
     if (state.areas.length > 0) {
@@ -291,13 +343,18 @@ export function Availability({ onHourClick }: AvailabilityProps) {
     if (viewMode === 'total') {
       return days;
     } else if (viewMode === 'week') {
-      // Mostrar 7 días a partir del día actual
+      // Mostrar 7 días de oficina a partir del día actual
       const today = new Date();
       const weekDays: Date[] = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        weekDays.push(date);
+      let currentDate = new Date(today);
+      let daysFound = 0;
+      
+      while (daysFound < 7) {
+        if (isOfficeDay(currentDate)) {
+          weekDays.push(new Date(currentDate));
+          daysFound++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
       }
       return weekDays;
     } else { // day
@@ -314,7 +371,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gradient-primary">Disponibilidad</h1>
-            <p className="text-slate-600 mt-2">Vista de calendario de los próximos 15 días</p>
+            <p className="text-slate-600 mt-2">Vista de calendario de los próximos 15 días de oficina</p>
           </div>
           <div className="flex items-center space-x-3">
             <button
@@ -543,11 +600,12 @@ export function Availability({ onHourClick }: AvailabilityProps) {
                         </div>
                       );
                     } else {
-                      // Salas: Mostrar bloques de hora individuales
+                      // Salas: Mostrar bloques de hora individuales (solo horarios disponibles)
                       const hourlySlots = areaStatus.hourlySlots ?? {};
                       const availableHours = generateHourlySlots().filter(hour => {
                         const hourStatus = hourlySlots[hour];
-                        return hourStatus?.isAvailable ?? true;
+                        // Solo mostrar horarios que estén disponibles Y dentro del horario de oficina
+                        return (hourStatus?.isAvailable ?? true) && isWithinOfficeHours(hour);
                       });
                       
                       if (availableHours.length === 0) return null;
@@ -607,7 +665,7 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               <span className="font-medium">{filteredAreas.length}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">Días mostrados:</span>
+              <span className="text-slate-600">Días de oficina mostrados:</span>
               <span className="font-medium">{daysToShow.length}</span>
             </div>
             <div className="flex justify-between">
@@ -642,6 +700,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
               <div className="w-3 h-3 bg-primary-100 border border-primary-200 rounded mr-2"></div>
               <span className="text-slate-700">Día actual</span>
             </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-slate-100 border border-slate-200 rounded mr-2"></div>
+              <span className="text-slate-700">Solo días de oficina</span>
+            </div>
           </div>
         </div>
 
@@ -650,11 +712,11 @@ export function Availability({ onHourClick }: AvailabilityProps) {
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Vista Total:</strong> Muestra los próximos 15 días
+              <strong>Vista Total:</strong> Muestra los próximos 15 días de oficina
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
-              <strong>Vista Semana:</strong> Muestra los próximos 7 días
+              <strong>Vista Semana:</strong> Muestra los próximos 7 días de oficina
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
@@ -663,6 +725,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
               <strong>Filtro de áreas:</strong> Selecciona las áreas que quieres ver
+            </li>
+            <li className="flex items-start">
+              <span className="text-primary-600 mr-2">•</span>
+              <strong>Horarios de oficina:</strong> Solo se muestran días y horarios habilitados
             </li>
             <li className="flex items-start">
               <span className="text-primary-600 mr-2">•</span>
