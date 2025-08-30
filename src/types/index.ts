@@ -115,4 +115,6 @@ export interface ReservationTemplate {
   notes?: string;
   isActive: boolean;
   createdAt: string;
+  createdBy?: string; // ID del usuario que creó la plantilla
+  userId?: string; // ID del usuario propietario (para compatibilidad)
 }

@@ -11,28 +11,33 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   const { state, logout } = useApp();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
+  const [isUserConfigMenuOpen, setIsUserConfigMenuOpen] = useState(false);
   const adminMenuRef = useRef<HTMLDivElement>(null);
+  const userConfigMenuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     logout();
   };
 
-  // Cerrar menú de administración cuando se hace clic fuera de él
+  // Cerrar menús cuando se hace clic fuera de ellos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (adminMenuRef.current && !adminMenuRef.current.contains(event.target as Node)) {
         setIsAdminMenuOpen(false);
       }
+      if (userConfigMenuRef.current && !userConfigMenuRef.current.contains(event.target as Node)) {
+        setIsUserConfigMenuOpen(false);
+      }
     };
 
-    if (isAdminMenuOpen) {
+    if (isAdminMenuOpen || isUserConfigMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isAdminMenuOpen]);
+  }, [isAdminMenuOpen, isUserConfigMenuOpen]);
 
   const navigationItems = [
     ...(state.auth.currentUser?.role === 'admin' ? [
@@ -42,7 +47,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     { id: 'availability', label: 'Disponibilidad', icon: Eye },
   ];
 
-  const userItems = [
+  const userConfigItems = [
     { id: 'profile', label: 'Mi Perfil', icon: UserCheck },
     { id: 'userTemplates', label: 'Mis Plantillas', icon: FileText },
   ];
@@ -150,27 +155,51 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               </div>
             )}
 
-            {/* User Menu for Regular Users */}
+            {/* User Configuration Dropdown Menu */}
             {state.auth.currentUser?.role === 'user' && (
-              <>
-                {userItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onViewChange(item.id)}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                        currentView === item.id
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </>
+              <div className="relative" ref={userConfigMenuRef}>
+                <button
+                  onClick={() => setIsUserConfigMenuOpen(!isUserConfigMenuOpen)}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    ['profile', 'userTemplates'].includes(currentView)
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Configuración</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isUserConfigMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isUserConfigMenuOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    {userConfigItems.map((item, index) => {
+                      const Icon = item.icon;
+                      return (
+                        <div key={item.id}>
+                          <button
+                            onClick={() => {
+                              onViewChange(item.id);
+                              setIsUserConfigMenuOpen(false);
+                            }}
+                            className={`flex items-center space-x-3 w-full px-4 py-2 text-sm text-left transition-colors duration-200 ${
+                              currentView === item.id
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </button>
+                          {index === 0 && (
+                            <div className="border-t border-gray-200 mx-2"></div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </nav>
 
@@ -259,14 +288,14 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 </>
               )}
 
-              {/* User Menu for Mobile */}
+              {/* User Configuration Menu for Mobile */}
               {state.auth.currentUser?.role === 'user' && (
                 <>
                   <div className="border-t border-gray-200 pt-2 mt-2">
                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wider px-3 py-2">
-                      Mi Cuenta
+                      Configuración
                     </div>
-                    {userItems.map((item) => {
+                    {userConfigItems.map((item) => {
                       const Icon = item.icon;
                       return (
                         <button

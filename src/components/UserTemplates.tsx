@@ -24,10 +24,38 @@ export function UserTemplates() {
     notes: ''
   });
 
-  // Filtrar plantillas del usuario actual
-  const userTemplates = state.templates.filter(template => 
-    template.contactEmail === currentUser?.email
-  );
+  // Filtrar plantillas del usuario actual (múltiples criterios para mayor robustez)
+  const userTemplates = state.templates.filter(template => {
+    // Criterio principal: email de contacto coincide con el usuario actual
+    const emailMatch = template.contactEmail === currentUser?.email;
+    
+    // Criterio secundario: si existe createdBy, verificar que coincida con el ID del usuario
+    const createdByMatch = template.createdBy && template.createdBy === currentUser?.id;
+    
+    // Criterio terciario: si existe userId, verificar que coincida con el ID del usuario
+    const userIdMatch = template.userId && template.userId === currentUser?.id;
+    
+    // Mostrar plantilla si coincide con cualquiera de los criterios
+    const isUserTemplate = emailMatch || createdByMatch || userIdMatch;
+    
+    // Debug: Log para diagnosticar problemas de filtrado
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Filtrado de plantilla:', {
+        templateName: template.name,
+        templateEmail: template.contactEmail,
+        templateCreatedBy: template.createdBy,
+        templateUserId: template.userId,
+        currentUserEmail: currentUser?.email,
+        currentUserId: currentUser?.id,
+        emailMatch,
+        createdByMatch,
+        userIdMatch,
+        isUserTemplate
+      });
+    }
+    
+    return isUserTemplate;
+  });
 
   useEffect(() => {
     loadTemplates();
@@ -79,6 +107,8 @@ export function UserTemplates() {
         ...formData,
         contactPerson: formData.contactPerson || currentUser.name,
         contactEmail: formData.contactEmail || currentUser.email,
+        createdBy: currentUser.id, // Agregar el ID del usuario creador
+        userId: currentUser.id, // Para compatibilidad
         isActive: true
       };
 
@@ -372,12 +402,23 @@ export function UserTemplates() {
               <span className="text-gray-600">Cargando plantillas...</span>
             </div>
           </div>
-        ) : userTemplates.length === 0 ? (
-          <div className="text-center py-8">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No tienes plantillas creadas</p>
-            <p className="text-sm text-gray-400">Crea tu primera plantilla para facilitar tus reservaciones</p>
-          </div>
+                 ) : userTemplates.length === 0 ? (
+           <div className="text-center py-8">
+             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+             <p className="text-gray-500">No tienes plantillas creadas</p>
+             <p className="text-sm text-gray-400">Crea tu primera plantilla para facilitar tus reservaciones</p>
+             {state.templates.length > 0 && (
+               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                 <p className="text-sm text-blue-700">
+                   <strong>Nota:</strong> Se encontraron {state.templates.length} plantillas en el sistema, 
+                   pero ninguna coincide con tu cuenta ({currentUser?.email}).
+                 </p>
+                 <p className="text-xs text-blue-600 mt-1">
+                   Las plantillas se filtran por tu email de contacto o ID de usuario.
+                 </p>
+               </div>
+             )}
+           </div>
         ) : (
           <div className="space-y-4">
             {userTemplates.map((template) => (
@@ -416,11 +457,18 @@ export function UserTemplates() {
                       )}
                     </div>
                     
-                    {template.notes && (
-                      <div className="mt-2 text-sm text-gray-500">
-                        <span className="font-medium">Notas:</span> {template.notes}
-                      </div>
-                    )}
+                                         {template.notes && (
+                       <div className="mt-2 text-sm text-gray-500">
+                         <span className="font-medium">Notas:</span> {template.notes}
+                       </div>
+                     )}
+                     
+                     <div className="mt-2 text-xs text-gray-400">
+                       <span className="font-medium">Creada:</span> {new Date(template.createdAt).toLocaleDateString('es-ES')}
+                       {template.createdBy && template.createdBy === currentUser?.id && (
+                         <span className="ml-2 text-primary-600">✓ Tu plantilla</span>
+                       )}
+                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-2 ml-4">
