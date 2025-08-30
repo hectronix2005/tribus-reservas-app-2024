@@ -8,6 +8,12 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     return true; // Por defecto, permitir todos los días si no hay configuración
   }
   
+  // Validar que la fecha sea válida
+  if (!date || isNaN(date.getTime())) {
+    console.error('❌ Fecha inválida proporcionada a isOfficeDay:', date);
+    return false;
+  }
+  
   // Crear una nueva fecha para evitar problemas de zona horaria
   const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const dayOfWeek = localDate.getDay(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
@@ -25,14 +31,17 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
   const dayKey = dayMap[dayOfWeek as keyof typeof dayMap];
   const result = officeDays[dayKey as keyof typeof officeDays];
   
-  console.log('🔍 isOfficeDay debug:', {
-    originalDate: date.toISOString(),
-    localDate: localDate.toISOString(),
-    dayOfWeek,
-    dayKey,
-    officeDays,
-    result
-  });
+  // Solo mostrar logs en desarrollo para evitar spam
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 isOfficeDay debug:', {
+      originalDate: date.toISOString(),
+      localDate: localDate.toISOString(),
+      dayOfWeek,
+      dayKey,
+      officeDays,
+      result
+    });
+  }
   
   return result;
 };

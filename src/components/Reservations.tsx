@@ -547,7 +547,15 @@ export function Reservations() {
     const duration = parseInt(formData.duration || '60');
     
     // Verificar que la fecha seleccionada sea un día de oficina
-    const selectedDate = new Date(formData.date);
+    const selectedDate = (() => {
+      // Convertir DD-MM-YY a Date object
+      if (/^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
+        const [day, month, year] = formData.date.split('-').map(Number);
+        const fullYear = year < 50 ? 2000 + year : 1900 + year;
+        return new Date(fullYear, month - 1, day);
+      }
+      return new Date(formData.date);
+    })();
     if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
       console.log('❌ Fecha seleccionada no es un día de oficina:', formData.date);
       return [];
@@ -1261,7 +1269,15 @@ export function Reservations() {
                     No se pueden seleccionar fechas pasadas
                   </div>
                 )}
-                {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
+                {formData.date && !isOfficeDay((() => {
+                  // Convertir DD-MM-YY a Date object
+                  if (/^\d{2}-\d{2}-\d{2}$/.test(formData.date)) {
+                    const [day, month, year] = formData.date.split('-').map(Number);
+                    const fullYear = year < 50 ? 2000 + year : 1900 + year;
+                    return new Date(fullYear, month - 1, day);
+                  }
+                  return new Date(formData.date);
+                })(), state.adminSettings.officeDays) && (
                   <div className="mt-1 text-sm text-red-600 flex items-center">
                     <span className="mr-1">🏢</span>
                     La fecha seleccionada no es un día de oficina
