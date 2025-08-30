@@ -114,12 +114,15 @@ export function Reservations() {
 
   // Función para verificar conflictos de horarios
   const getConflictingReservations = useCallback((area: string, date: string, startTime: string, endTime: string, excludeId?: string) => {
+    const normalizedDate = normalizeDate(date);
+    
     const conflicts = reservations.filter(reservation => {
       // Excluir la reservación que se está editando
       if (excludeId && reservation._id === excludeId) return false;
       
-      // Verificar que sea la misma área y fecha
-      if (reservation.area !== area || reservation.date !== date) return false;
+      // Verificar que sea la misma área y fecha (normalizada)
+      const reservationDate = normalizeDate(reservation.date);
+      if (reservation.area !== area || reservationDate !== normalizedDate) return false;
       
       // Verificar que la reservación esté activa
       if (reservation.status !== 'active') return false;
@@ -153,11 +156,14 @@ export function Reservations() {
 
   // Función para verificar si una fecha está completamente ocupada para un área
   const isDateFullyBooked = useCallback((area: string, date: string) => {
-    const areaReservations = reservations.filter(reservation => 
-      reservation.area === area && 
-      reservation.date === date && 
-      reservation.status === 'active'
-    );
+    const normalizedDate = normalizeDate(date);
+    
+    const areaReservations = reservations.filter(reservation => {
+      const reservationDate = normalizeDate(reservation.date);
+      return reservation.area === area && 
+             reservationDate === normalizedDate && 
+             reservation.status === 'active';
+    });
 
     if (areaReservations.length === 0) return false;
 
@@ -202,6 +208,31 @@ export function Reservations() {
 
     return allHoursOccupied;
   }, [reservations]);
+
+  // Función para normalizar fechas a formato YYYY-MM-DD
+  const normalizeDate = (date: string | Date): string => {
+    let normalizedDate: string;
+    
+    if (typeof date === 'string') {
+      // Si ya es formato YYYY-MM-DD, retornarlo tal como está
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        normalizedDate = date;
+      } else {
+        // Si es una fecha en formato Date string, convertirla
+        normalizedDate = new Date(date).toISOString().split('T')[0];
+      }
+    } else {
+      // Si es un objeto Date, convertir a YYYY-MM-DD
+      normalizedDate = date.toISOString().split('T')[0];
+    }
+    
+    console.log('📅 Normalización de fecha:', {
+      original: date,
+      normalized: normalizedDate
+    });
+    
+    return normalizedDate;
+  };
 
   // Función para agregar minutos a una hora
   const addMinutesToTime = (time: string, minutes: number): string => {
@@ -778,7 +809,11 @@ export function Reservations() {
                       </label>
                       <div className="bg-gray-50 rounded-md p-3 max-h-32 overflow-y-auto">
                         {reservations
-                          .filter(r => r.area === formData.area && r.date === formData.date && r.status === 'active')
+                          .filter(r => {
+                            const reservationDate = normalizeDate(r.date);
+                            const formDate = normalizeDate(formData.date);
+                            return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                          })
                           .map((reservation, index) => (
                             <div key={index} className="text-sm text-gray-600 mb-1">
                               <span className="font-medium">
@@ -787,7 +822,11 @@ export function Reservations() {
                               {reservation.notes && ` (${reservation.notes})`}
                             </div>
                           ))}
-                        {reservations.filter(r => r.area === formData.area && r.date === formData.date && r.status === 'active').length === 0 && (
+                        {reservations.filter(r => {
+                          const reservationDate = normalizeDate(r.date);
+                          const formDate = normalizeDate(formData.date);
+                          return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                        }).length === 0 && (
                           <p className="text-sm text-gray-500">No hay reservaciones para esta fecha</p>
                         )}
                       </div>
