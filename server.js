@@ -758,6 +758,18 @@ app.post('/api/reservations', async (req, res) => {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
+    // Validar que la fecha y hora no estén en el pasado
+    const now = new Date();
+    const reservationDate = new Date(date);
+    const [hours, minutes] = startTime.split(':').map(Number);
+    reservationDate.setHours(hours, minutes, 0, 0);
+    
+    if (reservationDate < now) {
+      return res.status(400).json({ 
+        error: 'No se pueden hacer reservaciones en fechas y horarios pasados. Por favor, seleccione una fecha y hora futura.' 
+      });
+    }
+
     // Verificar que el área existe y obtener su información
     const areaInfo = await Area.findOne({ name: area });
     if (!areaInfo) {

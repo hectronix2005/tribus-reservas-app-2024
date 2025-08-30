@@ -386,6 +386,44 @@ export function Reservations() {
     return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
   };
 
+  // Función para verificar si una fecha y hora están en el pasado
+  const isDateAndTimeInPast = useCallback((date: string, startTime: string): boolean => {
+    if (!date || !startTime) return false;
+    
+    // Crear fecha actual
+    const now = new Date();
+    
+    // Crear fecha de la reservación
+    let reservationDate: Date;
+    
+    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+      // Formato DD-MM-YY
+      const [day, month, year] = date.split('-').map(Number);
+      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+      reservationDate = new Date(fullYear, month - 1, day);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Formato YYYY-MM-DD
+      const [year, month, day] = date.split('-').map(Number);
+      reservationDate = new Date(year, month - 1, day);
+    } else {
+      reservationDate = new Date(date);
+    }
+    
+    // Agregar la hora de inicio a la fecha
+    const [hours, minutes] = startTime.split(':').map(Number);
+    reservationDate.setHours(hours, minutes, 0, 0);
+    
+    console.log('🔍 Validación fecha/hora pasada:', {
+      now: now.toISOString(),
+      reservationDateTime: reservationDate.toISOString(),
+      isInPast: reservationDate < now,
+      date,
+      startTime
+    });
+    
+    return reservationDate < now;
+  }, []);
+
   // Función para obtener horas de inicio disponibles (memoizada)
   const availableStartTimes = useMemo(() => {
     if (!formData.area || !formData.date || !formData.duration) return [];
@@ -413,9 +451,14 @@ export function Reservations() {
         // Verificar si este horario está disponible
         const conflicts = getConflictingReservations(formData.area, formData.date, startTime, endTime, editingReservation?._id);
         
-        if (conflicts.length === 0) {
+        // Verificar si el horario está en el pasado
+        const isInPast = isDateAndTimeInPast(formData.date, startTime);
+        
+        if (conflicts.length === 0 && !isInPast) {
           availableTimes.push(startTime);
           console.log('✅ Horario disponible:', startTime, 'hasta', endTime, `(${duration} min)`);
+        } else if (isInPast) {
+          console.log('⏰ Horario en el pasado:', startTime, 'hasta', endTime, `(${duration} min)`);
         } else {
           console.log('❌ Horario no disponible:', startTime, 'hasta', endTime, `(${duration} min)`, 'conflictos:', conflicts.length);
         }
@@ -424,7 +467,7 @@ export function Reservations() {
     
     console.log('✅ Horarios disponibles calculados para', duration, 'minutos:', availableTimes);
     return availableTimes;
-  }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations]);
+  }, [formData.area, formData.date, formData.duration, reservations, editingReservation?._id, getConflictingReservations, isDateAndTimeInPast]);
 
   // Verificar si la fecha seleccionada está completamente ocupada
   const isSelectedDateFullyBooked = useMemo(() => {
@@ -479,6 +522,22 @@ export function Reservations() {
     if (!currentUser) {
       setError('Debe iniciar sesión para crear una reservación');
       return;
+    }
+
+    // Verificar si la fecha y hora están en el pasado
+    if (!isFullDayReservation && formData.startTime) {
+      if (isDateAndTimeInPast(formData.date, formData.startTime)) {
+        setError('No se pueden hacer reservaciones en fechas y horarios pasados. Por favor, seleccione una fecha y hora futura.');
+        return;
+      }
+    } else if (isFullDayReservation) {
+      // Para reservas de día completo, verificar solo la fecha
+      const today = new Date();
+      const reservationDate = new Date(formData.date);
+      if (reservationDate < today) {
+        setError('No se pueden hacer reservaciones en fechas pasadas. Por favor, seleccione una fecha futura.');
+        return;
+      }
     }
 
     // Verificar si la fecha está completamente ocupada
