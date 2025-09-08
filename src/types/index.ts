@@ -21,6 +21,7 @@ export interface Reservation {
   id: string;
   areaId: string;
   areaName: string;
+  area: string; // Nombre del área (usado en la API)
   groupName: string;
   requestedSeats: number;
   date: string;
