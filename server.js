@@ -179,6 +179,9 @@ const reservationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  attendees: [{
+    type: String
+  }], // Array de nombres de asistentes
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -879,7 +882,8 @@ app.post('/api/reservations', async (req, res) => {
       templateId,
       requestedSeats,
       notes,
-      colaboradores 
+      colaboradores,
+      attendees 
     } = req.body;
 
     // Validar campos requeridos básicos
@@ -1050,6 +1054,7 @@ app.post('/api/reservations', async (req, res) => {
       requestedSeats: finalRequestedSeats,
       notes: notes || '',
       colaboradores: validColaboradores,
+      attendees: attendees || [],
       // Registrar información del usuario que crea la reserva
       createdBy: {
         userId: user._id,
@@ -1093,7 +1098,9 @@ app.put('/api/reservations/:id', async (req, res) => {
       templateId,
       requestedSeats,
       notes, 
-      status 
+      status,
+      colaboradores,
+      attendees 
     } = req.body;
 
     const reservation = await Reservation.findById(req.params.id);
@@ -1159,6 +1166,7 @@ app.put('/api/reservations/:id', async (req, res) => {
     if (requestedSeats !== undefined) reservation.requestedSeats = requestedSeats;
     if (notes !== undefined) reservation.notes = notes;
     if (status) reservation.status = status;
+    if (attendees !== undefined) reservation.attendees = attendees;
     
     reservation.updatedAt = new Date();
 

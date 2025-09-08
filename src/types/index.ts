@@ -33,6 +33,7 @@ export interface Reservation {
   createdAt: string;
   notes?: string;
   colaboradores?: string[]; // Array de IDs de usuarios colaboradores
+  attendees?: string[]; // Array de nombres de asistentes
 }
 
 export interface DailyCapacity {
