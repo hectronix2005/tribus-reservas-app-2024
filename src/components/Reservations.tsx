@@ -139,14 +139,13 @@ export function Reservations() {
   const getCollaboratorsByDepartment = (departmentName: string) => {
     return state.users.filter(user => 
       user.isActive && 
-      user.department === departmentName &&
-      user.id !== currentUser?.id // Excluir al usuario actual
+      user.department === departmentName
     );
   };
 
   const colaboradoresDisponibles = formData.teamName ? 
     getCollaboratorsByDepartment(formData.teamName) : 
-    state.users.filter(user => user.isActive && user.id !== currentUser?.id);
+    state.users.filter(user => user.isActive);
 
   // Función para manejar la selección de colaboradores
   const handleCollaboratorSelection = (collaboratorId: string, isSelected: boolean) => {
