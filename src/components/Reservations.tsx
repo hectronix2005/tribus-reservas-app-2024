@@ -71,6 +71,7 @@ export function Reservations() {
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(true);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
@@ -709,14 +710,42 @@ export function Reservations() {
     loadReservations();
   }, []);
 
+  // Función para obtener las fechas de los próximos 5 días
+  const getNext5Days = useCallback(() => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
+    }
+    
+    return dates;
+  }, []);
+
+  // Función para filtrar reservas por los próximos 5 días
+  const filterReservationsByNext5Days = useCallback((reservationsList: Reservation[]) => {
+    const next5Days = getNext5Days();
+    
+    return reservationsList.filter(reservation => {
+      const reservationDate = normalizeDate(reservation.date);
+      return next5Days.includes(reservationDate);
+    });
+  }, [getNext5Days, normalizeDate]);
+
   // Actualizar reservaciones filtradas cuando cambien las reservaciones
   useEffect(() => {
-    setFilteredReservations(reservations);
-  }, [reservations]);
+    // Por defecto, mostrar solo las reservas de los próximos 5 días
+    const filtered = filterReservationsByNext5Days(reservations);
+    setFilteredReservations(filtered);
+  }, [reservations, filterReservationsByNext5Days]);
 
   // Función para manejar el cambio de filtros
   const handleFilterChange = (filtered: Reservation[]) => {
     setFilteredReservations(filtered);
+    // Si se está usando filtro manual, marcar que no se está aplicando el filtro por defecto
+    setIsDefaultFilterApplied(false);
   };
 
   // useEffect temporal para probar la normalización de fechas
@@ -1287,105 +1316,16 @@ export function Reservations() {
             {editingReservation ? 'Editar Reservación' : 'Nueva Reservación'}
           </h2>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Paso 1: Fecha */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
+                📅 Fecha de la Reservación
+              </h3>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Área
-                </label>
-                <select
-                  value={formData.area}
-                  onChange={(e) => handleAreaChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                >
-                  <option value="">Seleccionar área</option>
-                  {areas.map(area => (
-                    <option key={area.id} value={area.name}>
-                      {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Usar Plantilla (Opcional)
-                </label>
-                <select
-                  value={formData.templateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Sin plantilla</option>
-                  {state.templates.map(template => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} - {template.groupName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Campo de cantidad de puestos - solo para áreas que NO son salas */}
-              {selectedArea && !selectedArea.isMeetingRoom && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cantidad de Puestos
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedArea?.capacity || 1}
-                    value={formData.requestedSeats}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 1;
-                      const maxCapacity = selectedArea?.capacity || 1;
-                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                      setFormData({...formData, requestedSeats: finalValue});
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  />
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
-                    de {selectedArea?.capacity || 1} disponibles
-                  </span>
-                </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    <span className="text-blue-600 font-medium">
-                      Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
-                    </span>
-                  </div>
-                  </div>
-                )}
-
-              {/* Información para salas de reunión */}
-              {selectedArea && selectedArea.isMeetingRoom && (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-              </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">
-                        Reserva de Sala Completa
-                      </h3>
-                      <div className="mt-1 text-sm text-blue-700">
-                        <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
-                        <p>No es necesario especificar cantidad de puestos.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fecha
+                  Seleccione la fecha
                 </label>
                 <input
                   type="date"
@@ -1447,98 +1387,280 @@ export function Reservations() {
                   </div>
                 )}
               </div>
+            </div>
 
-              {!isFullDayReservation && (
+            {/* Paso 2: Área */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
+                🏢 Tipo de Área
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Seleccione el tipo de área
+                </label>
+                <select
+                  value={formData.area}
+                  onChange={(e) => handleAreaChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                >
+                  <option value="">Seleccionar área</option>
+                  {areas.map(area => (
+                    <option key={area.id} value={area.name}>
+                      {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
+                    </option>
+                  ))}
+                </select>
+                
+                {/* Información para salas de reunión */}
+                {selectedArea && selectedArea.isMeetingRoom && (
+                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-blue-800">
+                          Reserva de Sala Completa
+                        </h3>
+                        <div className="mt-1 text-sm text-blue-700">
+                          <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
+                          <p>No es necesario especificar cantidad de puestos.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Paso 3: Cantidad de puestos (solo para áreas que NO son salas) */}
+            {selectedArea && !selectedArea.isMeetingRoom && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">3</span>
+                  🪑 Cantidad de Puestos
+                </h3>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Duración (minutos)
-                    {currentUser?.role === 'user' && (
-                      <span className="text-xs text-orange-600 ml-2">
-                        (Máximo 3 horas para usuarios)
-                      </span>
-                    )}
+                    Especifique la cantidad de puestos requeridos
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedArea?.capacity || 1}
+                      value={formData.requestedSeats}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 1;
+                        const maxCapacity = selectedArea?.capacity || 1;
+                        const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                        setFormData({...formData, requestedSeats: finalValue});
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    />
+                    <span className="text-sm text-gray-600 whitespace-nowrap">
+                      de {selectedArea?.capacity || 1} disponibles
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <span className="text-blue-600 font-medium">
+                      Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Configuración adicional */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
+                ⚙️ Configuración Adicional
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Usar Plantilla (Opcional)
                   </label>
                   <select
-                    value={formData.duration || '60'}
-                    onChange={(e) => {
-                      const duration = e.target.value;
-                      const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
-                      setFormData({...formData, duration, endTime});
-                    }}
+                    value={formData.templateId}
+                    onChange={(e) => handleTemplateChange(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
                   >
-                    {getDurationOptions().map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    <option value="">Sin plantilla</option>
+                    {state.templates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} - {template.groupName}
                       </option>
                     ))}
                   </select>
-                  {formData.startTime && formData.duration && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
-                    </div>
-                  )}
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Solicitante
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Nombre completo"
-                  required
-                />
+                {!isFullDayReservation && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duración (minutos)
+                      {currentUser?.role === 'user' && (
+                        <span className="text-xs text-orange-600 ml-2">
+                          (Máximo 3 horas para usuarios)
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      value={formData.duration || '60'}
+                      onChange={(e) => {
+                        const duration = e.target.value;
+                        const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
+                        setFormData({...formData, duration, endTime});
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      required
+                    >
+                      {getDurationOptions().map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.startTime && formData.duration && (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Campo de Colaboradores (solo para usuarios con rol 'user' o 'admin') */}
+                {currentUser?.role !== 'colaborador' && colaboradoresDisponibles.length > 0 && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Colaboradores (opcional)
+                    </label>
+                    <div className="space-y-2">
+                      {colaboradoresDisponibles.map(colaborador => (
+                        <label key={colaborador.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.colaboradores.includes(colaborador.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  colaboradores: [...prev.colaboradores, colaborador.id]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  colaboradores: prev.colaboradores.filter(id => id !== colaborador.id)
+                                }));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {colaborador.name} ({colaborador.email})
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Los colaboradores seleccionados podrán visualizar esta reserva
+                    </p>
+                  </div>
+                )}
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notas
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Notas adicionales (opcional)"
+                  />
+                </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Equipo de Trabajo
-                </label>
-                <input
-                  type="text"
-                  value={formData.teamName}
-                  onChange={(e) => setFormData({...formData, teamName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Nombre del equipo"
-                  required
-                />
+            {/* Información de contacto */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
+                👤 Información de Contacto
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre del Solicitante
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contactPerson}
+                    onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Nombre completo"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Equipo de Trabajo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.teamName}
+                    onChange={(e) => setFormData({...formData, teamName: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Nombre del equipo"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="email@ejemplo.com"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono <span className="text-gray-500 text-xs">(opcional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.contactPhone}
+                    onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="+57 300 123 4567 (opcional)"
+                  />
+                </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.contactEmail}
-                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="email@ejemplo.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Teléfono <span className="text-gray-500 text-xs">(opcional)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={formData.contactPhone}
-                  onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="+57 300 123 4567 (opcional)"
-                />
-              </div>
-
-              {!isFullDayReservation && (
-                <>
+            {/* Horarios (solo para reservas que no son de día completo) */}
+            {!isFullDayReservation && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
+                  ⏰ Horarios
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Hora de Inicio
@@ -1634,76 +1756,26 @@ export function Reservations() {
                       </div>
                     </div>
                   )}
-                </>
-              )}
-
-              {isFullDayReservation && (
-                <div className="col-span-2">
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm font-medium text-blue-800">
-                        Esta área se reserva por día completo ({formData.startTime} - {formData.endTime})
-                      </span>
-                    </div>
-                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Campo de Colaboradores (solo para usuarios con rol 'user' o 'admin') */}
-            {currentUser?.role !== 'colaborador' && colaboradoresDisponibles.length > 0 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Colaboradores (opcional)
-                </label>
-                <div className="space-y-2">
-                  {colaboradoresDisponibles.map(colaborador => (
-                    <label key={colaborador.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.colaboradores.includes(colaborador.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData(prev => ({
-                              ...prev,
-                              colaboradores: [...prev.colaboradores, colaborador.id]
-                            }));
-                          } else {
-                            setFormData(prev => ({
-                              ...prev,
-                              colaboradores: prev.colaboradores.filter(id => id !== colaborador.id)
-                            }));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-700">
-                        {colaborador.name} ({colaborador.email})
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Los colaboradores seleccionados podrán visualizar esta reserva
-                </p>
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notas
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Notas adicionales..."
-              />
-            </div>
+            {/* Información para reservas de día completo */}
+            {isFullDayReservation && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-blue-800">
+                      Esta área se reserva por día completo ({formData.startTime} - {formData.endTime})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
 
             {/* Sección de Reservaciones Recurrentes (solo para admins) */}
             {currentUser?.role === 'admin' && (
