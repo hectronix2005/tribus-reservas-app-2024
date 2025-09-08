@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { reservationService } from '../services/api';
+import { reservationService, departmentService } from '../services/api';
 import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
 import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
 import { ReservationFilters } from './ReservationFilters';
+import { Department } from '../types';
 
 interface Reservation {
   _id: string;
@@ -75,6 +76,7 @@ export function Reservations() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(true);
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
@@ -157,6 +159,20 @@ export function Reservations() {
   const colaboradoresDisponibles = state.users.filter(user => 
     user.role === 'colaborador' && user.isActive
   );
+
+  // Cargar departamentos disponibles al montar el componente
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const depts = await departmentService.getDepartments();
+        setDepartments(depts);
+      } catch (error) {
+        console.error('Error cargando departamentos:', error);
+      }
+    };
+
+    loadDepartments();
+  }, []);
   
   // Verificar si el área seleccionada requiere reserva por día completo
   const selectedArea = areas.find(area => area.name === formData.area);
@@ -1651,16 +1667,26 @@ export function Reservations() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Equipo de Trabajo
+                  Departamento *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.teamName}
                   onChange={(e) => setFormData({...formData, teamName: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Nombre del equipo"
                   required
-                />
+                >
+                  <option value="">Seleccione un departamento</option>
+                  {departments.map((dept) => (
+                    <option key={dept._id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+                {departments.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    No hay departamentos disponibles. Contacte al administrador.
+                  </p>
+                )}
               </div>
 
               <div>

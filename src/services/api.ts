@@ -18,6 +18,21 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+// Interfaz para Departamento
+interface Department {
+  _id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdBy: {
+    _id: string;
+    name: string;
+    username: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Clase para manejar errores de la API
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -449,6 +464,101 @@ export const checkBackendHealth = async () => {
     return response.ok;
   } catch {
     return false;
+  }
+};
+
+// ==================== SERVICIOS DE DEPARTAMENTOS ====================
+
+export const departmentService = {
+  // Obtener todos los departamentos activos
+  async getDepartments(): Promise<Department[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments`);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error obteniendo departamentos:', error);
+      throw error;
+    }
+  },
+
+  // Obtener todos los departamentos (incluyendo inactivos) - solo para admin/user
+  async getAllDepartments(userId: string, userRole: string): Promise<Department[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments/all?userId=${userId}&userRole=${userRole}`);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error obteniendo todos los departamentos:', error);
+      throw error;
+    }
+  },
+
+  // Crear nuevo departamento - solo para admin/user
+  async createDepartment(departmentData: { name: string; description?: string; userId: string; userRole: string }): Promise<Department> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(departmentData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creando departamento:', error);
+      throw error;
+    }
+  },
+
+  // Actualizar departamento - solo para admin/user
+  async updateDepartment(id: string, departmentData: { name?: string; description?: string; isActive?: boolean; userId: string; userRole: string }): Promise<Department> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(departmentData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error actualizando departamento:', error);
+      throw error;
+    }
+  },
+
+  // Eliminar departamento (marcar como inactivo) - solo para admin/user
+  async deleteDepartment(id: string, userId: string, userRole: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/departments/${id}?userId=${userId}&userRole=${userRole}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error eliminando departamento:', error);
+      throw error;
+    }
   }
 };
 

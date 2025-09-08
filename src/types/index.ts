@@ -81,6 +81,20 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface Department {
+  _id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  createdBy: {
+    _id: string;
+    name: string;
+    username: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;

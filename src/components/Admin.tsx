@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Save, CheckCircle } from 'lucide-react';
+import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Save, CheckCircle, Building2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ReservationTemplate, User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
 import { syncAdminSettings, getAdminSettings } from '../services/adminService';
 import { reservationService } from '../services/api';
+import { DepartmentManagement } from './DepartmentManagement';
 
 
 export function Admin() {
@@ -72,6 +73,7 @@ export function Admin() {
     { id: 'settings', label: 'Configuración', icon: Settings },
     { id: 'reservations', label: 'Gestión de Reservas', icon: Calendar },
     { id: 'templates', label: 'Plantillas', icon: FileText },
+    { id: 'departments', label: 'Departamentos', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'reports', label: 'Reportes', icon: BarChart3 },
   ];
@@ -777,6 +779,19 @@ export function Admin() {
                 </div>
               ) : null}
             </div>
+          </div>
+        )}
+
+        {/* Departments Tab */}
+        {activeTab === 'departments' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Gestión de Departamentos</h3>
+              <p className="text-sm text-gray-600">
+                Administra los departamentos de la organización
+              </p>
+            </div>
+            <DepartmentManagement />
           </div>
         )}
 
