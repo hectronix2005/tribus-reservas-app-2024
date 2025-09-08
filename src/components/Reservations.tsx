@@ -1521,6 +1521,7 @@ export function Reservations() {
                         No hay departamentos disponibles. Contacte al administrador para crear departamentos.
                       </p>
                     )}
+                </div>
               </div>
             </div>
 
