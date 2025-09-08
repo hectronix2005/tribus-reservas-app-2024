@@ -41,9 +41,6 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   }, [isAdminMenuOpen, isUserConfigMenuOpen]);
 
   const navigationItems = [
-    ...(state.auth.currentUser?.role === 'admin' ? [
-      { id: 'dashboard', label: 'Dashboard', icon: Home },
-    ] : []),
     ...(state.auth.currentUser?.role === 'colaborador' ? [
       { id: 'colaborador', label: 'Mis Reservas', icon: Calendar },
     ] : []),

@@ -16,8 +16,7 @@ import { ColaboradorView } from './components/ColaboradorView';
 function AppContent() {
   const { state } = useApp();
   const [currentView, setCurrentView] = useState(() => {
-    // Si es admin, mostrar dashboard; si es colaborador, mostrar vista de colaborador; si es usuario regular, mostrar disponibilidad
-    if (state.auth.currentUser?.role === 'admin') return 'dashboard';
+    // Todos los usuarios (incluyendo admin) ven disponibilidad por defecto; solo colaboradores ven su vista específica
     if (state.auth.currentUser?.role === 'colaborador') return 'colaborador';
     return 'availability';
   });
@@ -26,8 +25,7 @@ function AppContent() {
   useEffect(() => {
     if (state.auth.isAuthenticated) {
       let defaultView = 'availability';
-      if (state.auth.currentUser?.role === 'admin') defaultView = 'dashboard';
-      else if (state.auth.currentUser?.role === 'colaborador') defaultView = 'colaborador';
+      if (state.auth.currentUser?.role === 'colaborador') defaultView = 'colaborador';
       setCurrentView(defaultView);
     }
   }, [state.auth.currentUser?.role, state.auth.isAuthenticated]);
@@ -108,7 +106,6 @@ function AppContent() {
           <div className="text-gray-500">Acceso restringido. Solo colaboradores.</div>
         </div>;
       default:
-        if (state.auth.currentUser?.role === 'admin') return <Dashboard />;
         if (state.auth.currentUser?.role === 'colaborador') return <ColaboradorView />;
         return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} />;
     }
