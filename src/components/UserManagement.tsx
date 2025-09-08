@@ -31,7 +31,7 @@ export function UserManagement() {
     email: '',
     username: '',
     password: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'user' as 'admin' | 'user' | 'colaborador',
     department: '',
     isActive: true
   });
@@ -670,12 +670,13 @@ export function UserManagement() {
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'admin' | 'user' }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'admin' | 'user' | 'colaborador' }))}
                     className="input-field"
                     required
                   >
                     <option value="user">Usuario</option>
                     <option value="admin">Administrador</option>
+                    <option value="colaborador">Colaborador</option>
                   </select>
                 </div>
 

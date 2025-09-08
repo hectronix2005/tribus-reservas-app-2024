@@ -32,6 +32,7 @@ export interface Reservation {
   status: 'pending' | 'confirmed' | 'cancelled';
   createdAt: string;
   notes?: string;
+  colaboradores?: string[]; // Array de IDs de usuarios colaboradores
 }
 
 export interface DailyCapacity {
@@ -72,7 +73,7 @@ export interface User {
   email: string;
   username: string;
   password: string; // En producción debería estar hasheada
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'colaborador';
   department?: string;
   isActive: boolean;
   createdAt: string;

@@ -29,8 +29,15 @@ interface Reservation {
     userId: string;
     userName: string;
     userEmail: string;
-    userRole: 'admin' | 'user';
+    userRole: 'admin' | 'user' | 'colaborador';
   };
+  // Colaboradores incluidos en la reserva
+  colaboradores?: Array<{
+    _id: string;
+    name: string;
+    username: string;
+    email: string;
+  }>;
 }
 
 interface ReservationFormData {
@@ -46,6 +53,7 @@ interface ReservationFormData {
   templateId: string;
   requestedSeats: number;
   notes: string;
+  colaboradores: string[]; // Array de IDs de colaboradores
   // Campos para reservaciones recurrentes (solo para admins)
   isRecurring: boolean;
   recurrenceType: 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -84,6 +92,7 @@ export function Reservations() {
     templateId: '',
     requestedSeats: 1,
     notes: '',
+    colaboradores: [],
     // Campos para reservaciones recurrentes (solo para admins)
     isRecurring: false,
     recurrenceType: 'weekly',
@@ -138,6 +147,11 @@ export function Reservations() {
 
   // Obtener áreas del contexto
   const areas = state.areas;
+  
+  // Obtener usuarios colaboradores disponibles
+  const colaboradoresDisponibles = state.users.filter(user => 
+    user.role === 'colaborador' && user.isActive
+  );
   
   // Verificar si el área seleccionada requiere reserva por día completo
   const selectedArea = areas.find(area => area.name === formData.area);
@@ -986,6 +1000,7 @@ export function Reservations() {
         templateId: '',
         requestedSeats: 1,
         notes: '',
+        colaboradores: [],
         // Campos para reservaciones recurrentes (solo para admins)
         isRecurring: false,
         recurrenceType: 'weekly',
@@ -1058,6 +1073,7 @@ export function Reservations() {
       templateId: reservation.templateId || '',
       requestedSeats: reservation.requestedSeats || 1,
       notes: reservation.notes,
+      colaboradores: reservation.colaboradores?.map(c => c._id) || [],
       // Campos para reservaciones recurrentes (solo para admins)
       isRecurring: false,
       recurrenceType: 'weekly',
@@ -1084,6 +1100,7 @@ export function Reservations() {
       templateId: '',
       requestedSeats: 1,
       notes: '',
+      colaboradores: [],
       // Campos para reservaciones recurrentes (solo para admins)
       isRecurring: false,
       recurrenceType: 'weekly',
@@ -1603,6 +1620,45 @@ export function Reservations() {
               )}
             </div>
 
+            {/* Campo de Colaboradores (solo para usuarios con rol 'user' o 'admin') */}
+            {currentUser?.role !== 'colaborador' && colaboradoresDisponibles.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Colaboradores (opcional)
+                </label>
+                <div className="space-y-2">
+                  {colaboradoresDisponibles.map(colaborador => (
+                    <label key={colaborador.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.colaboradores.includes(colaborador.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData(prev => ({
+                              ...prev,
+                              colaboradores: [...prev.colaboradores, colaborador.id]
+                            }));
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              colaboradores: prev.colaboradores.filter(id => id !== colaborador.id)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {colaborador.name} ({colaborador.email})
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Los colaboradores seleccionados podrán visualizar esta reserva
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Notas
@@ -1871,6 +1927,13 @@ export function Reservations() {
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400">👤</span>
                           <span><strong>Creado por:</strong> {reservation.createdBy.userName} ({reservation.createdBy.userRole})</span>
+                        </div>
+                      )}
+                      
+                      {reservation.colaboradores && reservation.colaboradores.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">👥</span>
+                          <span><strong>Colaboradores:</strong> {reservation.colaboradores.map(c => c.name).join(', ')}</span>
                         </div>
                       )}
                     </div>

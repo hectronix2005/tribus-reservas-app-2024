@@ -80,7 +80,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'user'], default: 'user' },
+  role: { type: String, enum: ['admin', 'user', 'colaborador'], default: 'user' },
   department: { type: String, default: '' },
   isActive: { type: Boolean, default: true },
   lastLogin: { type: Date },
@@ -117,7 +117,7 @@ const reservationSchema = new mongoose.Schema({
     },
     userRole: { 
       type: String, 
-      enum: ['admin', 'user'], 
+      enum: ['admin', 'user', 'colaborador'], 
       required: true 
     }
   },
@@ -174,6 +174,11 @@ const reservationSchema = new mongoose.Schema({
     type: String, 
     default: '' 
   },
+  // Campo para colaboradores (usuarios que pueden ver esta reserva)
+  colaboradores: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: { 
     type: Date, 
     default: Date.now 
@@ -797,6 +802,54 @@ app.get('/api/reservations', async (req, res) => {
   }
 });
 
+// Obtener reservaciones para colaboradores (solo las que incluyen al colaborador)
+app.get('/api/reservations/colaborador/:colaboradorId', async (req, res) => {
+  try {
+    const { startDate, endDate, area, status } = req.query;
+    const colaboradorId = req.params.colaboradorId;
+    
+    // Verificar que el colaborador existe y tiene el rol correcto
+    const colaborador = await User.findById(colaboradorId);
+    if (!colaborador || colaborador.role !== 'colaborador' || !colaborador.isActive) {
+      return res.status(404).json({ error: 'Colaborador no encontrado o inactivo' });
+    }
+    
+    // Construir filtro para reservas que incluyen a este colaborador
+    let filter = {
+      colaboradores: colaboradorId,
+      status: 'active' // Solo reservas activas
+    };
+    
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) {
+        filter.date.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.date.$lte = new Date(endDate);
+      }
+    }
+    
+    if (area) {
+      filter.area = area;
+    }
+    
+    if (status) {
+      filter.status = status;
+    }
+    
+    const reservations = await Reservation.find(filter)
+      .populate('userId', 'name username')
+      .populate('colaboradores', 'name username email')
+      .sort({ date: 1, startTime: 1 });
+
+    res.json(reservations);
+  } catch (error) {
+    console.error('Error obteniendo reservaciones del colaborador:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Obtener reservaciones de un usuario específico
 app.get('/api/reservations/user/:userId', async (req, res) => {
   try {
@@ -825,7 +878,8 @@ app.post('/api/reservations', async (req, res) => {
       contactPhone,
       templateId,
       requestedSeats,
-      notes 
+      notes,
+      colaboradores 
     } = req.body;
 
     // Validar campos requeridos básicos
@@ -870,6 +924,25 @@ app.post('/api/reservations', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Validar colaboradores si se proporcionan
+    let validColaboradores = [];
+    if (colaboradores && Array.isArray(colaboradores) && colaboradores.length > 0) {
+      // Verificar que todos los colaboradores existen y tienen rol 'colaborador'
+      const colaboradorUsers = await User.find({ 
+        _id: { $in: colaboradores },
+        role: 'colaborador',
+        isActive: true
+      });
+      
+      if (colaboradorUsers.length !== colaboradores.length) {
+        return res.status(400).json({ 
+          error: 'Algunos colaboradores no existen o no tienen el rol correcto' 
+        });
+      }
+      
+      validColaboradores = colaboradores;
     }
 
     // Verificar que la cantidad de puestos solicitados no exceda la capacidad del área
@@ -976,6 +1049,7 @@ app.post('/api/reservations', async (req, res) => {
       templateId: templateId || null,
       requestedSeats: finalRequestedSeats,
       notes: notes || '',
+      colaboradores: validColaboradores,
       // Registrar información del usuario que crea la reserva
       createdBy: {
         userId: user._id,

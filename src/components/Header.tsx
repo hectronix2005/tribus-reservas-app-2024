@@ -44,8 +44,13 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     ...(state.auth.currentUser?.role === 'admin' ? [
       { id: 'dashboard', label: 'Dashboard', icon: Home },
     ] : []),
-    { id: 'reservations', label: 'Reservas', icon: Calendar },
-    { id: 'availability', label: 'Disponibilidad', icon: Eye },
+    ...(state.auth.currentUser?.role === 'colaborador' ? [
+      { id: 'colaborador', label: 'Mis Reservas', icon: Calendar },
+    ] : []),
+    ...(state.auth.currentUser?.role !== 'colaborador' ? [
+      { id: 'reservations', label: 'Reservas', icon: Calendar },
+      { id: 'availability', label: 'Disponibilidad', icon: Eye },
+    ] : []),
   ];
 
   const userConfigItems = [
@@ -135,7 +140,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
             )}
 
             {/* User Configuration Dropdown Menu */}
-            {state.auth.currentUser?.role === 'user' && (
+            {(state.auth.currentUser?.role === 'user' || state.auth.currentUser?.role === 'colaborador') && (
               <div className="relative" ref={userConfigMenuRef}>
                 <button
                   onClick={() => setIsUserConfigMenuOpen(!isUserConfigMenuOpen)}
@@ -190,9 +195,12 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   <span className={`text-xs font-medium ${
                     state.auth.currentUser?.role === 'admin' 
                       ? 'text-warning-600' 
+                      : state.auth.currentUser?.role === 'colaborador'
+                      ? 'text-blue-600'
                       : 'text-primary-600'
                   }`}>
-                    {state.auth.currentUser?.role === 'admin' ? 'Administrador' : 'Usuario'}
+                    {state.auth.currentUser?.role === 'admin' ? 'Administrador' : 
+                     state.auth.currentUser?.role === 'colaborador' ? 'Colaborador' : 'Usuario'}
                   </span>
                 </div>
               </div>
@@ -279,7 +287,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               )}
 
               {/* User Configuration Menu for Mobile */}
-              {state.auth.currentUser?.role === 'user' && (
+              {(state.auth.currentUser?.role === 'user' || state.auth.currentUser?.role === 'colaborador') && (
                 <>
                   <div className="border-t border-slate-200 pt-4 mt-4">
                     <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-2">
@@ -321,9 +329,12 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                     <div className={`text-xs font-medium ${
                       state.auth.currentUser?.role === 'admin' 
                         ? 'text-warning-600' 
+                        : state.auth.currentUser?.role === 'colaborador'
+                        ? 'text-blue-600'
                         : 'text-primary-600'
                     }`}>
-                      {state.auth.currentUser?.role === 'admin' ? 'Administrador' : 'Usuario'}
+                      {state.auth.currentUser?.role === 'admin' ? 'Administrador' : 
+                       state.auth.currentUser?.role === 'colaborador' ? 'Colaborador' : 'Usuario'}
                     </div>
                   </div>
                 </div>

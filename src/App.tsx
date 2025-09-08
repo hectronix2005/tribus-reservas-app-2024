@@ -11,18 +11,23 @@ import { UserManagement } from './components/UserManagement';
 import { Availability } from './components/Availability';
 import { UserProfile } from './components/UserProfile';
 import { UserTemplates } from './components/UserTemplates';
+import { ColaboradorView } from './components/ColaboradorView';
 
 function AppContent() {
   const { state } = useApp();
   const [currentView, setCurrentView] = useState(() => {
-    // Si es admin, mostrar dashboard; si es usuario regular, mostrar disponibilidad
-    return state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'availability';
+    // Si es admin, mostrar dashboard; si es colaborador, mostrar vista de colaborador; si es usuario regular, mostrar disponibilidad
+    if (state.auth.currentUser?.role === 'admin') return 'dashboard';
+    if (state.auth.currentUser?.role === 'colaborador') return 'colaborador';
+    return 'availability';
   });
 
   // Actualizar la vista cuando cambie el usuario autenticado
   useEffect(() => {
     if (state.auth.isAuthenticated) {
-      const defaultView = state.auth.currentUser?.role === 'admin' ? 'dashboard' : 'availability';
+      let defaultView = 'availability';
+      if (state.auth.currentUser?.role === 'admin') defaultView = 'dashboard';
+      else if (state.auth.currentUser?.role === 'colaborador') defaultView = 'colaborador';
       setCurrentView(defaultView);
     }
   }, [state.auth.currentUser?.role, state.auth.isAuthenticated]);
@@ -81,8 +86,14 @@ function AppContent() {
         return <UserProfile />;
       case 'userTemplates':
         return <UserTemplates />;
+      case 'colaborador':
+        return state.auth.currentUser?.role === 'colaborador' ? <ColaboradorView /> : <div className="text-center py-12">
+          <div className="text-gray-500">Acceso restringido. Solo colaboradores.</div>
+        </div>;
       default:
-        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <Availability onHourClick={handleAvailabilityHourClick} />;
+        if (state.auth.currentUser?.role === 'admin') return <Dashboard />;
+        if (state.auth.currentUser?.role === 'colaborador') return <ColaboradorView />;
+        return <Availability onHourClick={handleAvailabilityHourClick} />;
     }
   };
 
