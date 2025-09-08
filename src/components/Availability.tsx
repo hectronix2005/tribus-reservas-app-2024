@@ -24,9 +24,10 @@ interface DayAvailability {
 
 interface AvailabilityProps {
   onHourClick?: (area: any, date: string, hour: string) => void;
+  onNewReservation?: () => void;
 }
 
-export function Availability({ onHourClick }: AvailabilityProps) {
+export function Availability({ onHourClick, onNewReservation }: AvailabilityProps) {
   const { state } = useApp();
   
   // Usar la función isOfficeDay importada que maneja correctamente las zonas horarias
@@ -650,7 +651,10 @@ export function Availability({ onHourClick }: AvailabilityProps) {
             </div>
           </div>
 
-          <button className="btn-primary">
+          <button 
+            className="btn-primary"
+            onClick={onNewReservation}
+          >
             <Plus className="w-4 h-4 mr-2" />
             Nueva Reserva
           </button>

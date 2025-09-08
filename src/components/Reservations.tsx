@@ -791,12 +791,20 @@ export function Reservations() {
       }
     };
 
-    // Agregar event listener
+    // Función para manejar el clic en "Nueva Reserva" desde disponibilidad
+    const handleNewReservationClick = () => {
+      console.log('📡 Evento newReservationClick recibido en Reservations');
+      setShowForm(true);
+    };
+
+    // Agregar event listeners
     window.addEventListener('availabilityHourClick', handleAvailabilityHourClick);
+    window.addEventListener('newReservationClick', handleNewReservationClick);
 
     // Cleanup
     return () => {
       window.removeEventListener('availabilityHourClick', handleAvailabilityHourClick);
+      window.removeEventListener('newReservationClick', handleNewReservationClick);
     };
   }, [state.auth.currentUser, state.areas]);
 

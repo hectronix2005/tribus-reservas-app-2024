@@ -51,6 +51,23 @@ function AppContent() {
     }, 200);
   };
 
+  // Manejar clic en "Nueva Reserva" desde la vista de disponibilidad
+  const handleNewReservationClick = () => {
+    console.log('🚀 Navegando desde disponibilidad a nueva reservación');
+    
+    // Cambiar a la vista de reservaciones
+    setCurrentView('reservations');
+    
+    // Usar setTimeout para asegurar que la navegación se complete antes de disparar el evento
+    setTimeout(() => {
+      // Emitir un evento personalizado para que Reservations.tsx pueda abrir el formulario
+      const event = new CustomEvent('newReservationClick');
+      window.dispatchEvent(event);
+      
+      console.log('📡 Evento newReservationClick disparado');
+    }, 200);
+  };
+
   // Si no está autenticado, mostrar login
   if (!state.auth.isAuthenticated) {
     return <Login />;
@@ -65,7 +82,7 @@ function AppContent() {
       case 'reservations':
         return <Reservations />;
       case 'availability':
-        return <Availability onHourClick={handleAvailabilityHourClick} />;
+        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} />;
       case 'areas':
         return state.auth.currentUser?.role === 'admin' ? <Areas /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
@@ -93,7 +110,7 @@ function AppContent() {
       default:
         if (state.auth.currentUser?.role === 'admin') return <Dashboard />;
         if (state.auth.currentUser?.role === 'colaborador') return <ColaboradorView />;
-        return <Availability onHourClick={handleAvailabilityHourClick} />;
+        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} />;
     }
   };
 
