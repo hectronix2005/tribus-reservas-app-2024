@@ -424,7 +424,32 @@ export function Reservations() {
 
     if (areaReservations.length === 0) return false;
 
-    // Verificar si las reservaciones cubren todo el horario laboral (8:00-18:00)
+    // Obtener información del área
+    const areaInfo = areas.find(a => a.name === area);
+    const isFullDayReservation = areaInfo?.isFullDayReservation || false;
+
+    // Para HOT DESK (reservas de día completo), verificar capacidad total
+    if (isFullDayReservation) {
+      const totalCapacity = areaInfo?.capacity || 0;
+      const totalReservedSeats = areaReservations.reduce((sum, reservation) => {
+        return sum + (reservation.requestedSeats || 1);
+      }, 0);
+      
+      const isFullyBooked = totalReservedSeats >= totalCapacity;
+      
+      console.log('📅 Verificación HOT DESK (capacidad):', {
+        area,
+        date,
+        totalCapacity,
+        totalReservedSeats,
+        availableSeats: totalCapacity - totalReservedSeats,
+        isFullyBooked
+      });
+      
+      return isFullyBooked;
+    }
+
+    // Para salas de reunión, verificar si las reservaciones cubren todo el horario laboral (8:00-18:00)
     const businessHours = [];
     for (let hour = 8; hour < 18; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
@@ -454,7 +479,7 @@ export function Reservations() {
     // Verificar si todas las horas del horario laboral están ocupadas
     const allHoursOccupied = businessHours.every(hour => occupiedHours.has(hour));
     
-    console.log('📅 Verificación de fecha ocupada:', {
+    console.log('📅 Verificación SALA (horarios):', {
       area,
       date,
       totalReservations: areaReservations.length,
@@ -464,7 +489,7 @@ export function Reservations() {
     });
 
     return allHoursOccupied;
-  }, [reservations, normalizeDate]);
+  }, [reservations, normalizeDate, areas]);
 
   // Función para agregar minutos a una hora
   const addMinutesToTime = (time: string, minutes: number): string => {
