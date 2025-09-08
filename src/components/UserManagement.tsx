@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Eye, EyeOff, Shield, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { User as UserType } from '../types';
+import { User as UserType, Department } from '../types';
 import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
-import { userService, ApiError } from '../services/api';
+import { userService, departmentService, ApiError } from '../services/api';
 import { ProtocolNotification } from './ProtocolNotification';
 
 export function UserManagement() {
@@ -26,6 +26,7 @@ export function UserManagement() {
     message: ''
   });
   const [showValidation, setShowValidation] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -36,9 +37,22 @@ export function UserManagement() {
     isActive: true
   });
 
-  // Cargar usuarios del backend al montar el componente
+  // Cargar usuarios y departamentos del backend al montar el componente
   useEffect(() => {
     loadUsers();
+    loadDepartments();
+  }, []);
+
+  // Escuchar cambios en departamentos desde otros componentes
+  useEffect(() => {
+    const handleDepartmentsUpdate = () => {
+      loadDepartments();
+    };
+
+    window.addEventListener('departmentsUpdated', handleDepartmentsUpdate);
+    return () => {
+      window.removeEventListener('departmentsUpdated', handleDepartmentsUpdate);
+    };
   }, []);
 
   // Monitorear cambios en formData para debugging
@@ -56,6 +70,15 @@ export function UserManagement() {
       setError('Error cargando usuarios del servidor');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const data = await departmentService.getDepartments();
+      setDepartments(data);
+    } catch (error) {
+      console.error('Error cargando departamentos:', error);
     }
   };
 
@@ -373,6 +396,7 @@ export function UserManagement() {
     if (!formData.name.trim()) return false;
     if (!formData.email.trim()) return false;
     if (!formData.username.trim()) return false;
+    if (!formData.department.trim()) return false; // Departamento es obligatorio
     if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
     
     // Validar email
@@ -402,6 +426,7 @@ export function UserManagement() {
     if (!formData.name.trim()) errors.push('El nombre es requerido');
     if (!formData.email.trim()) errors.push('El email es requerido');
     if (!formData.username.trim()) errors.push('El nombre de usuario es requerido');
+    if (!formData.department.trim()) errors.push('El departamento es requerido');
     if (!editingUser && !formData.password.trim()) errors.push('La contraseña es requerida para nuevos usuarios');
     
     // Validar email
@@ -682,15 +707,34 @@ export function UserManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Departamento (opcional)
+                    Departamento <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.department}
                     onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                    className="input-field"
-                    placeholder="Departamento"
-                  />
+                    className={`input-field ${showValidation && !formData.department.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    required
+                  >
+                    <option value="">Seleccione un departamento</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept.name}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  {showValidation && !formData.department.trim() && (
+                    <p className="text-xs text-red-600 mt-1">El departamento es requerido</p>
+                  )}
+                  {departments.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      No hay departamentos disponibles. Contacte al administrador para crear departamentos.
+                    </p>
+                  )}
+                  {departments.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Seleccione el departamento al que pertenece este usuario. Los departamentos se gestionan en el panel de administración.
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-3">
