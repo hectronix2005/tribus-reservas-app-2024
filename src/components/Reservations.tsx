@@ -97,12 +97,15 @@ export function Reservations() {
     const selectedArea = areas.find(area => area.name === areaName);
     const isFullDay = selectedArea?.isFullDayReservation || false;
     
+    // Obtener horario de oficina del administrador
+    const officeHours = state.adminSettings?.officeHours || { start: '08:00', end: '18:00' };
+    
     setFormData(prev => ({
       ...prev,
       area: areaName,
-      // Si es reserva por día completo, establecer horarios por defecto
-      startTime: isFullDay ? '00:00' : '09:00',
-      endTime: isFullDay ? '23:59' : '10:00',
+      // Si es reserva por día completo (HOT DESK), usar horario de oficina
+      startTime: isFullDay ? officeHours.start : '09:00',
+      endTime: isFullDay ? officeHours.end : '10:00',
       duration: '60', // Duración por defecto de 1 hora
       // Si es una sala de reunión, establecer la capacidad completa
       requestedSeats: selectedArea?.isMeetingRoom ? selectedArea.capacity : 1
@@ -189,6 +192,22 @@ export function Reservations() {
       }
     }
   }, [currentUser?.role, formData.duration, formData.startTime, isFullDayReservation]);
+
+  // Asegurar que HOT DESK use el horario de oficina completo
+  useEffect(() => {
+    if (isFullDayReservation && formData.area) {
+      const officeHours = state.adminSettings?.officeHours || { start: '08:00', end: '18:00' };
+      
+      // Si el horario actual no coincide con el horario de oficina, actualizarlo
+      if (formData.startTime !== officeHours.start || formData.endTime !== officeHours.end) {
+        setFormData(prev => ({
+          ...prev,
+          startTime: officeHours.start,
+          endTime: officeHours.end
+        }));
+      }
+    }
+  }, [isFullDayReservation, formData.area, state.adminSettings?.officeHours]);
 
 
 
@@ -917,13 +936,13 @@ export function Reservations() {
 
         // Crear múltiples reservaciones
         for (const date of recurringDates) {
-          const reservationData = {
-            userId: currentUser.id,
-            userName: currentUser.name,
-            ...formData,
+      const reservationData = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        ...formData,
             date: date,
-            requestedSeats: formData.requestedSeats
-          };
+        requestedSeats: formData.requestedSeats
+      };
 
           console.log(`🔍 Creando reservación recurrente para ${date}:`, reservationData);
           await reservationService.createReservation(reservationData);
@@ -941,12 +960,12 @@ export function Reservations() {
 
         console.log('🔍 Datos de reservación a enviar:', reservationData);
 
-        if (editingReservation) {
-          // Actualizar reservación existente
-          await reservationService.updateReservation(editingReservation._id, reservationData);
-        } else {
-          // Crear nueva reservación
-          await reservationService.createReservation(reservationData);
+      if (editingReservation) {
+        // Actualizar reservación existente
+        await reservationService.updateReservation(editingReservation._id, reservationData);
+      } else {
+        // Crear nueva reservación
+        await reservationService.createReservation(reservationData);
         }
       }
 
@@ -1259,36 +1278,36 @@ export function Reservations() {
 
               {/* Campo de cantidad de puestos - solo para áreas que NO son salas */}
               {selectedArea && !selectedArea.isMeetingRoom && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cantidad de Puestos
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max={selectedArea?.capacity || 1}
-                      value={formData.requestedSeats}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1;
-                        const maxCapacity = selectedArea?.capacity || 1;
-                        const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                        setFormData({...formData, requestedSeats: finalValue});
-                      }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      required
-                    />
-                    <span className="text-sm text-gray-600 whitespace-nowrap">
-                      de {selectedArea?.capacity || 1} disponibles
-                    </span>
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cantidad de Puestos
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedArea?.capacity || 1}
+                    value={formData.requestedSeats}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxCapacity = selectedArea?.capacity || 1;
+                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                      setFormData({...formData, requestedSeats: finalValue});
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  />
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    de {selectedArea?.capacity || 1} disponibles
+                  </span>
+                </div>
                   <div className="text-xs text-gray-500 mt-1">
                     <span className="text-blue-600 font-medium">
                       Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
                     </span>
                   </div>
-                </div>
-              )}
+                  </div>
+                )}
 
               {/* Información para salas de reunión */}
               {selectedArea && selectedArea.isMeetingRoom && (
@@ -1298,7 +1317,7 @@ export function Reservations() {
                       <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
-                    </div>
+              </div>
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-blue-800">
                         Reserva de Sala Completa
@@ -1576,7 +1595,7 @@ export function Reservations() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-sm font-medium text-blue-800">
-                        Esta área se reserva por día completo (00:00 - 23:59)
+                        Esta área se reserva por día completo ({formData.startTime} - {formData.endTime})
                       </span>
                     </div>
                   </div>
@@ -1802,10 +1821,17 @@ export function Reservations() {
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
                         <span>
-                          {reservation.startTime === '00:00' && reservation.endTime === '23:59' 
-                            ? 'Día completo' 
-                            : `${reservation.startTime} - ${reservation.endTime}`
-                          }
+                          {(() => {
+                            // Verificar si es HOT DESK (reserva de día completo)
+                            const area = areas.find(a => a.name === reservation.area);
+                            const isFullDay = area?.isFullDayReservation || false;
+                            
+                            if (isFullDay) {
+                              return 'Día completo';
+                            } else {
+                              return `${reservation.startTime} - ${reservation.endTime}`;
+                            }
+                          })()}
                         </span>
                       </div>
                       
