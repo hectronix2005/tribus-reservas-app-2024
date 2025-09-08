@@ -1328,23 +1328,6 @@ app.post('/api/admin/settings', async (req, res) => {
   }
 });
 
-// Servir archivos estáticos de React en desarrollo
-if (process.env.NODE_ENV === 'development') {
-  // En desarrollo, el servidor de React maneja los archivos estáticos
-  // Solo servir la API
-  app.get('*', (req, res) => {
-    res.status(404).json({ error: 'Ruta no encontrada' });
-  });
-} else {
-  // En producción, servir archivos estáticos de React
-  app.use(express.static(path.join(__dirname, 'build')));
-  
-  // Servir el frontend React para todas las demás rutas
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-  });
-}
-
 // ==================== ENDPOINTS DE DEPARTAMENTOS ====================
 
 // Obtener todos los departamentos activos
@@ -1520,6 +1503,23 @@ app.delete('/api/departments/:id', async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
+
+// Servir archivos estáticos de React en desarrollo
+if (process.env.NODE_ENV === 'development') {
+  // En desarrollo, el servidor de React maneja los archivos estáticos
+  // Solo servir la API
+  app.get('*', (req, res) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  });
+} else {
+  // En producción, servir archivos estáticos de React
+  app.use(express.static(path.join(__dirname, 'build')));
+  
+  // Servir el frontend React para todas las demás rutas
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor TRIBUS ejecutándose en puerto ${PORT}`);
