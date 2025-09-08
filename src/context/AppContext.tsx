@@ -449,7 +449,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return state.areas.map(area => {
       const areaReservations = reservationsForDate.filter(
-        reservation => reservation.areaId === area.id
+        reservation => reservation.area === area.name
       );
       
       if (area.isMeetingRoom) {
