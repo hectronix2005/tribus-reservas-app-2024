@@ -1004,6 +1004,12 @@ export function Reservations() {
       }
     }
 
+    // Verificar cantidad mínima de personas para Hot Desk
+    if (!selectedArea?.isMeetingRoom && formData.requestedSeats < 1) {
+      setError('Debe reservar al menos 1 puesto para Hot Desk. Por favor, ingrese una cantidad válida.');
+      return;
+    }
+
     // Verificar si la fecha está completamente ocupada
     if (isSelectedDateFullyBooked) {
       setError('Esta fecha está completamente ocupada. Por favor, seleccione otra fecha.');
@@ -1389,10 +1395,10 @@ export function Reservations() {
                 <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
                 📅 Información Básica de la Reservación
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Fecha - Izquierda */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fecha de la Reservación *
                   </label>
                   <input
@@ -1460,20 +1466,20 @@ export function Reservations() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tipo de Área *
-                  </label>
-                  <select
-                    value={formData.area}
-                    onChange={(e) => handleAreaChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  >
-                    <option value="">Seleccionar área</option>
-                    {areas.map(area => (
-                      <option key={area.id} value={area.name}>
-                        {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
-                      </option>
-                    ))}
-                  </select>
+                </label>
+                <select
+                  value={formData.area}
+                  onChange={(e) => handleAreaChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
+                >
+                  <option value="">Seleccionar área</option>
+                  {areas.map(area => (
+                    <option key={area.id} value={area.name}>
+                      {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
+                    </option>
+                  ))}
+                </select>
                   
                   {/* Información para salas de reunión */}
                   {selectedArea && selectedArea.isMeetingRoom && (
@@ -1496,26 +1502,26 @@ export function Reservations() {
                       </div>
                     </div>
                   )}
-                </div>
+              </div>
 
                 {/* Departamento - Derecha */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                     Departamento *
-                  </label>
-                  <select
+                </label>
+                <select
                     value={formData.teamName}
                     onChange={(e) => handleDepartmentChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
                   >
                     <option value="">Seleccione un departamento</option>
                     {departments.map((dept) => (
                       <option key={dept._id} value={dept.name}>
                         {dept.name}
-                      </option>
-                    ))}
-                  </select>
+                    </option>
+                  ))}
+                </select>
                   {departments.length === 0 && (
                       <p className="text-xs text-gray-500 mt-1">
                         No hay departamentos disponibles. Contacte al administrador para crear departamentos.
@@ -1523,7 +1529,7 @@ export function Reservations() {
                     )}
                 </div>
               </div>
-            </div>
+              </div>
 
             {/* Paso 2: Cantidad de Personas o Duración */}
             {selectedArea && (
@@ -1535,46 +1541,56 @@ export function Reservations() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Cantidad de Personas - Solo para Hot Desk */}
                   {!selectedArea.isMeetingRoom && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                         Cantidad de Personas *
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max={selectedArea?.capacity || 1}
-                          value={formData.requestedSeats}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value) || 1;
-                            const maxCapacity = selectedArea?.capacity || 1;
-                            const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                            setFormData({...formData, requestedSeats: finalValue});
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          required
-                        />
-                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                          min="0"
+                    max={selectedArea?.capacity || 1}
+                    value={formData.requestedSeats}
+                    onChange={(e) => {
+                            const value = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                      const maxCapacity = selectedArea?.capacity || 1;
+                            const finalValue = Math.min(Math.max(value, 0), maxCapacity);
+                      setFormData({...formData, requestedSeats: finalValue});
+                    }}
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            formData.requestedSeats === 0 
+                              ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                              : 'border-gray-300 focus:ring-primary-500'
+                          }`}
+                          placeholder="Ingrese cantidad"
+                  />
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
                           de {getAvailableCapacity(selectedArea?.id || '', formData.date) || 1} disponibles
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        <span className="text-blue-600 font-medium">
+                  </span>
+                </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <span className="text-blue-600 font-medium">
                           Área: {selectedArea.name} • Capacidad: {getAvailableCapacity(selectedArea.id, formData.date)} puestos disponibles
-                        </span>
+                    </span>
                       </div>
-                    </div>
+                      {formData.requestedSeats === 0 && (
+                        <div className="mt-1 text-sm text-red-600 flex items-center">
+                          <span className="mr-1">⚠️</span>
+                          Debe ingresar al menos 1 puesto para crear la reserva
+                  </div>
+                )}
+              </div>
                   )}
 
                   {/* Duración - Solo para Salas */}
                   {selectedArea.isMeetingRoom && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                         Duración (horas) *
-                      </label>
+                </label>
                       <select
                         value={formData.duration}
-                        onChange={(e) => {
+                  onChange={(e) => {
                           const duration = e.target.value;
                           setFormData({...formData, duration});
                           
@@ -1583,9 +1599,9 @@ export function Reservations() {
                             const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
                             setFormData(prev => ({...prev, endTime}));
                           }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        required
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
                       >
                         <option value="">Seleccionar duración</option>
                         <option value="30">30 minutos</option>
@@ -1602,16 +1618,16 @@ export function Reservations() {
                         <span className="text-blue-600 font-medium">
                           Sala: {selectedArea.name} • Capacidad: {selectedArea.capacity} personas
                         </span>
-                      </div>
+              </div>
                     </div>
                   )}
 
                   {/* Información adicional para salas */}
                   {selectedArea.isMeetingRoom && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                         Información de la Sala
-                      </label>
+                </label>
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
@@ -1668,7 +1684,7 @@ export function Reservations() {
                             <div className="flex-1">
                               <div className="text-sm font-medium text-gray-900">{collaborator.name}</div>
                               <div className="text-xs text-gray-500">{collaborator.email}</div>
-                            </div>
+              </div>
                           </label>
                         ))}
                       </div>
@@ -1727,15 +1743,15 @@ export function Reservations() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {!isFullDayReservation && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                       Duración (minutos)
                       {currentUser?.role === 'user' && (
                         <span className="text-xs text-orange-600 ml-2">
                           (Máximo 3 horas para usuarios)
                         </span>
                       )}
-                    </label>
+                </label>
                     <select
                       value={formData.duration || '60'}
                   onChange={(e) => {
@@ -1755,7 +1771,7 @@ export function Reservations() {
                     {formData.startTime && formData.duration && (
                       <div className="text-sm text-gray-600 mt-1">
                         <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
-                      </div>
+              </div>
                     )}
                   </div>
                 )}
@@ -1763,13 +1779,13 @@ export function Reservations() {
                 {/* Campo de Colaboradores (solo para usuarios con rol 'user' o 'admin') */}
                 {currentUser?.role !== 'colaborador' && colaboradoresDisponibles.length > 0 && (
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                       Colaboradores (opcional)
-                    </label>
+                </label>
                     <div className="space-y-2">
                       {colaboradoresDisponibles.map(colaborador => (
                         <label key={colaborador.id} className="flex items-center space-x-2">
-                          <input
+                <input
                             type="checkbox"
                             checked={formData.colaboradores.includes(colaborador.id)}
                             onChange={(e) => {
@@ -1807,12 +1823,12 @@ export function Reservations() {
                     value={formData.notes}
                     onChange={(e) => setFormData({...formData, notes: e.target.value})}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Notas adicionales (opcional)"
-                  />
+                />
                 </div>
               </div>
-            </div>
+              </div>
 
 
             {/* Horarios (solo para reservas que no son de día completo) */}
