@@ -74,19 +74,6 @@ export function Reservations() {
   const getAvailableCapacity = useCallback((areaId: string, date: string): number => {
     const dailyCapacity = getDailyCapacity(date);
     const areaCapacity = dailyCapacity.find(capacity => capacity.areaId === areaId);
-    
-    // Debug específico para Hot Desk
-    if (areaId === '3' && date.includes('2025-09-09')) {
-      console.log('🔍 getAvailableCapacity DEBUG:', {
-        areaId,
-        date,
-        dailyCapacity: dailyCapacity.length,
-        hotDeskCapacity: dailyCapacity.find(c => c.areaName === 'Hot Desk'),
-        areaCapacity,
-        availableSeats: areaCapacity ? areaCapacity.availableSeats : 0
-      });
-    }
-    
     return areaCapacity ? areaCapacity.availableSeats : 0;
   }, [getDailyCapacity]);
   const [reservations, setReservations] = useState<Reservation[]>([]);

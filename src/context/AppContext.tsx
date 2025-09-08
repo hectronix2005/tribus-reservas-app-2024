@@ -462,40 +462,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Normalizar la fecha para comparación (convertir a formato YYYY-MM-DD)
     const normalizedDate = date.includes('T') ? date.split('T')[0] : date;
     
-    console.log('🔍 getDailyCapacity DEBUG:', {
-      inputDate: date,
-      normalizedDate,
-      totalReservations: state.reservations.length,
-      totalAreas: state.areas.length
-    });
-    
     const reservationsForDate = state.reservations.filter(
       reservation => {
         // Normalizar la fecha de la reservación para comparación
         const reservationDate = reservation.date.includes('T') ? reservation.date.split('T')[0] : reservation.date;
-        const matches = reservationDate === normalizedDate && reservation.status !== 'cancelled';
-        
-        if (reservation.area === 'Hot Desk' && date.includes('2025-09-09')) {
-          console.log('🔍 Hot Desk reservation check:', {
-            reservationDate,
-            normalizedDate,
-            area: reservation.area,
-            status: reservation.status,
-            requestedSeats: reservation.requestedSeats,
-            matches
-          });
-        }
-        
-        return matches;
+        return reservationDate === normalizedDate && reservation.status !== 'cancelled';
       }
     );
-    
-    console.log('🔍 Reservations for date:', {
-      date,
-      normalizedDate,
-      reservationsForDate: reservationsForDate.length,
-      hotDeskReservations: reservationsForDate.filter(r => r.area === 'Hot Desk')
-    });
 
     return state.areas.map(area => {
       const areaReservations = reservationsForDate.filter(
@@ -520,7 +493,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           0
         );
 
-        const result = {
+        return {
           areaId: area.id,
           areaName: area.name,
           totalCapacity: area.capacity,
@@ -528,26 +501,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           availableSeats: area.capacity - reservedSeats,
           reservations: areaReservations
         };
-
-        // Debug específico para Hot Desk
-        if (area.name === 'Hot Desk' && date.includes('2025-09-09')) {
-          console.log('🔍 Hot Desk capacity calculation:', {
-            areaName: area.name,
-            areaId: area.id,
-            totalCapacity: area.capacity,
-            areaReservations: areaReservations.length,
-            reservations: areaReservations.map(r => ({
-              requestedSeats: r.requestedSeats,
-              status: r.status,
-              date: r.date
-            })),
-            reservedSeats,
-            availableSeats: result.availableSeats,
-            result
-          });
-        }
-
-        return result;
       }
     });
   };
