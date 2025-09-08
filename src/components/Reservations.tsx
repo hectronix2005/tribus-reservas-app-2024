@@ -620,7 +620,7 @@ export function Reservations() {
       todayDate: today.getDate(),
       todayMonth: today.getMonth(),
       todayYear: today.getFullYear(),
-      reservationDate: reservationDate.getDate(),
+      reservationDay: reservationDate.getDate(),
       reservationMonth: reservationDate.getMonth(),
       reservationYear: reservationDate.getFullYear(),
       comparison: `${reservationDate.toISOString()} < ${today.toISOString()} = ${reservationDate < today}`
