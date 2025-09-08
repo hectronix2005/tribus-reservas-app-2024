@@ -84,6 +84,7 @@ export function Reservations() {
   const [error, setError] = useState<string | null>(null);
   const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
@@ -162,10 +163,44 @@ export function Reservations() {
   // Obtener áreas del contexto
   const areas = state.areas;
   
-  // Obtener usuarios colaboradores disponibles
-  const colaboradoresDisponibles = state.users.filter(user => 
-    user.role === 'colaborador' && user.isActive
-  );
+  // Obtener usuarios colaboradores disponibles filtrados por departamento
+  const getCollaboratorsByDepartment = (departmentName: string) => {
+    return state.users.filter(user => 
+      user.role === 'colaborador' && 
+      user.isActive && 
+      user.department === departmentName
+    );
+  };
+
+  const colaboradoresDisponibles = formData.teamName ? 
+    getCollaboratorsByDepartment(formData.teamName) : 
+    state.users.filter(user => user.role === 'colaborador' && user.isActive);
+
+  // Función para manejar la selección de colaboradores
+  const handleCollaboratorSelection = (collaboratorId: string, isSelected: boolean) => {
+    if (isSelected) {
+      // Agregar colaborador si no excede la cantidad de puestos
+      if (selectedCollaborators.length < formData.requestedSeats) {
+        setSelectedCollaborators([...selectedCollaborators, collaboratorId]);
+      }
+    } else {
+      // Remover colaborador
+      setSelectedCollaborators(selectedCollaborators.filter(id => id !== collaboratorId));
+    }
+  };
+
+  // Función para limpiar colaboradores seleccionados cuando cambia el departamento
+  const handleDepartmentChange = (departmentName: string) => {
+    setFormData({...formData, teamName: departmentName});
+    setSelectedCollaborators([]); // Limpiar selección al cambiar departamento
+  };
+
+  // Limpiar colaboradores seleccionados cuando cambia la cantidad de puestos
+  useEffect(() => {
+    if (selectedCollaborators.length > formData.requestedSeats) {
+      setSelectedCollaborators(selectedCollaborators.slice(0, formData.requestedSeats));
+    }
+  }, [formData.requestedSeats]);
 
   // Cargar departamentos disponibles al montar el componente
   useEffect(() => {
@@ -1033,6 +1068,12 @@ export function Reservations() {
       }
     }
 
+    // Validar que el número de colaboradores seleccionados sea igual a la cantidad de puestos
+    if (selectedCollaborators.length !== formData.requestedSeats) {
+      setError(`Debe seleccionar exactamente ${formData.requestedSeats} colaborador(es) para ${formData.requestedSeats} puesto(s). Actualmente ha seleccionado ${selectedCollaborators.length}.`);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -1063,7 +1104,8 @@ export function Reservations() {
         ...formData,
           date: date,
           requestedSeats: formData.requestedSeats,
-          attendees: formData.attendees
+          attendees: formData.attendees,
+          colaboradores: selectedCollaborators
         };
 
           console.log(`🔍 Creando reservación recurrente para ${date}:`, reservationData);
@@ -1078,7 +1120,8 @@ export function Reservations() {
           userName: currentUser.name,
           ...formData,
           requestedSeats: formData.requestedSeats,
-          attendees: formData.attendees
+          attendees: formData.attendees,
+          colaboradores: selectedCollaborators
         };
 
         console.log('🔍 Datos de reservación a enviar:', reservationData);
@@ -1118,6 +1161,7 @@ export function Reservations() {
         recurrenceEndDate: '',
         recurrenceDays: ['monday']
       });
+      setSelectedCollaborators([]);
       setShowForm(false);
       setEditingReservation(null);
 
@@ -1192,12 +1236,14 @@ export function Reservations() {
       recurrenceEndDate: '',
       recurrenceDays: ['monday']
     });
+    setSelectedCollaborators(reservation.colaboradores?.map(c => c._id) || []);
     setShowForm(true);
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setEditingReservation(null);
+    setSelectedCollaborators([]);
     setFormData({
       area: '',
       date: new Date().toISOString().split('T')[0],
@@ -1526,11 +1572,90 @@ export function Reservations() {
                   </div>
                 )}
 
-            {/* Paso 4: Nombres de Asistentes (solo para rol user) */}
-            {currentUser?.role === 'user' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
+            {/* Paso 4: Departamento y Colaboradores */}
+            {selectedArea && !selectedArea.isMeetingRoom && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                   <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
+                  🏢 Departamento y Colaboradores
+                </h3>
+                
+                {/* Campo Departamento */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento *
+                  </label>
+                  <select
+                    value={formData.teamName}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccione un departamento</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept.name}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  {departments.length === 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      No hay departamentos disponibles. Contacte al administrador para crear departamentos.
+                    </p>
+                  )}
+                </div>
+
+                {/* Selección de Colaboradores */}
+                {formData.teamName && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Seleccionar Colaboradores ({selectedCollaborators.length} de {formData.requestedSeats} seleccionados) *
+                    </label>
+                    
+                    {colaboradoresDisponibles.length === 0 ? (
+                      <div className="text-sm text-gray-500 p-3 bg-gray-100 rounded-md">
+                        No hay colaboradores disponibles en el departamento "{formData.teamName}".
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                        {colaboradoresDisponibles.map((collaborator) => (
+                          <label key={collaborator.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                            <input
+                              type="checkbox"
+                              checked={selectedCollaborators.includes(collaborator.id)}
+                              onChange={(e) => handleCollaboratorSelection(collaborator.id, e.target.checked)}
+                              disabled={!selectedCollaborators.includes(collaborator.id) && selectedCollaborators.length >= formData.requestedSeats}
+                              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">{collaborator.name}</div>
+                              <div className="text-xs text-gray-500">{collaborator.email}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="text-xs text-gray-500 mt-2">
+                      <span className="text-blue-600 font-medium">
+                        {selectedCollaborators.length} de {formData.requestedSeats} colaboradores seleccionados
+                      </span>
+                      {selectedCollaborators.length !== formData.requestedSeats && (
+                        <span className="text-red-600 ml-2">
+                          • Debe seleccionar exactamente {formData.requestedSeats} colaborador(es)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Paso 5: Nombres de Asistentes (solo para rol user) */}
+            {currentUser?.role === 'user' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
                   👥 Nombres de Asistentes
                 </h3>
                 <div>
@@ -1559,7 +1684,7 @@ export function Reservations() {
             {/* Configuración adicional */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
                 ⚙️ Configuración Adicional
               </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1690,34 +1815,6 @@ export function Reservations() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Departamento *
-                </label>
-                <select
-                  value={formData.teamName}
-                  onChange={(e) => setFormData({...formData, teamName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                >
-                  <option value="">Seleccione un departamento</option>
-                  {departments.map((dept) => (
-                    <option key={dept._id} value={dept.name}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-                {departments.length === 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    No hay departamentos disponibles. Contacte al administrador para crear departamentos.
-                  </p>
-                )}
-                {departments.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Seleccione el departamento al que pertenece esta reservación. Los departamentos se gestionan en el panel de administración.
-                  </p>
-                )}
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
