@@ -1383,72 +1383,72 @@ export function Reservations() {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Paso 1: Fecha y Tipo de Área */}
+            {/* Paso 1: Fecha, Tipo de Área y Departamento */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                 <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
-                📅 Fecha y Tipo de Área
+                📅 Información Básica de la Reservación
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Fecha - Izquierda */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fecha de la Reservación *
                   </label>
-                <input
-                  type="date"
-                  min={getMinDate()}
-                  value={formData.date}
-                  onChange={(e) => {
-                    const dateValue = e.target.value;
-                    if (dateValue) {
-                      // Validar que la fecha no esté en el pasado
-                      if (isDateInPast(dateValue)) {
-                        setError('No se pueden seleccionar fechas pasadas. Por favor, seleccione una fecha futura.');
-                        return;
+                  <input
+                    type="date"
+                    min={getMinDate()}
+                    value={formData.date}
+                    onChange={(e) => {
+                      const dateValue = e.target.value;
+                      if (dateValue) {
+                        // Validar que la fecha no esté en el pasado
+                        if (isDateInPast(dateValue)) {
+                          setError('No se pueden seleccionar fechas pasadas. Por favor, seleccione una fecha futura.');
+                          return;
+                        }
+                        
+                        // Validar que sea un día de oficina
+                        const selectedDate = new Date(dateValue);
+                        if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
+                          setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
+                          return;
+                        }
+                        
+                        // Usar directamente el formato YYYY-MM-DD
+                        setFormData({...formData, date: dateValue});
+                      } else {
+                        setFormData({...formData, date: ''});
                       }
-                      
-                      // Validar que sea un día de oficina
-                      const selectedDate = new Date(dateValue);
-                      if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
-                        setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
-                        return;
-                      }
-                      
-                      // Usar directamente el formato YYYY-MM-DD
-                      setFormData({...formData, date: dateValue});
-                    } else {
-                      setFormData({...formData, date: ''});
-                    }
-                    setError(null); // Limpiar error cuando cambie la fecha
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    isSelectedDateFullyBooked 
-                      ? 'border-red-500 focus:ring-red-500 bg-red-50' 
-                      : isDateInPast(formData.date)
-                      ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                      : 'border-gray-300 focus:ring-primary-500'
-                  }`}
-                  required
-                />
-                {isSelectedDateFullyBooked && (
-                  <div className="mt-1 text-sm text-red-600 flex items-center">
-                    <span className="mr-1">⚠️</span>
-                    Esta fecha está completamente ocupada para {formData.area}
-                  </div>
-                )}
-                {isDateInPast(formData.date) && (
-                  <div className="mt-1 text-sm text-red-600 flex items-center">
-                    <span className="mr-1">⏰</span>
-                    No se pueden seleccionar fechas pasadas
-                  </div>
-                )}
-                {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
-                  <div className="mt-1 text-sm text-red-600 flex items-center">
-                    <span className="mr-1">🏢</span>
-                    La fecha seleccionada no es un día de oficina
-                  </div>
-                )}
+                      setError(null); // Limpiar error cuando cambie la fecha
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                      isSelectedDateFullyBooked 
+                        ? 'border-red-500 focus:ring-red-500 bg-red-50' 
+                        : isDateInPast(formData.date)
+                        ? 'border-red-500 focus:ring-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-primary-500'
+                    }`}
+                    required
+                  />
+                  {isSelectedDateFullyBooked && (
+                    <div className="mt-1 text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⚠️</span>
+                      Esta fecha está completamente ocupada para {formData.area}
+                    </div>
+                  )}
+                  {isDateInPast(formData.date) && (
+                    <div className="mt-1 text-sm text-red-600 flex items-center">
+                      <span className="mr-1">⏰</span>
+                      No se pueden seleccionar fechas pasadas
+                    </div>
+                  )}
+                  {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
+                    <div className="mt-1 text-sm text-red-600 flex items-center">
+                      <span className="mr-1">🏢</span>
+                      La fecha seleccionada no es un día de oficina
+                    </div>
+                  )}
                   {formData.date && (
                     <div className="mt-1 text-sm text-gray-500">
                       Fecha seleccionada: {formData.date} ({formatDateForDisplay(formData.date)})
@@ -1456,117 +1456,156 @@ export function Reservations() {
                   )}
                 </div>
 
-                {/* Tipo de Área - Derecha */}
+                {/* Tipo de Área - Medio */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tipo de Área *
-                </label>
-                <select
-                  value={formData.area}
-                  onChange={(e) => handleAreaChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                >
-                  <option value="">Seleccionar área</option>
-                  {areas.map(area => (
-                    <option key={area.id} value={area.name}>
-                      {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
-                    </option>
-                  ))}
-                </select>
-                
-                {/* Información para salas de reunión */}
-                {selectedArea && selectedArea.isMeetingRoom && (
-                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="text-sm font-medium text-blue-800">
-                          Reserva de Sala Completa
-                        </h3>
-                        <div className="mt-1 text-sm text-blue-700">
-                          <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
-                          <p>No es necesario especificar cantidad de puestos.</p>
+                  </label>
+                  <select
+                    value={formData.area}
+                    onChange={(e) => handleAreaChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccionar área</option>
+                    {areas.map(area => (
+                      <option key={area.id} value={area.name}>
+                        {area.name} {area.isFullDayReservation ? '(Día completo)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {/* Información para salas de reunión */}
+                  {selectedArea && selectedArea.isMeetingRoom && (
+                    <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-blue-800">
+                            Reserva de Sala Completa
+                          </h3>
+                          <div className="mt-1 text-sm text-blue-700">
+                            <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
+                            <p>No es necesario especificar cantidad de puestos.</p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
                 </div>
-              </div>
-              </div>
 
-            {/* Paso 2: Departamento y Cantidad de Personas */}
-            {selectedArea && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
-                  🏢 Departamento y Cantidad de Personas
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Departamento - Izquierda */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Departamento *
-                </label>
-                <select
-                      value={formData.teamName}
-                      onChange={(e) => handleDepartmentChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      required
-                    >
-                      <option value="">Seleccione un departamento</option>
-                      {departments.map((dept) => (
-                        <option key={dept._id} value={dept.name}>
-                          {dept.name}
-                    </option>
-                  ))}
-                </select>
-                    {departments.length === 0 && (
+                {/* Departamento - Derecha */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Departamento *
+                  </label>
+                  <select
+                    value={formData.teamName}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Seleccione un departamento</option>
+                    {departments.map((dept) => (
+                      <option key={dept._id} value={dept.name}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                  {departments.length === 0 && (
                       <p className="text-xs text-gray-500 mt-1">
                         No hay departamentos disponibles. Contacte al administrador para crear departamentos.
                       </p>
                     )}
               </div>
+            </div>
 
-                  {/* Cantidad de Personas - Derecha (solo para Hot Desk) */}
+            {/* Paso 2: Cantidad de Personas o Duración */}
+            {selectedArea && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
+                  📊 Configuración de la Reservación
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Cantidad de Personas - Solo para Hot Desk */}
                   {!selectedArea.isMeetingRoom && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Cantidad de Personas *
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max={selectedArea?.capacity || 1}
-                    value={formData.requestedSeats}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 1;
-                      const maxCapacity = selectedArea?.capacity || 1;
-                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                      setFormData({...formData, requestedSeats: finalValue});
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
-                  />
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max={selectedArea?.capacity || 1}
+                          value={formData.requestedSeats}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 1;
+                            const maxCapacity = selectedArea?.capacity || 1;
+                            const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                            setFormData({...formData, requestedSeats: finalValue});
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          required
+                        />
+                        <span className="text-sm text-gray-600 whitespace-nowrap">
                           de {getAvailableCapacity(selectedArea?.id || '', formData.date) || 1} disponibles
-                  </span>
-                </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    <span className="text-blue-600 font-medium">
-                          Área: {selectedArea.name} • Capacidad: {getAvailableCapacity(selectedArea.id, formData.date)} puestos disponibles
-                    </span>
+                        </span>
                       </div>
-                  </div>
-                )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span className="text-blue-600 font-medium">
+                          Área: {selectedArea.name} • Capacidad: {getAvailableCapacity(selectedArea.id, formData.date)} puestos disponibles
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Información para salas de reunión */}
+                  {/* Duración - Solo para Salas */}
+                  {selectedArea.isMeetingRoom && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Duración (horas) *
+                      </label>
+                      <select
+                        value={formData.duration}
+                        onChange={(e) => {
+                          const duration = e.target.value;
+                          setFormData({...formData, duration});
+                          
+                          // Si hay una hora de inicio, recalcular la hora de fin
+                          if (formData.startTime) {
+                            const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
+                            setFormData(prev => ({...prev, endTime}));
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        required
+                      >
+                        <option value="">Seleccionar duración</option>
+                        <option value="30">30 minutos</option>
+                        <option value="60">1 hora</option>
+                        <option value="90">1.5 horas</option>
+                        <option value="120">2 horas</option>
+                        <option value="180">3 horas</option>
+                        <option value="240">4 horas</option>
+                        <option value="300">5 horas</option>
+                        <option value="360">6 horas</option>
+                        <option value="480">8 horas</option>
+                      </select>
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span className="text-blue-600 font-medium">
+                          Sala: {selectedArea.name} • Capacidad: {selectedArea.capacity} personas
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Información adicional para salas */}
                   {selectedArea.isMeetingRoom && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1578,15 +1617,15 @@ export function Reservations() {
                             <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                             </svg>
-              </div>
+                          </div>
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-blue-800">
                               Reserva de Sala Completa
                             </h3>
                             <div className="mt-1 text-sm text-blue-700">
                               <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
-                              <p>No es necesario especificar cantidad de puestos.</p>
-            </div>
+                              <p>Seleccione la duración de la reunión.</p>
+                            </div>
                           </div>
                         </div>
                       </div>
