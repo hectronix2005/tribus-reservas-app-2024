@@ -1413,16 +1413,18 @@ export function Reservations() {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Paso 1: Fecha */}
+            {/* Paso 1: Fecha y Tipo de Área */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                 <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
-                📅 Fecha de la Reservación
+                📅 Fecha y Tipo de Área
               </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Fecha - Izquierda */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Seleccione la fecha
-                </label>
+                    Fecha de la Reservación *
+                  </label>
                 <input
                   type="date"
                   min={getMinDate()}
@@ -1477,23 +1479,17 @@ export function Reservations() {
                     La fecha seleccionada no es un día de oficina
                   </div>
                 )}
-                {formData.date && (
-                  <div className="mt-1 text-sm text-gray-500">
-                    Fecha seleccionada: {formData.date} ({formatDateForDisplay(formData.date)})
-                  </div>
-                )}
-              </div>
-            </div>
+                  {formData.date && (
+                    <div className="mt-1 text-sm text-gray-500">
+                      Fecha seleccionada: {formData.date} ({formatDateForDisplay(formData.date)})
+                    </div>
+                  )}
+                </div>
 
-            {/* Paso 2: Área */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
-                🏢 Tipo de Área
-              </h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Seleccione el tipo de área
+                {/* Tipo de Área - Derecha */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Área *
                 </label>
                 <select
                   value={formData.area}
@@ -1530,14 +1526,15 @@ export function Reservations() {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
-              </div>
+            </div>
 
-            {/* Paso 3: Cantidad de puestos (solo para áreas que NO son salas) */}
+            {/* Paso 2: Cantidad de puestos (solo para áreas que NO son salas) */}
             {selectedArea && !selectedArea.isMeetingRoom && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">3</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
                   🪑 Cantidad de Puestos
                 </h3>
               <div>
@@ -1572,11 +1569,11 @@ export function Reservations() {
                   </div>
                 )}
 
-            {/* Paso 4: Departamento y Colaboradores */}
+            {/* Paso 3: Departamento y Colaboradores */}
             {selectedArea && !selectedArea.isMeetingRoom && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">3</span>
                   🏢 Departamento y Colaboradores
                 </h3>
                 
@@ -1602,8 +1599,8 @@ export function Reservations() {
                     <p className="text-xs text-gray-500 mt-1">
                       No hay departamentos disponibles. Contacte al administrador para crear departamentos.
                     </p>
-                  )}
-                </div>
+                )}
+              </div>
 
                 {/* Selección de Colaboradores */}
                 {formData.teamName && (
@@ -1615,7 +1612,7 @@ export function Reservations() {
                     {colaboradoresDisponibles.length === 0 ? (
                       <div className="text-sm text-gray-500 p-3 bg-gray-100 rounded-md">
                         No hay colaboradores disponibles en el departamento "{formData.teamName}".
-                      </div>
+            </div>
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
                         {colaboradoresDisponibles.map((collaborator) => (
@@ -1651,27 +1648,27 @@ export function Reservations() {
               </div>
             )}
 
-            {/* Paso 5: Nombres de Asistentes (solo para rol user) */}
+            {/* Paso 4: Nombres de Asistentes (solo para rol user) */}
             {currentUser?.role === 'user' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
                   👥 Nombres de Asistentes
                 </h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                     Ingrese los nombres de los asistentes (uno por línea)
-                  </label>
+                </label>
                   <textarea
                     value={formData.attendees.join('\n')}
-                    onChange={(e) => {
+                  onChange={(e) => {
                       const names = e.target.value.split('\n').filter(name => name.trim() !== '');
                       setFormData({...formData, attendees: names});
-                    }}
+                  }}
                     rows={Math.min(formData.requestedSeats, 5)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder={`Ingrese ${formData.requestedSeats} nombre(s) de asistente(s), uno por línea...`}
-                  />
+                />
                   <div className="text-xs text-gray-500 mt-1">
                     <span className="text-blue-600 font-medium">
                       {formData.attendees.length} de {formData.requestedSeats} asistentes especificados
@@ -1681,10 +1678,10 @@ export function Reservations() {
               </div>
             )}
 
-            {/* Configuración adicional */}
+            {/* Paso 5: Configuración adicional */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
+                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
                 ⚙️ Configuración Adicional
               </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1695,7 +1692,7 @@ export function Reservations() {
                   <select
                     value={formData.templateId}
                     onChange={(e) => handleTemplateChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="">Sin plantilla</option>
                     {state.templates.map(template => (
