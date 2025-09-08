@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend Capacity</title>
+</head>
+<body>
+    <h1>Test de Capacidad Frontend</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Simular los datos que vienen del backend
+        const mockAreas = [
+            {
+                id: "3",
+                name: "Hot Desk",
+                capacity: 50,
+                isMeetingRoom: false
+            }
+        ];
+        
+        const mockReservations = [
+            {
+                area: "Hot Desk",
+                date: "2025-09-09T00:00:00.000Z",
+                requestedSeats: 10,
+                status: "active"
+            },
+            {
+                area: "Hot Desk", 
+                date: "2025-09-09T00:00:00.000Z",
+                requestedSeats: 10,
+                status: "active"
+            }
+        ];
+        
+        // Simular la función getDailyCapacity
+        function getDailyCapacity(date) {
+            console.log('🔍 getDailyCapacity called with:', date);
+            
+            // Normalizar la fecha para comparación
+            const normalizedDate = date.includes('T') ? date.split('T')[0] : date;
+            
+            const reservationsForDate = mockReservations.filter(reservation => {
+                const reservationDate = reservation.date.includes('T') ? reservation.date.split('T')[0] : reservation.date;
+                return reservationDate === normalizedDate && reservation.status !== 'cancelled';
+            });
+            
+            console.log('🔍 Reservations for date:', {
+                date,
+                normalizedDate,
+                reservationsForDate: reservationsForDate.length
+            });
+            
+            return mockAreas.map(area => {
+                const areaReservations = reservationsForDate.filter(
+                    reservation => reservation.area === area.name
+                );
+                
+                const reservedSeats = areaReservations.reduce(
+                    (total, reservation) => total + reservation.requestedSeats,
+                    0
+                );
+                
+                const result = {
+                    areaId: area.id,
+                    areaName: area.name,
+                    totalCapacity: area.capacity,
+                    reservedSeats,
+                    availableSeats: area.capacity - reservedSeats,
+                    reservations: areaReservations
+                };
+                
+                console.log('🔍 Area capacity calculation:', {
+                    areaName: area.name,
+                    totalCapacity: area.capacity,
+                    reservedSeats,
+                    availableSeats: result.availableSeats,
+                    reservations: areaReservations.length
+                });
+                
+                return result;
+            });
+        }
+        
+        // Simular la función getAvailableCapacity
+        function getAvailableCapacity(areaId, date) {
+            console.log('🔍 getAvailableCapacity called with:', { areaId, date });
+            
+            const dailyCapacity = getDailyCapacity(date);
+            const areaCapacity = dailyCapacity.find(capacity => capacity.areaId === areaId);
+            
+            console.log('🔍 getAvailableCapacity result:', {
+                areaId,
+                date,
+                dailyCapacity: dailyCapacity.length,
+                areaCapacity,
+                availableSeats: areaCapacity ? areaCapacity.availableSeats : 0
+            });
+            
+            return areaCapacity ? areaCapacity.availableSeats : 0;
+        }
+        
+        // Ejecutar la prueba
+        console.log('=== INICIANDO PRUEBA ===');
+        
+        const testDate = '2025-09-09';
+        const hotDeskId = '3';
+        
+        const result = getAvailableCapacity(hotDeskId, testDate);
+        
+        console.log('=== RESULTADO FINAL ===');
+        console.log('Capacidad disponible para Hot Desk el 09/09/2025:', result);
+        
+        // Mostrar en la página
+        document.getElementById('results').innerHTML = `
+            <h2>Resultado:</h2>
+            <p>Capacidad disponible para Hot Desk el 09/09/2025: <strong>${result}</strong></p>
+            <p>Esperado: 30</p>
+            <p>¿Correcto? ${result === 30 ? '✅ SÍ' : '❌ NO'}</p>
+        `;
+    </script>
+</body>
+</html>

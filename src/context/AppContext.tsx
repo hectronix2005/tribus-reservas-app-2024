@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
-import { userService, areaService, templateService } from '../services/api';
+import { userService, areaService, templateService, reservationService } from '../services/api';
 
 interface AppState {
   areas: Area[];
@@ -106,6 +106,17 @@ const loadTemplatesFromMongoDB = async () => {
     return templates;
   } catch (error) {
     console.error('Error cargando templates desde MongoDB:', error);
+    return [];
+  }
+};
+
+// Función para cargar reservaciones desde MongoDB
+const loadReservationsFromMongoDB = async () => {
+  try {
+    const reservations = await reservationService.getAllReservations();
+    return reservations;
+  } catch (error) {
+    console.error('Error cargando reservaciones desde MongoDB:', error);
     return [];
   }
 };
@@ -414,12 +425,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Cargar templates
         const templates = await loadTemplatesFromMongoDB();
         dispatch({ type: 'SET_TEMPLATES', payload: templates });
+        
+        // Cargar reservaciones
+        const reservations = await loadReservationsFromMongoDB();
+        dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
       } catch (error) {
         console.error('Error cargando datos desde MongoDB:', error);
         // Si falla, mantener arrays vacíos
         dispatch({ type: 'SET_USERS', payload: [] });
         dispatch({ type: 'SET_AREAS', payload: [] });
         dispatch({ type: 'SET_TEMPLATES', payload: [] });
+        dispatch({ type: 'SET_RESERVATIONS', payload: [] });
         sessionUsers = [];
         sessionAreas = [];
         sessionTemplates = [];
