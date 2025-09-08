@@ -1734,108 +1734,13 @@ export function Reservations() {
               </div>
             )}
 
-            {/* Paso 5: Configuración adicional */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
-                ⚙️ Configuración Adicional
-              </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                {!isFullDayReservation && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Duración (minutos)
-                      {currentUser?.role === 'user' && (
-                        <span className="text-xs text-orange-600 ml-2">
-                          (Máximo 3 horas para usuarios)
-                        </span>
-                      )}
-                </label>
-                    <select
-                      value={formData.duration || '60'}
-                  onChange={(e) => {
-                        const duration = e.target.value;
-                        const endTime = addMinutesToTime(formData.startTime, parseInt(duration));
-                        setFormData({...formData, duration, endTime});
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  required
-                    >
-                      {getDurationOptions().map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {formData.startTime && formData.duration && (
-                      <div className="text-sm text-gray-600 mt-1">
-                        <span className="font-medium">Horario seleccionado:</span> {formData.startTime} - {formData.endTime}
-              </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Campo de Colaboradores (solo para usuarios con rol 'user' o 'admin') */}
-                {currentUser?.role !== 'colaborador' && colaboradoresDisponibles.length > 0 && (
-                  <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Colaboradores (opcional)
-                </label>
-                    <div className="space-y-2">
-                      {colaboradoresDisponibles.map(colaborador => (
-                        <label key={colaborador.id} className="flex items-center space-x-2">
-                <input
-                            type="checkbox"
-                            checked={formData.colaboradores.includes(colaborador.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  colaboradores: [...prev.colaboradores, colaborador.id]
-                                }));
-                              } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  colaboradores: prev.colaboradores.filter(id => id !== colaborador.id)
-                                }));
-                              }
-                            }}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {colaborador.name} ({colaborador.email})
-                          </span>
-                        </label>
-                      ))}
-              </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Los colaboradores seleccionados podrán visualizar esta reserva
-                    </p>
-                  </div>
-                )}
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notas
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                    rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Notas adicionales (opcional)"
-                />
-                </div>
-              </div>
-              </div>
 
 
             {/* Horarios (solo para reservas que no son de día completo) */}
               {!isFullDayReservation && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
                   ⏰ Horarios
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
