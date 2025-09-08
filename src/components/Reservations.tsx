@@ -588,41 +588,41 @@ export function Reservations() {
   const isDateInPast = useCallback((date: string): boolean => {
     if (!date) return false;
     
-    // Crear fecha actual en UTC (solo fecha, sin hora)
+    // Crear fecha actual local (solo fecha, sin hora)
     const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Crear fecha de la reservación en UTC
+    // Crear fecha de la reservación local
     let reservationDate: Date;
     
     if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
       // Formato DD-MM-YY
       const [day, month, year] = date.split('-').map(Number);
       const fullYear = year < 50 ? 2000 + year : 1900 + year;
-      reservationDate = new Date(Date.UTC(fullYear, month - 1, day));
+      reservationDate = new Date(fullYear, month - 1, day);
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       // Formato YYYY-MM-DD
       const [year, month, day] = date.split('-').map(Number);
-      reservationDate = new Date(Date.UTC(year, month - 1, day));
+      reservationDate = new Date(year, month - 1, day);
     } else {
       reservationDate = new Date(date);
-      // Solo considerar la fecha, no la hora, en UTC
-      reservationDate = new Date(Date.UTC(reservationDate.getUTCFullYear(), reservationDate.getUTCMonth(), reservationDate.getUTCDate()));
+      // Solo considerar la fecha, no la hora, en local
+      reservationDate = new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate());
     }
     
-    console.log('📅 Validación fecha pasada:', {
+    console.log('📅 Validación fecha pasada (LOCAL):', {
       inputDate: date,
       today: today.toISOString(),
       reservationDate: reservationDate.toISOString(),
       todayLocal: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
       reservationDateLocal: new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate()).toISOString(),
       isInPast: reservationDate < today,
-      todayUTCDate: today.getUTCDate(),
-      todayUTCMonth: today.getUTCMonth(),
-      todayUTCYear: today.getUTCFullYear(),
-      reservationUTCDate: reservationDate.getUTCDate(),
-      reservationUTCMonth: reservationDate.getUTCMonth(),
-      reservationUTCYear: reservationDate.getUTCFullYear(),
+      todayDate: today.getDate(),
+      todayMonth: today.getMonth(),
+      todayYear: today.getFullYear(),
+      reservationDate: reservationDate.getDate(),
+      reservationMonth: reservationDate.getMonth(),
+      reservationYear: reservationDate.getFullYear(),
       comparison: `${reservationDate.toISOString()} < ${today.toISOString()} = ${reservationDate < today}`
     });
     
