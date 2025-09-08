@@ -49,11 +49,7 @@ interface ReservationFormData {
   startTime: string;
   endTime: string;
   duration: string;
-  contactPerson: string;
   teamName: string;
-  contactEmail: string;
-  contactPhone: string;
-  templateId: string;
   requestedSeats: number;
   notes: string;
   colaboradores: string[]; // Array de IDs de colaboradores
@@ -99,11 +95,7 @@ export function Reservations() {
     startTime: '09:00',
     endTime: '10:00',
     duration: '60',
-    contactPerson: currentUser?.name || '',
     teamName: '',
-    contactEmail: currentUser?.email || '',
-    contactPhone: '',
-    templateId: '',
     requestedSeats: 1,
     notes: '',
     colaboradores: [],
@@ -139,26 +131,6 @@ export function Reservations() {
     setError(null);
   };
 
-  // Función para manejar la selección de plantilla
-  const handleTemplateChange = (templateId: string) => {
-    if (!templateId) {
-      // Si no se selecciona plantilla, mantener los datos actuales
-      return;
-    }
-
-    const selectedTemplate = state.templates.find(template => template.id === templateId);
-    if (selectedTemplate) {
-      setFormData(prev => ({
-        ...prev,
-        templateId: templateId,
-        contactPerson: selectedTemplate.contactPerson,
-        teamName: selectedTemplate.groupName,
-        contactEmail: selectedTemplate.contactEmail,
-        contactPhone: selectedTemplate.contactPhone,
-        notes: selectedTemplate.notes || prev.notes
-      }));
-    }
-  };
 
   // Obtener áreas del contexto
   const areas = state.areas;
@@ -1101,12 +1073,17 @@ export function Reservations() {
       const reservationData = {
         userId: currentUser.id,
         userName: currentUser.name,
-        ...formData,
-          date: date,
-          requestedSeats: formData.requestedSeats,
-          attendees: formData.attendees,
-          colaboradores: selectedCollaborators
-        };
+        area: formData.area,
+        date: date,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        duration: formData.duration,
+        teamName: formData.teamName,
+        requestedSeats: formData.requestedSeats,
+        notes: formData.notes,
+        attendees: formData.attendees,
+        colaboradores: selectedCollaborators
+      };
 
           console.log(`🔍 Creando reservación recurrente para ${date}:`, reservationData);
           await reservationService.createReservation(reservationData);
@@ -1118,8 +1095,14 @@ export function Reservations() {
         const reservationData = {
           userId: currentUser.id,
           userName: currentUser.name,
-          ...formData,
+          area: formData.area,
+          date: formData.date,
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+          duration: formData.duration,
+          teamName: formData.teamName,
           requestedSeats: formData.requestedSeats,
+          notes: formData.notes,
           attendees: formData.attendees,
           colaboradores: selectedCollaborators
         };
@@ -1145,11 +1128,7 @@ export function Reservations() {
         startTime: '09:00',
         endTime: '10:00',
         duration: '60',
-        contactPerson: currentUser?.name || '',
         teamName: '',
-        contactEmail: currentUser?.email || '',
-        contactPhone: '',
-        templateId: '',
         requestedSeats: 1,
         notes: '',
         colaboradores: [],
@@ -1220,11 +1199,7 @@ export function Reservations() {
       startTime: reservation.startTime,
       endTime: reservation.endTime,
       duration: duration,
-      contactPerson: reservation.contactPerson,
       teamName: reservation.teamName,
-      contactEmail: reservation.contactEmail,
-      contactPhone: reservation.contactPhone,
-      templateId: reservation.templateId || '',
       requestedSeats: reservation.requestedSeats || 1,
       notes: reservation.notes,
       colaboradores: reservation.colaboradores?.map(c => c._id) || [],
@@ -1250,11 +1225,7 @@ export function Reservations() {
       startTime: '09:00',
       endTime: '10:00',
       duration: '60',
-      contactPerson: currentUser?.name || '',
       teamName: '',
-      contactEmail: currentUser?.email || '',
-      contactPhone: '',
-      templateId: '',
       requestedSeats: 1,
       notes: '',
       colaboradores: [],
@@ -1715,23 +1686,6 @@ export function Reservations() {
                 ⚙️ Configuración Adicional
               </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Usar Plantilla (Opcional)
-                </label>
-                  <select
-                    value={formData.templateId}
-                    onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">Sin plantilla</option>
-                    {state.templates.map(template => (
-                      <option key={template.id} value={template.id}>
-                        {template.name} - {template.groupName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
                 {!isFullDayReservation && (
                   <div>
@@ -1821,62 +1775,12 @@ export function Reservations() {
               </div>
             </div>
 
-            {/* Información de contacto */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
-                👤 Información de Contacto
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Solicitante
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactPerson}
-                  onChange={(e) => setFormData({...formData, contactPerson: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Nombre completo"
-                  required
-                />
-              </div>
-
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.contactEmail}
-                  onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="email@ejemplo.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono <span className="text-gray-500 text-xs">(opcional)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={formData.contactPhone}
-                  onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="+57 300 123 4567 (opcional)"
-                />
-                </div>
-              </div>
-              </div>
 
             {/* Horarios (solo para reservas que no son de día completo) */}
               {!isFullDayReservation && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">7</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">6</span>
                   ⏰ Horarios
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
