@@ -82,6 +82,9 @@ export function DepartmentManagement() {
       // Recargar lista y limpiar formulario
       await loadDepartments();
       handleCancel();
+      
+      // Notificar a otros componentes que los departamentos han cambiado
+      window.dispatchEvent(new CustomEvent('departmentsUpdated'));
     } catch (err) {
       console.error('Error guardando departamento:', err);
       setError(err instanceof Error ? err.message : 'Error guardando departamento');
@@ -111,6 +114,9 @@ export function DepartmentManagement() {
       setError(null);
       await departmentService.deleteDepartment(department._id, currentUser.id, currentUser.role);
       await loadDepartments();
+      
+      // Notificar a otros componentes que los departamentos han cambiado
+      window.dispatchEvent(new CustomEvent('departmentsUpdated'));
     } catch (err) {
       console.error('Error eliminando departamento:', err);
       setError(err instanceof Error ? err.message : 'Error eliminando departamento');
@@ -141,6 +147,9 @@ export function DepartmentManagement() {
         userRole: currentUser.role
       });
       await loadDepartments();
+      
+      // Notificar a otros componentes que los departamentos han cambiado
+      window.dispatchEvent(new CustomEvent('departmentsUpdated'));
     } catch (err) {
       console.error('Error actualizando estado del departamento:', err);
       setError(err instanceof Error ? err.message : 'Error actualizando departamento');

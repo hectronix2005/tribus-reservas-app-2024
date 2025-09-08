@@ -172,6 +172,17 @@ export function Reservations() {
     };
 
     loadDepartments();
+
+    // Escuchar cambios en departamentos desde el panel de administración
+    const handleDepartmentsUpdate = () => {
+      loadDepartments();
+    };
+
+    window.addEventListener('departmentsUpdated', handleDepartmentsUpdate);
+
+    return () => {
+      window.removeEventListener('departmentsUpdated', handleDepartmentsUpdate);
+    };
   }, []);
   
   // Verificar si el área seleccionada requiere reserva por día completo
@@ -1684,7 +1695,12 @@ export function Reservations() {
                 </select>
                 {departments.length === 0 && (
                   <p className="text-xs text-gray-500 mt-1">
-                    No hay departamentos disponibles. Contacte al administrador.
+                    No hay departamentos disponibles. Contacte al administrador para crear departamentos.
+                  </p>
+                )}
+                {departments.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Seleccione el departamento al que pertenece esta reservación. Los departamentos se gestionan en el panel de administración.
                   </p>
                 )}
               </div>
