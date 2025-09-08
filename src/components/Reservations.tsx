@@ -67,8 +67,15 @@ interface ReservationFormData {
 }
 
 export function Reservations() {
-  const { state } = useApp();
+  const { state, getDailyCapacity } = useApp();
   const currentUser = state.auth.currentUser;
+
+  // Función para calcular la capacidad disponible de un área en una fecha específica
+  const getAvailableCapacity = useCallback((areaId: string, date: string): number => {
+    const dailyCapacity = getDailyCapacity(date);
+    const areaCapacity = dailyCapacity.find(capacity => capacity.areaId === areaId);
+    return areaCapacity ? areaCapacity.availableSeats : 0;
+  }, [getDailyCapacity]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -1500,12 +1507,12 @@ export function Reservations() {
                     required
                   />
                   <span className="text-sm text-gray-600 whitespace-nowrap">
-                    de {selectedArea?.capacity || 1} disponibles
+                    de {getAvailableCapacity(selectedArea?.id || '', formData.date) || 1} disponibles
                   </span>
                 </div>
                   <div className="text-xs text-gray-500 mt-1">
                     <span className="text-blue-600 font-medium">
-                      Área: {selectedArea.name} • Capacidad: {selectedArea.capacity} puestos
+                      Área: {selectedArea.name} • Capacidad: {getAvailableCapacity(selectedArea.id, formData.date)} puestos disponibles
                     </span>
                   </div>
                 </div>
