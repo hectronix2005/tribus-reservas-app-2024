@@ -443,8 +443,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
+    // Normalizar la fecha para comparación (convertir a formato YYYY-MM-DD)
+    const normalizedDate = date.includes('T') ? date.split('T')[0] : date;
+    
     const reservationsForDate = state.reservations.filter(
-      reservation => reservation.date === date && reservation.status !== 'cancelled'
+      reservation => {
+        // Normalizar la fecha de la reservación para comparación
+        const reservationDate = reservation.date.includes('T') ? reservation.date.split('T')[0] : reservation.date;
+        return reservationDate === normalizedDate && reservation.status !== 'cancelled';
+      }
     );
 
     return state.areas.map(area => {
