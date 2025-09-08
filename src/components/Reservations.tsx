@@ -1528,7 +1528,7 @@ export function Reservations() {
                 )}
                 </div>
               </div>
-            </div>
+              </div>
 
             {/* Paso 2: Departamento y Cantidad de Personas */}
             {selectedArea && (
@@ -1539,62 +1539,62 @@ export function Reservations() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Departamento - Izquierda */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                       Departamento *
-                    </label>
-                    <select
+                </label>
+                <select
                       value={formData.teamName}
                       onChange={(e) => handleDepartmentChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       required
                     >
                       <option value="">Seleccione un departamento</option>
                       {departments.map((dept) => (
                         <option key={dept._id} value={dept.name}>
                           {dept.name}
-                        </option>
-                      ))}
-                    </select>
+                    </option>
+                  ))}
+                </select>
                     {departments.length === 0 && (
                       <p className="text-xs text-gray-500 mt-1">
                         No hay departamentos disponibles. Contacte al administrador para crear departamentos.
                       </p>
                     )}
-                  </div>
+              </div>
 
                   {/* Cantidad de Personas - Derecha (solo para Hot Desk) */}
                   {!selectedArea.isMeetingRoom && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                         Cantidad de Personas *
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max={selectedArea?.capacity || 1}
-                          value={formData.requestedSeats}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value) || 1;
-                            const maxCapacity = selectedArea?.capacity || 1;
-                            const finalValue = Math.min(Math.max(value, 1), maxCapacity);
-                            setFormData({...formData, requestedSeats: finalValue});
-                          }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                          required
-                        />
-                        <span className="text-sm text-gray-600 whitespace-nowrap">
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max={selectedArea?.capacity || 1}
+                    value={formData.requestedSeats}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxCapacity = selectedArea?.capacity || 1;
+                      const finalValue = Math.min(Math.max(value, 1), maxCapacity);
+                      setFormData({...formData, requestedSeats: finalValue});
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  />
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
                           de {getAvailableCapacity(selectedArea?.id || '', formData.date) || 1} disponibles
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        <span className="text-blue-600 font-medium">
+                  </span>
+                </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <span className="text-blue-600 font-medium">
                           Área: {selectedArea.name} • Capacidad: {getAvailableCapacity(selectedArea.id, formData.date)} puestos disponibles
-                        </span>
+                    </span>
                       </div>
-                    </div>
-                  )}
+                  </div>
+                )}
 
                   {/* Información para salas de reunión */}
                   {selectedArea.isMeetingRoom && (
@@ -1608,7 +1608,7 @@ export function Reservations() {
                             <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                             </svg>
-                          </div>
+              </div>
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-blue-800">
                               Reserva de Sala Completa
@@ -1616,7 +1616,7 @@ export function Reservations() {
                             <div className="mt-1 text-sm text-blue-700">
                               <p>Esta sala se reserva completa para {selectedArea.capacity} personas.</p>
                               <p>No es necesario especificar cantidad de puestos.</p>
-                            </div>
+            </div>
                           </div>
                         </div>
                       </div>
@@ -1635,11 +1635,10 @@ export function Reservations() {
                 </h3>
                 
                 {/* Selección de Colaboradores */}
-                <div>
-                  <div>
+              <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Seleccionar Colaboradores ({selectedCollaborators.length} de {formData.requestedSeats} seleccionados) *
-                    </label>
+                </label>
                     
                     {colaboradoresDisponibles.length === 0 ? (
                       <div className="text-sm text-gray-500 p-3 bg-gray-100 rounded-md">
@@ -1649,7 +1648,7 @@ export function Reservations() {
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
                         {colaboradoresDisponibles.map((collaborator) => (
                           <label key={collaborator.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                            <input
+                <input
                               type="checkbox"
                               checked={selectedCollaborators.includes(collaborator.id)}
                               onChange={(e) => handleCollaboratorSelection(collaborator.id, e.target.checked)}
@@ -1675,8 +1674,7 @@ export function Reservations() {
                         </span>
                       )}
                     </div>
-                  </div>
-                )}
+                </div>
               </div>
             )}
 
