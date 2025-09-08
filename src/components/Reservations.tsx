@@ -611,12 +611,19 @@ export function Reservations() {
     }
     
     console.log('📅 Validación fecha pasada:', {
+      inputDate: date,
       today: today.toISOString(),
       reservationDate: reservationDate.toISOString(),
       todayLocal: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
       reservationDateLocal: new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate()).toISOString(),
       isInPast: reservationDate < today,
-      date
+      todayUTCDate: today.getUTCDate(),
+      todayUTCMonth: today.getUTCMonth(),
+      todayUTCYear: today.getUTCFullYear(),
+      reservationUTCDate: reservationDate.getUTCDate(),
+      reservationUTCMonth: reservationDate.getUTCMonth(),
+      reservationUTCYear: reservationDate.getUTCFullYear(),
+      comparison: `${reservationDate.toISOString()} < ${today.toISOString()} = ${reservationDate < today}`
     });
     
     return reservationDate < today;
