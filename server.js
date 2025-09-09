@@ -1074,6 +1074,7 @@ app.post('/api/reservations', async (req, res) => {
       }
     }
 
+
     // Crear la reservación
     const reservation = new Reservation({
       userId,
