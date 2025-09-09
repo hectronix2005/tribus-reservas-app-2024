@@ -173,7 +173,7 @@ const reservationSchema = new mongoose.Schema({
   // Nuevos campos para información del solicitante
   contactPerson: { 
     type: String, 
-    required: true 
+    required: false 
   },
   teamName: { 
     type: String, 
@@ -181,7 +181,7 @@ const reservationSchema = new mongoose.Schema({
   },
   contactEmail: { 
     type: String, 
-    required: true 
+    required: false 
   },
   contactPhone: { 
     type: String, 
@@ -919,38 +919,20 @@ app.post('/api/reservations', async (req, res) => {
       attendees 
     } = req.body;
 
-    // Debug: Log de campos recibidos
-    console.log('🔍 Campos recibidos en POST /api/reservations:', {
-      userId: !!userId,
-      userName: !!userName,
-      area: !!area,
-      date: !!date,
-      startTime: !!startTime,
-      endTime: !!endTime,
-      teamName: !!teamName,
-      valores: { userId, userName, area, date, startTime, endTime, teamName }
-    });
-
     // Validar campos requeridos básicos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
         !teamName) {
-      console.log('❌ Validación falló - campos faltantes:', {
-        userId: !userId,
-        userName: !userName,
-        area: !area,
-        date: !date,
-        startTime: !startTime,
-        endTime: !endTime,
-        teamName: !teamName
-      });
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
     // Validar que la fecha y hora no estén en el pasado
     const now = new Date();
-    const reservationDate = new Date(date);
+    
+    // Crear fecha de reservación usando componentes locales para evitar problemas de zona horaria
+    const [year, month, day] = date.split('-').map(Number);
     const [hours, minutes] = startTime.split(':').map(Number);
-    reservationDate.setHours(hours, minutes, 0, 0);
+    const reservationDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
     
     if (reservationDate < now) {
       return res.status(400).json({ 
