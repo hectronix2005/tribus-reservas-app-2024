@@ -969,10 +969,10 @@ app.post('/api/reservations', async (req, res) => {
     // Validar colaboradores si se proporcionan
     let validColaboradores = [];
     if (colaboradores && Array.isArray(colaboradores) && colaboradores.length > 0) {
-      // Verificar que todos los colaboradores existen y tienen rol 'colaborador' o 'user'
+      // Verificar que todos los colaboradores existen y tienen rol 'admin', 'user' o 'colaborador'
       const colaboradorUsers = await User.find({ 
         _id: { $in: colaboradores },
-        role: { $in: ['colaborador', 'user'] },
+        role: { $in: ['admin', 'user', 'colaborador'] },
         isActive: true
       });
       
