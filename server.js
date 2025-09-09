@@ -921,7 +921,7 @@ app.post('/api/reservations', async (req, res) => {
 
     // Validar campos requeridos básicos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
-        !contactPerson || !teamName || !contactEmail) {
+        !teamName) {
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
@@ -1079,11 +1079,7 @@ app.post('/api/reservations', async (req, res) => {
       date: new Date(date),
       startTime,
       endTime,
-      contactPerson,
       teamName,
-      contactEmail,
-      contactPhone,
-      templateId: templateId || null,
       requestedSeats: finalRequestedSeats,
       notes: notes || '',
       colaboradores: validColaboradores,
@@ -1191,10 +1187,7 @@ app.put('/api/reservations/:id', async (req, res) => {
     if (date) reservation.date = new Date(date);
     if (startTime) reservation.startTime = startTime;
     if (endTime) reservation.endTime = endTime;
-    if (contactPerson) reservation.contactPerson = contactPerson;
     if (teamName) reservation.teamName = teamName;
-    if (contactEmail) reservation.contactEmail = contactEmail;
-    if (contactPhone) reservation.contactPhone = contactPhone;
     if (templateId !== undefined) reservation.templateId = templateId;
     if (requestedSeats !== undefined) reservation.requestedSeats = requestedSeats;
     if (notes !== undefined) reservation.notes = notes;
