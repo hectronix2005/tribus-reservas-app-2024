@@ -919,9 +919,30 @@ app.post('/api/reservations', async (req, res) => {
       attendees 
     } = req.body;
 
+    // Debug: Log de campos recibidos
+    console.log('🔍 Campos recibidos en POST /api/reservations:', {
+      userId: !!userId,
+      userName: !!userName,
+      area: !!area,
+      date: !!date,
+      startTime: !!startTime,
+      endTime: !!endTime,
+      teamName: !!teamName,
+      valores: { userId, userName, area, date, startTime, endTime, teamName }
+    });
+
     // Validar campos requeridos básicos
     if (!userId || !userName || !area || !date || !startTime || !endTime || 
         !teamName) {
+      console.log('❌ Validación falló - campos faltantes:', {
+        userId: !userId,
+        userName: !userName,
+        area: !area,
+        date: !date,
+        startTime: !startTime,
+        endTime: !endTime,
+        teamName: !teamName
+      });
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
