@@ -1672,6 +1672,44 @@ export function Reservations() {
             </div>
                     ) : (
                       <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                        {/* Selector "Seleccionar todos" */}
+                        {colaboradoresDisponibles.length > 1 && (
+                          <div className="border-b border-gray-200 pb-2 mb-2">
+                            <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                              <input
+                                type="checkbox"
+                                checked={selectedCollaborators.length === formData.requestedSeats && 
+                                         colaboradoresDisponibles.slice(0, formData.requestedSeats).every(c => 
+                                           selectedCollaborators.includes(c.id))}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    // Seleccionar los primeros N colaboradores según la cantidad solicitada
+                                    const collaboratorsToSelect = colaboradoresDisponibles
+                                      .slice(0, formData.requestedSeats)
+                                      .map(c => c.id);
+                                    setSelectedCollaborators(collaboratorsToSelect);
+                                  } else {
+                                    // Deseleccionar todos
+                                    setSelectedCollaborators([]);
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                              />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-primary-600">
+                                  {selectedCollaborators.length === formData.requestedSeats ? 
+                                    'Deseleccionar todos' : 
+                                    `Seleccionar todos (${Math.min(formData.requestedSeats, colaboradoresDisponibles.length)})`
+                                  }
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Selecciona automáticamente los colaboradores necesarios
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        )}
+                        
                         {colaboradoresDisponibles.map((collaborator) => (
                           <label key={collaborator.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
                 <input
