@@ -2084,6 +2084,17 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
+// Servir archivos estáticos en producción
+if (process.env.NODE_ENV === 'production') {
+  // Servir archivos estáticos del build de React
+  app.use(express.static(path.join(__dirname, 'build')));
+  
+  // Manejar rutas de React (SPA)
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor TRIBUS ejecutándose en puerto ${PORT}`);
   console.log(`📊 API disponible en /api`);
@@ -2091,4 +2102,5 @@ app.listen(PORT, () => {
   console.log(`🗄️  Base de datos: MongoDB Atlas (remota)`);
   console.log(`🔒 Modo: Solo conexión remota a MongoDB Atlas`);
   console.log(`☁️  Desplegado en: Heroku`);
+  console.log(`🌍 Entorno: ${process.env.NODE_ENV || 'development'}`);
 });
