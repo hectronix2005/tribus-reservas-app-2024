@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
-import { Area, Reservation, AdminSettings, DailyCapacity, ReservationTemplate, User, AuthState } from '../types';
+import { Area, Reservation, AdminSettings, DailyCapacity, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
-import { userService, areaService, templateService, reservationService } from '../services/api';
+import { userService, areaService, reservationService } from '../services/api';
 
 interface AppState {
   areas: Area[];
   reservations: Reservation[];
-  templates: ReservationTemplate[];
   users: User[];
   auth: AuthState;
   adminSettings: AdminSettings;
@@ -24,10 +23,6 @@ type AppAction =
   | { type: 'ADD_RESERVATION'; payload: Reservation }
   | { type: 'UPDATE_RESERVATION'; payload: Reservation }
   | { type: 'DELETE_RESERVATION'; payload: string }
-  | { type: 'SET_TEMPLATES'; payload: ReservationTemplate[] }
-  | { type: 'ADD_TEMPLATE'; payload: ReservationTemplate }
-  | { type: 'UPDATE_TEMPLATE'; payload: ReservationTemplate }
-  | { type: 'DELETE_TEMPLATE'; payload: string }
   | { type: 'SET_USERS'; payload: User[] }
   | { type: 'ADD_USER'; payload: User }
   | { type: 'UPDATE_USER'; payload: User }
@@ -46,7 +41,6 @@ type AppAction =
 const initialState: AppState = {
   areas: [], // Se cargarán desde MongoDB
   reservations: [],
-  templates: [], // Se cargarán desde MongoDB
   users: [], // Se cargarán desde MongoDB
   auth: {
     currentUser: null,
@@ -84,7 +78,6 @@ const initialState: AppState = {
 // Variables globales para mantener datos durante la sesión - se cargarán desde MongoDB
 let sessionUsers: User[] = [];
 let sessionAreas: Area[] = [];
-let sessionTemplates: ReservationTemplate[] = [];
 
 // Función para cargar áreas desde MongoDB
 const loadAreasFromMongoDB = async () => {
@@ -98,22 +91,25 @@ const loadAreasFromMongoDB = async () => {
   }
 };
 
-// Función para cargar templates desde MongoDB
-const loadTemplatesFromMongoDB = async () => {
-  try {
-    const templates = await templateService.getAllTemplates();
-    sessionTemplates = templates;
-    return templates;
-  } catch (error) {
-    console.error('Error cargando templates desde MongoDB:', error);
-    return [];
-  }
-};
 
 // Función para cargar reservaciones desde MongoDB
 const loadReservationsFromMongoDB = async () => {
   try {
+    console.log('🔄 [AppContext] Llamando a reservationService.getAllReservations()...');
     const reservations = await reservationService.getAllReservations();
+    console.log('✅ [AppContext] Reservaciones cargadas desde MongoDB:', {
+      totalReservations: reservations.length,
+      hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
+      reservationsFor09_10: reservations.filter(r => {
+        let reservationDate;
+        if (r.date.includes('T')) {
+          reservationDate = r.date.split('T')[0];
+        } else {
+          reservationDate = r.date;
+        }
+        return reservationDate === '2025-09-10';
+      })
+    });
     return reservations;
   } catch (error) {
     console.error('Error cargando reservaciones desde MongoDB:', error);
@@ -126,7 +122,6 @@ const debugData = () => {
   console.log('=== DEBUG DATOS ===');
   console.log('sessionUsers:', sessionUsers);
   console.log('sessionAreas:', sessionAreas);
-  console.log('sessionTemplates:', sessionTemplates);
   console.log('==================');
 };
 
@@ -164,7 +159,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = {
         ...state,
         reservations: state.reservations.map(reservation =>
-          reservation.id === action.payload.id ? action.payload : reservation
+          reservation._id === action.payload._id ? action.payload : reservation
         )
       };
       break;
@@ -172,28 +167,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = {
         ...state,
         reservations: state.reservations.filter(
-          reservation => reservation.id !== action.payload
+          reservation => reservation._id !== action.payload
         )
-      };
-      break;
-    case 'SET_TEMPLATES':
-      newState = { ...state, templates: action.payload };
-      break;
-    case 'ADD_TEMPLATE':
-      newState = { ...state, templates: [...state.templates, action.payload] };
-      break;
-    case 'UPDATE_TEMPLATE':
-      newState = {
-        ...state,
-        templates: state.templates.map(template =>
-          template.id === action.payload.id ? action.payload : template
-        )
-      };
-      break;
-    case 'DELETE_TEMPLATE':
-      newState = {
-        ...state,
-        templates: state.templates.filter(template => template.id !== action.payload)
       };
       break;
     case 'SET_USERS':
@@ -293,9 +268,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_AREAS':
       newState = { ...state, areas: action.payload };
       break;
-    case 'SET_TEMPLATES':
-      newState = { ...state, templates: action.payload };
-      break;
     default:
       newState = state;
   }
@@ -311,8 +283,8 @@ interface AppContextType {
   getDailyCapacity: (date: string) => DailyCapacity[];
   getAreaById: (id: string) => Area | undefined;
   getReservationsByDate: (date: string) => Reservation[];
-  getTemplateById: (id: string) => ReservationTemplate | undefined;
   isTimeSlotAvailable: (areaId: string, date: string, time: string, duration: number) => boolean;
+  refreshReservations: () => Promise<void>;
   logout: () => void;
 }
 
@@ -422,23 +394,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const areas = await loadAreasFromMongoDB();
         dispatch({ type: 'SET_AREAS', payload: areas });
         
-        // Cargar templates
-        const templates = await loadTemplatesFromMongoDB();
-        dispatch({ type: 'SET_TEMPLATES', payload: templates });
         
         // Cargar reservaciones
         const reservations = await loadReservationsFromMongoDB();
+        console.log('🔄 [AppContext] Cargando reservaciones desde MongoDB:', {
+          totalReservations: reservations.length,
+          hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
+          reservationsFor09_10: reservations.filter(r => {
+            let reservationDate;
+            if (r.date.includes('T')) {
+              reservationDate = r.date.split('T')[0];
+            } else {
+              reservationDate = r.date;
+            }
+            return reservationDate === '2025-09-10';
+          })
+        });
         dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
       } catch (error) {
         console.error('Error cargando datos desde MongoDB:', error);
         // Si falla, mantener arrays vacíos
         dispatch({ type: 'SET_USERS', payload: [] });
         dispatch({ type: 'SET_AREAS', payload: [] });
-        dispatch({ type: 'SET_TEMPLATES', payload: [] });
         dispatch({ type: 'SET_RESERVATIONS', payload: [] });
         sessionUsers = [];
         sessionAreas = [];
-        sessionTemplates = [];
       }
     };
 
@@ -448,27 +428,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Exponer las variables globales en window para acceso directo
     (window as any).sessionUsers = sessionUsers;
     (window as any).sessionAreas = sessionAreas;
-    (window as any).sessionTemplates = sessionTemplates;
     
     // Debug inicial
     console.log('AppProvider - Datos iniciales:', {
       users: sessionUsers.length,
       areas: sessionAreas.length,
-      templates: sessionTemplates.length
     });
   }, []);
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
-    // Normalizar la fecha para comparación (convertir a formato YYYY-MM-DD)
+    // Normalizar la fecha para comparación usando el sistema unificado
     const normalizedDate = date.includes('T') ? date.split('T')[0] : date;
     
     const reservationsForDate = state.reservations.filter(
       reservation => {
         // Normalizar la fecha de la reservación para comparación
-        const reservationDate = reservation.date.includes('T') ? reservation.date.split('T')[0] : reservation.date;
-        return reservationDate === normalizedDate && reservation.status !== 'cancelled';
+        // Todas las fechas se almacenan en UTC, extraer solo la parte de la fecha
+        let reservationDate: string;
+        if (reservation.date.includes('T')) {
+          // Fecha UTC: 2025-09-09T05:00:00.000Z -> 2025-09-09
+          reservationDate = reservation.date.split('T')[0];
+        } else {
+          reservationDate = reservation.date;
+        }
+        return reservationDate === normalizedDate && reservation.status === 'confirmed';
       }
     );
+
+    // Debug logging para fecha específica
+    if (normalizedDate === '2025-09-09') {
+      console.log('🔍 [getDailyCapacity] DEBUG para 09/09/25:', {
+        normalizedDate,
+        totalReservations: state.reservations.length,
+        reservationsForDate: reservationsForDate.length,
+        reservationsDetails: reservationsForDate.map(r => ({
+          area: r.area,
+          date: r.date,
+          status: r.status,
+          requestedSeats: r.requestedSeats,
+          teamName: r.teamName
+        })),
+        ALL_RESERVATIONS: state.reservations.map(r => ({
+          _id: r._id,
+          area: r.area,
+          date: r.date,
+          status: r.status,
+          requestedSeats: r.requestedSeats,
+          teamName: r.teamName
+        }))
+      });
+    }
 
     return state.areas.map(area => {
       const areaReservations = reservationsForDate.filter(
@@ -489,9 +498,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } else {
         // Para áreas de trabajo, calculamos capacidad por asientos
         const reservedSeats = areaReservations.reduce(
-          (total, reservation) => total + reservation.requestedSeats,
+          (total, reservation) => total + (reservation.requestedSeats || 0),
           0
         );
+
+        // Debug logging para Hot Desk en fecha específica
+        if (normalizedDate === '2025-09-09' && area.category === 'HOT_DESK') {
+          console.log('🪑 [getDailyCapacity] Hot Desk 09/09/25:', {
+            areaName: area.name,
+            totalCapacity: area.capacity,
+            areaReservations: areaReservations.length,
+            reservedSeats,
+            availableSeats: area.capacity - reservedSeats,
+            reservationsDetails: areaReservations.map(r => ({
+              teamName: r.teamName,
+              requestedSeats: r.requestedSeats,
+              status: r.status
+            }))
+          });
+        }
 
         return {
           areaId: area.id,
@@ -513,21 +538,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return state.reservations.filter(reservation => reservation.date === date);
   };
 
-  const getTemplateById = (id: string): ReservationTemplate | undefined => {
-    return state.templates.find(template => template.id === id);
-  };
 
   const isTimeSlotAvailable = (areaId: string, date: string, time: string, duration: number): boolean => {
     // Debug temporal para verificar el problema
     console.log(`🔍 Verificando: ${time} por ${duration}min en área ${areaId} para fecha ${date}`);
     const reservationsForDate = state.reservations.filter(
       reservation => 
-        reservation.areaId === areaId && 
+        reservation.area === areaId && 
         reservation.date === date && 
         reservation.status !== 'cancelled'
     );
 
-    console.log(`📅 Reservas encontradas:`, reservationsForDate.map(r => `${r.time} (${r.duration}min)`));
+    console.log(`📅 Reservas encontradas:`, reservationsForDate.map(r => `${r.startTime} - ${r.endTime}`));
 
     // Convertir tiempo de inicio a minutos desde medianoche
     const [requestedHours, requestedMinutes] = time.split(':').map(Number);
@@ -538,29 +560,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     for (const reservation of reservationsForDate) {
       // Convertir tiempo de reserva existente a minutos desde medianoche
-      const [reservationHours, reservationMinutes] = reservation.time.split(':').map(Number);
-      const reservationStartMinutes = reservationHours * 60 + reservationMinutes;
-      const reservationEndMinutes = reservationStartMinutes + reservation.duration;
+      const [reservationStartHours, reservationStartMinutes] = reservation.startTime.split(':').map(Number);
+      const [reservationEndHours, reservationEndMinutes] = reservation.endTime.split(':').map(Number);
+      const reservationStartTotalMinutes = reservationStartHours * 60 + reservationStartMinutes;
+      const reservationEndTotalMinutes = reservationEndHours * 60 + reservationEndMinutes;
 
-      console.log(`📋 Reserva existente: ${reservation.time} = ${reservationStartMinutes}min - ${reservationEndMinutes}min`);
+      console.log(`📋 Reserva existente: ${reservation.startTime} - ${reservation.endTime} = ${reservationStartTotalMinutes}min - ${reservationEndTotalMinutes}min`);
 
       // Verificar si hay solapamiento
       // Hay conflicto si las reservas se solapan en cualquier punto
       const hasConflict = !(
-        requestedEndMinutes <= reservationStartMinutes || // Nueva reserva termina antes de que empiece la existente
-        requestedStartMinutes >= reservationEndMinutes    // Nueva reserva empieza después de que termine la existente
+        requestedEndMinutes <= reservationStartTotalMinutes || // Nueva reserva termina antes de que empiece la existente
+        requestedStartMinutes >= reservationEndTotalMinutes    // Nueva reserva empieza después de que termine la existente
       );
 
       console.log(`🔍 ¿Hay conflicto? ${hasConflict}`);
 
       if (hasConflict) {
-        console.log(`🚫 CONFLICTO: ${time} se solapa con ${reservation.time}`);
+        console.log(`🚫 CONFLICTO: ${time} se solapa con ${reservation.startTime} - ${reservation.endTime}`);
         return false; // Hay conflicto
       }
     }
 
     console.log(`✅ DISPONIBLE: ${time}`);
     return true; // No hay conflictos
+  };
+
+  const refreshReservations = async () => {
+    try {
+      const reservations = await reservationService.getAllReservations();
+      dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
+      console.log('🔄 [AppContext] Reservaciones actualizadas:', reservations.length);
+    } catch (error) {
+      console.error('Error actualizando reservaciones:', error);
+    }
   };
 
   const logout = () => {
@@ -584,8 +617,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getDailyCapacity,
     getAreaById,
     getReservationsByDate,
-    getTemplateById,
     isTimeSlotAvailable,
+    refreshReservations,
     logout
   };
 

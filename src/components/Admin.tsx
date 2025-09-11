@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Calendar, Users, Clock, BarChart3, FileText, Download, Save, CheckCircle, Building2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ReservationTemplate, User } from '../types';
+import { User } from '../types';
 import { formatDateInBogota } from '../utils/dateUtils';
 import { syncAdminSettings, getAdminSettings } from '../services/adminService';
 import { reservationService } from '../services/api';
@@ -72,7 +72,6 @@ export function Admin() {
   const tabs = [
     { id: 'settings', label: 'Configuración', icon: Settings },
     { id: 'reservations', label: 'Gestión de Reservas', icon: Calendar },
-    { id: 'templates', label: 'Plantillas', icon: FileText },
     { id: 'departments', label: 'Departamentos', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'reports', label: 'Reportes', icon: BarChart3 },
@@ -129,7 +128,7 @@ export function Admin() {
   };
 
   const handleReservationStatusChange = (reservationId: string, status: 'confirmed' | 'cancelled') => {
-    const reservation = state.reservations.find(r => r.id === reservationId);
+    const reservation = state.reservations.find(r => r._id === reservationId);
     if (reservation) {
       const updatedReservation = { ...reservation, status };
       dispatch({ type: 'UPDATE_RESERVATION', payload: updatedReservation });
@@ -146,18 +145,16 @@ export function Admin() {
     const filteredReservations = getReservationsByDateRange(startDate, endDate);
     
     const csvContent = [
-      ['ID', 'Área', 'Grupo', 'Puestos', 'Fecha', 'Hora', 'Contacto', 'Email', 'Teléfono', 'Estado', 'Notas'],
+      ['ID', 'Área', 'Grupo', 'Puestos', 'Fecha', 'Hora', 'Contacto', 'Email', 'Teléfono', 'Estado', 'Registrado', 'Notas'],
       ...filteredReservations.map(r => [
-        r.id,
-        r.areaName,
-        r.groupName,
+        r._id,
+        r.area,
+        r.teamName,
         r.requestedSeats.toString(),
         r.date,
-        r.time,
-        r.contactPerson,
-        r.contactEmail,
-        r.contactPhone,
+        `${r.startTime} - ${r.endTime}`,
         r.status,
+        r.createdAt ? new Date(r.createdAt).toLocaleString('es-ES') : 'N/A',
         r.notes || ''
       ])
     ].map(row => row.join(',')).join('\n');
@@ -186,7 +183,7 @@ export function Admin() {
       const isInRange = reservationDate >= start && reservationDate <= end;
       
       console.log('📅 Reservación:', {
-        id: r.id,
+        id: r._id,
         date: r.date,
         reservationDate: reservationDate.toISOString(),
         start: start.toISOString(),
@@ -216,6 +213,11 @@ export function Admin() {
   };
 
   const getStatusBadge = (status: string) => {
+    // Debug: Log del status recibido
+    if (!status || status === 'undefined' || status === 'null') {
+      console.warn('getStatusBadge recibió un status inválido:', { status, type: typeof status });
+    }
+    
     const statusConfig = {
       confirmed: { label: 'Confirmada', class: 'badge-success' },
       pending: { label: 'Pendiente', class: 'badge-warning' },
@@ -223,22 +225,25 @@ export function Admin() {
       active: { label: 'Activa', class: 'badge-success' },
       inactive: { label: 'Inactiva', class: 'badge-secondary' },
       admin: { label: 'Administrador', class: 'badge-warning' },
-      user: { label: 'Usuario', class: 'badge-info' }
+      user: { label: 'Usuario', class: 'badge-info' },
+      lider: { label: 'Lider', class: 'badge-info' },
+      colaborador: { label: 'Colaborador', class: 'badge-secondary' }
     };
     const config = statusConfig[status as keyof typeof statusConfig];
+    
+    // Si no se encuentra la configuración, usar valores por defecto
+    if (!config) {
+      console.warn(`Estado no reconocido: ${status}`, { 
+        status, 
+        type: typeof status, 
+        availableStatuses: Object.keys(statusConfig) 
+      });
+      return <span className="badge badge-secondary">{status || 'Desconocido'}</span>;
+    }
+    
     return <span className={`badge ${config.class}`}>{config.label}</span>;
   };
 
-  const handleToggleTemplateStatus = (template: ReservationTemplate) => {
-    const updatedTemplate = { ...template, isActive: !template.isActive };
-    dispatch({ type: 'UPDATE_TEMPLATE', payload: updatedTemplate });
-  };
-
-  const handleDeleteTemplate = (templateId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar esta plantilla?')) {
-      dispatch({ type: 'DELETE_TEMPLATE', payload: templateId });
-    }
-  };
 
   const handleToggleUserStatus = (user: User) => {
     const updatedUser = { ...user, isActive: !user.isActive };
@@ -437,43 +442,43 @@ export function Admin() {
 
                 <div className="border-t border-gray-200 pt-4">
                   <h4 className="font-medium text-gray-900 mb-3">Configuración de Reservas</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hora de inicio (reservas)
-                      </label>
-                      <input
-                        type="time"
-                        value={state.adminSettings.businessHours.start}
-                        onChange={(e) => handleSettingsUpdate({
-                          ...state.adminSettings,
-                          businessHours: {
-                            ...state.adminSettings.businessHours,
-                            start: e.target.value
-                          }
-                        })}
-                        className="input-field"
-                      />
+                     </label>
+                     <input
+                       type="time"
+                       value={state.adminSettings.businessHours.start}
+                       onChange={(e) => handleSettingsUpdate({
+                         ...state.adminSettings,
+                         businessHours: {
+                           ...state.adminSettings.businessHours,
+                           start: e.target.value
+                         }
+                       })}
+                       className="input-field"
+                     />
                       <p className="text-xs text-gray-500 mt-1">
                         Horario actual: {state.adminSettings.businessHours.start}
                       </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hora de fin (reservas)
-                      </label>
-                      <input
-                        type="time"
-                        value={state.adminSettings.businessHours.end}
-                        onChange={(e) => handleSettingsUpdate({
-                          ...state.adminSettings,
-                          businessHours: {
-                            ...state.adminSettings.businessHours,
-                            end: e.target.value
-                          }
-                        })}
-                        className="input-field"
-                      />
+                     </label>
+                     <input
+                       type="time"
+                       value={state.adminSettings.businessHours.end}
+                       onChange={(e) => handleSettingsUpdate({
+                         ...state.adminSettings,
+                         businessHours: {
+                           ...state.adminSettings.businessHours,
+                           end: e.target.value
+                         }
+                       })}
+                       className="input-field"
+                     />
                       <p className="text-xs text-gray-500 mt-1">
                         Horario actual: {state.adminSettings.businessHours.end}
                       </p>
@@ -518,7 +523,7 @@ export function Admin() {
                         </>
                       )}
                     </button>
-                  </div>
+                   </div>
                 </div>
               </div>
             </div>
@@ -612,9 +617,9 @@ export function Admin() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
                       Fecha final
-                    </label>
-                    <input
-                      type="date"
+                </label>
+                <input
+                  type="date"
                       value={endDate}
                       onChange={(e) => handleEndDateChange(e.target.value)}
                       className="input-field"
@@ -656,17 +661,20 @@ export function Admin() {
                         Estado
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Registrado
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {getReservationsByDateRange(startDate, endDate).map((reservation) => (
-                      <tr key={reservation.id} className="hover:bg-gray-50">
+                      <tr key={reservation._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {reservation.groupName || 'Sin grupo'}
+                              {reservation.teamName || 'Sin grupo'}
                             </div>
                             {reservation.notes && (
                               <div className="text-sm text-gray-500">{reservation.notes}</div>
@@ -674,11 +682,11 @@ export function Admin() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{reservation.areaName || 'Sin área'}</div>
+                          <div className="text-sm text-gray-900">{reservation.area || 'Sin área'}</div>
                         </td>
                                                  <td className="px-6 py-4 whitespace-nowrap">
                            <div className="text-sm text-gray-900">
-                             {state.areas.find(a => a.id === reservation.areaId)?.isMeetingRoom 
+                             {state.areas.find(a => a.name === reservation.area)?.isMeetingRoom 
                                ? `${reservation.requestedSeats || 0} personas (sala completa)`
                                : `${reservation.requestedSeats || 0} puestos`
                              }
@@ -689,42 +697,35 @@ export function Admin() {
                              {reservation.date ? formatDateInBogota(reservation.date, 'dd/MM/yyyy') : 'Sin fecha'}
                            </div>
                            <div className="text-sm text-gray-500">
-                             {reservation.time || 'Sin hora'} - {(() => {
-                               if (!reservation.time) return 'N/A';
-                               try {
-                                 const [hours, minutes] = reservation.time.split(':').map(Number);
-                                 const totalMinutes = hours * 60 + minutes + (reservation.duration || 0);
-                                 const endHours = Math.floor(totalMinutes / 60);
-                                 const endMinutes = totalMinutes % 60;
-                                 return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-                               } catch (error) {
-                                 console.error('Error calculando hora de fin:', error, reservation);
-                                 return 'Error';
-                               }
-                             })()}
+                              {reservation.startTime || 'Sin hora'} - {reservation.endTime || 'N/A'}
                            </div>
                          </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm text-gray-900">{reservation.contactPerson || 'Sin contacto'}</div>
-                            <div className="text-sm text-gray-500">{reservation.contactEmail || 'Sin email'}</div>
-                          </div>
+                          {getStatusBadge(reservation.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(reservation.status)}
+                          <div className="text-sm text-gray-900">
+                            {reservation.createdAt ? new Date(reservation.createdAt).toLocaleString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) : 'N/A'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             {reservation.status === 'pending' && (
                               <>
                                 <button
-                                  onClick={() => handleReservationStatusChange(reservation.id, 'confirmed')}
+                                  onClick={() => handleReservationStatusChange(reservation._id, 'confirmed')}
                                   className="text-success-600 hover:text-success-900"
                                 >
                                   Confirmar
                                 </button>
                                 <button
-                                  onClick={() => handleReservationStatusChange(reservation.id, 'cancelled')}
+                                  onClick={() => handleReservationStatusChange(reservation._id, 'cancelled')}
                                   className="text-danger-600 hover:text-danger-900"
                                 >
                                   Cancelar
@@ -733,14 +734,14 @@ export function Admin() {
                             )}
                             {reservation.status === 'confirmed' && (
                               <button
-                                onClick={() => handleReservationStatusChange(reservation.id, 'cancelled')}
+                                onClick={() => handleReservationStatusChange(reservation._id, 'cancelled')}
                                 className="text-danger-600 hover:text-danger-900"
                               >
                                 Cancelar
                               </button>
                             )}
                             <button
-                              onClick={() => handleDeleteReservation(reservation.id)}
+                              onClick={() => handleDeleteReservation(reservation._id)}
                               className="text-gray-600 hover:text-gray-900"
                             >
                               Eliminar
@@ -840,7 +841,7 @@ export function Admin() {
                           <div className="text-sm text-gray-900">{user.email}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(user.role === 'admin' ? 'admin' : 'user')}
+                          {getStatusBadge(user.role === 'admin' ? 'admin' : user.role === 'lider' ? 'lider' : 'colaborador')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(user.isActive ? 'active' : 'inactive')}
@@ -881,94 +882,6 @@ export function Admin() {
           </div>
         )}
 
-        {/* Templates Tab */}
-        {activeTab === 'templates' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Gestión de Plantillas</h3>
-              <p className="text-sm text-gray-600">
-                Administra las plantillas para facilitar las reservas
-              </p>
-            </div>
-
-            <div className="card">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Plantilla
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Grupo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Contacto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {state.templates.map((template) => (
-                      <tr key={template.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{template.name}</div>
-                            <div className="text-sm text-gray-500">{template.description}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{template.groupName}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm text-gray-900">{template.contactPerson}</div>
-                            <div className="text-sm text-gray-500">{template.contactEmail}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(template.isActive ? 'active' : 'inactive')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleToggleTemplateStatus(template)}
-                              className={`${
-                                template.isActive 
-                                  ? 'text-warning-600 hover:text-warning-900' 
-                                  : 'text-success-600 hover:text-success-900'
-                              }`}
-                            >
-                              {template.isActive ? 'Desactivar' : 'Activar'}
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTemplate(template.id)}
-                              className="text-danger-600 hover:text-danger-900"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {state.templates.length === 0 && (
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No hay plantillas configuradas</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Reports Tab */}
         {activeTab === 'reports' && (
@@ -980,7 +893,7 @@ export function Admin() {
                   <h4 className="font-medium text-gray-900">Utilización por Área</h4>
                   {state.areas.map((area) => {
                     const areaReservations = state.reservations.filter(
-                      r => r.areaId === area.id && r.status === 'confirmed'
+                      r => r.area === area.name && r.status === 'confirmed'
                     );
                     
                     // Para salas de juntas, calculamos utilización basada en tiempo reservado del día
@@ -992,7 +905,10 @@ export function Admin() {
                           // Horario de oficina: 7 AM (420 min) a 6 PM (1080 min) = 660 minutos totales
                           const totalBusinessMinutes = 660;
                           const totalReservedMinutes = areaReservations.reduce((total, reservation) => {
-                            return total + reservation.duration;
+                            // Calcular duración en minutos desde startTime y endTime
+                            const start = new Date(`2000-01-01T${reservation.startTime}`);
+                            const end = new Date(`2000-01-01T${reservation.endTime}`);
+                            return total + (end.getTime() - start.getTime()) / (1000 * 60);
                           }, 0);
                           
                           return Math.min((totalReservedMinutes / totalBusinessMinutes) * 100, 100);

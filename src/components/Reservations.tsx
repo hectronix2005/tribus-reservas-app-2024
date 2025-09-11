@@ -5,43 +5,8 @@ import { reservationService, departmentService } from '../services/api';
 import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
 import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
 import { ReservationFilters } from './ReservationFilters';
-import { Department } from '../types';
-
-interface Reservation {
-  _id: string;
-  userId: string | { _id: string; name: string; username: string };
-  userName: string;
-  area: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  contactPerson: string;
-  teamName: string;
-  contactEmail: string;
-  contactPhone: string;
-  templateId?: string | null;
-  requestedSeats: number;
-  status: 'active' | 'cancelled' | 'completed';
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-  // Información del usuario que creó la reserva (auditoría)
-  createdBy?: {
-    userId: string;
-    userName: string;
-    userEmail: string;
-    userRole: 'admin' | 'user' | 'colaborador';
-  };
-  // Colaboradores incluidos en la reserva
-  colaboradores?: Array<{
-    _id: string;
-    name: string;
-    username: string;
-    email: string;
-  }>;
-  // Nombres de asistentes
-  attendees?: string[];
-}
+import { DatePicker } from './DatePicker';
+import { Department, Reservation } from '../types';
 
 interface ReservationFormData {
   area: string;
@@ -63,7 +28,7 @@ interface ReservationFormData {
 }
 
 export function Reservations() {
-  const { state, getDailyCapacity } = useApp();
+  const { state, dispatch, getDailyCapacity } = useApp();
   const currentUser = state.auth.currentUser;
 
   // Función para calcular la capacidad disponible de un área en una fecha específica
@@ -76,16 +41,27 @@ export function Reservations() {
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
+  const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
+  const [sortBy, setSortBy] = useState<'date' | 'createdAt' | 'area' | 'team'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(true);
+  
+  // Debounce para evitar peticiones excesivas
+  const [loadReservationsTimeout, setLoadReservationsTimeout] = useState<NodeJS.Timeout | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
+  
+  // Debug: Log del estado de departamentos
+  console.log('🔍 Estado actual de departments:', departments);
+  console.log('🔍 Cantidad de departamentos:', departments.length);
+  console.log('🔍 ¿Array vacío?', departments.length === 0);
   const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
     date: (() => {
-      // Inicializar con la fecha actual en formato YYYY-MM-DD (estándar)
+      // Inicializar con la fecha actual en formato YYYY-MM-DD usando fechas locales
       const today = new Date();
       const year = today.getFullYear();
       const month = (today.getMonth() + 1).toString().padStart(2, '0');
@@ -150,10 +126,8 @@ export function Reservations() {
   // Función para manejar la selección de colaboradores
   const handleCollaboratorSelection = (collaboratorId: string, isSelected: boolean) => {
     if (isSelected) {
-      // Agregar colaborador si no excede la cantidad de puestos
-      if (selectedCollaborators.length < formData.requestedSeats) {
-        setSelectedCollaborators([...selectedCollaborators, collaboratorId]);
-      }
+      // Agregar colaborador (sin restricción de cantidad de puestos)
+      setSelectedCollaborators([...selectedCollaborators, collaboratorId]);
     } else {
       // Remover colaborador
       setSelectedCollaborators(selectedCollaborators.filter(id => id !== collaboratorId));
@@ -166,21 +140,29 @@ export function Reservations() {
     setSelectedCollaborators([]); // Limpiar selección al cambiar departamento
   };
 
-  // Limpiar colaboradores seleccionados cuando cambia la cantidad de puestos
+
+  // Seleccionar automáticamente todos los colaboradores por defecto
   useEffect(() => {
-    if (selectedCollaborators.length > formData.requestedSeats) {
-      setSelectedCollaborators(selectedCollaborators.slice(0, formData.requestedSeats));
+    if (colaboradoresDisponibles.length > 0) {
+      const allCollaborators = colaboradoresDisponibles.map(c => c.id);
+      
+      // Solo actualizar si no hay colaboradores seleccionados
+      if (selectedCollaborators.length === 0) {
+        setSelectedCollaborators(allCollaborators);
+      }
     }
-  }, [formData.requestedSeats]);
+  }, [colaboradoresDisponibles]);
 
   // Cargar departamentos disponibles al montar el componente
   useEffect(() => {
     const loadDepartments = async () => {
       try {
+        console.log('🔄 Cargando departamentos...');
         const depts = await departmentService.getDepartments();
+        console.log('✅ Departamentos cargados:', depts);
         setDepartments(depts);
       } catch (error) {
-        console.error('Error cargando departamentos:', error);
+        console.error('❌ Error cargando departamentos:', error);
       }
     };
 
@@ -226,9 +208,9 @@ export function Reservations() {
     return baseOptions.filter(option => parseInt(option.value) <= 180);
   }, [currentUser?.role]);
 
-  // Validar y ajustar duración para usuarios con rol "user"
+  // Validar y ajustar duración para usuarios con rol "lider"
   useEffect(() => {
-    if (currentUser?.role === 'user' && !isFullDayReservation) {
+    if (currentUser?.role === 'lider' && !isFullDayReservation) {
       const currentDuration = parseInt(formData.duration || '60');
       if (currentDuration > 180) {
         // Ajustar a 3 horas máximo
@@ -407,7 +389,7 @@ export function Reservations() {
       if (reservation.area !== area || reservationDate !== normalizedDate) return false;
       
       // Verificar que la reservación esté activa
-      if (reservation.status !== 'active') return false;
+      if (reservation.status !== 'confirmed') return false;
       
       // Verificar conflicto de horarios
       const reservationStart = reservation.startTime;
@@ -458,13 +440,13 @@ export function Reservations() {
         reservationDateDisplay: formatDateForDisplay(reservation.date),
         areaMatch: reservation.area === area,
         dateMatch: reservationDate === normalizedDate,
-        statusMatch: reservation.status === 'active',
-        isMatch: reservation.area === area && reservationDate === normalizedDate && reservation.status === 'active'
+        statusMatch: reservation.status === 'confirmed',
+        isMatch: reservation.area === area && reservationDate === normalizedDate && reservation.status === 'confirmed'
       });
       
       return reservation.area === area && 
              reservationDate === normalizedDate && 
-             reservation.status === 'active';
+             reservation.status === 'confirmed';
     });
 
     if (areaReservations.length === 0) return false;
@@ -549,28 +531,21 @@ export function Reservations() {
   const isDateAndTimeInPast = useCallback((date: string, startTime: string): boolean => {
     if (!date || !startTime) return false;
     
-    // Crear fecha actual
+    // Crear fecha actual UTC
     const now = new Date();
     
-    // Crear fecha de la reservación
+    // Crear fecha de la reservación en UTC
     let reservationDate: Date;
     
-    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
-      // Formato DD-MM-YY
-      const [day, month, year] = date.split('-').map(Number);
-      const fullYear = year < 50 ? 2000 + year : 1900 + year;
-      reservationDate = new Date(fullYear, month - 1, day);
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       // Formato YYYY-MM-DD
       const [year, month, day] = date.split('-').map(Number);
-      reservationDate = new Date(year, month - 1, day);
+      const [hours, minutes] = startTime.split(':').map(Number);
+      // Crear fecha UTC directamente
+      reservationDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
     } else {
-      reservationDate = new Date(date);
+      return false; // Formato no soportado
     }
-    
-    // Agregar la hora de inicio a la fecha
-    const [hours, minutes] = startTime.split(':').map(Number);
-    reservationDate.setHours(hours, minutes, 0, 0);
     
     // Verificar si está en el pasado
     const isInPast = reservationDate < now;
@@ -578,7 +553,7 @@ export function Reservations() {
     // Verificar si está dentro de horarios de oficina
     const isWithinOfficeHoursCheck = isWithinOfficeHours(reservationDate, startTime, state.adminSettings);
     
-    console.log('🔍 Validación fecha/hora:', {
+    console.log('🔍 Validación fecha/hora (UTC):', {
       now: now.toISOString(),
       reservationDateTime: reservationDate.toISOString(),
       isInPast,
@@ -590,52 +565,39 @@ export function Reservations() {
     return isInPast || !isWithinOfficeHoursCheck;
   }, [state.adminSettings]);
 
-  // Función para verificar si solo una fecha está en el pasado (sin hora)
+  // Función para verificar si solo una fecha está en el pasado (sin hora) usando fechas locales
   const isDateInPast = useCallback((date: string): boolean => {
     if (!date) return false;
     
-    // Crear fecha actual local (solo fecha, sin hora)
+    // Crear fecha actual local (inicio del día)
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    now.setHours(0, 0, 0, 0);
     
-    // Crear fecha de la reservación local
+    // Crear fecha de la reservación local (inicio del día)
     let reservationDate: Date;
     
-    if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
-      // Formato DD-MM-YY
-      const [day, month, year] = date.split('-').map(Number);
-      const fullYear = year < 50 ? 2000 + year : 1900 + year;
-      reservationDate = new Date(fullYear, month - 1, day);
-    } else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      // Formato YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Formato YYYY-MM-DD - crear fecha local
       const [year, month, day] = date.split('-').map(Number);
-      reservationDate = new Date(year, month - 1, day);
+      reservationDate = new Date(year, month - 1, day, 0, 0, 0, 0);
     } else {
-      reservationDate = new Date(date);
-      // Solo considerar la fecha, no la hora, en local
-      reservationDate = new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate());
+      return false; // Formato no soportado
     }
     
     console.log('📅 Validación fecha pasada (LOCAL):', {
       inputDate: date,
-      today: today.toISOString(),
+      now: now.toISOString(),
+      nowLocal: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
       reservationDate: reservationDate.toISOString(),
-      todayLocal: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
-      reservationDateLocal: new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate()).toISOString(),
-      isInPast: reservationDate < today,
-      todayDate: today.getDate(),
-      todayMonth: today.getMonth(),
-      todayYear: today.getFullYear(),
-      reservationDay: reservationDate.getDate(),
-      reservationMonth: reservationDate.getMonth(),
-      reservationYear: reservationDate.getFullYear(),
-      comparison: `${reservationDate.toISOString()} < ${today.toISOString()} = ${reservationDate < today}`
+      reservationDateLocal: reservationDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      isInPast: reservationDate < now,
+      comparison: `${reservationDate.toISOString()} < ${now.toISOString()} = ${reservationDate < now}`
     });
     
-    return reservationDate < today;
+    return reservationDate < now;
   }, []);
 
-  // Función para obtener la fecha mínima permitida (próximo día de oficina) en formato YYYY-MM-DD
+  // Función para obtener la fecha mínima permitida (próximo día de oficina) en formato YYYY-MM-DD usando fechas locales
   const getMinDate = useCallback((): string => {
     const today = new Date();
     let currentDate = new Date(today);
@@ -756,10 +718,55 @@ export function Reservations() {
 
 
 
+  // Función para cargar reservaciones con debounce
+  const loadReservations = useCallback(async () => {
+    // Cancelar petición anterior si existe
+    if (loadReservationsTimeout) {
+      clearTimeout(loadReservationsTimeout);
+    }
+
+    // Crear nuevo timeout
+    const timeout = setTimeout(async () => {
+      try {
+        setIsLoading(true);
+        const data = await reservationService.getAllReservations();
+        setReservations(data);
+        // Actualizar también el estado global para que otros componentes vean los cambios
+        dispatch({ type: 'SET_RESERVATIONS', payload: data });
+        setError(null);
+        
+        // Log para debug
+        console.log('🔄 [Reservations] Estado global actualizado:', {
+          totalReservations: data.length,
+          hotDeskReservations: data.filter(r => r.area === 'Hot Desk').length
+        });
+        
+        // Disparar evento personalizado para notificar a otros componentes
+        window.dispatchEvent(new CustomEvent('reservationsUpdated', {
+          detail: { reservations: data }
+        }));
+      } catch (error) {
+        console.error('Error cargando reservaciones:', error);
+        setError('Error al cargar las reservaciones');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300); // Debounce de 300ms
+
+    setLoadReservationsTimeout(timeout);
+  }, [loadReservationsTimeout, dispatch]);
+
   // Cargar reservaciones al montar el componente
   useEffect(() => {
     loadReservations();
-  }, []);
+    
+    // Cleanup del timeout al desmontar
+    return () => {
+      if (loadReservationsTimeout) {
+        clearTimeout(loadReservationsTimeout);
+      }
+    };
+  }, [loadReservations, loadReservationsTimeout]);
 
   // Función para obtener las fechas de los próximos 5 días
   const getNext5Days = useCallback(() => {
@@ -785,16 +792,48 @@ export function Reservations() {
     });
   }, [getNext5Days, normalizeDate]);
 
-  // Actualizar reservaciones filtradas cuando cambien las reservaciones
+  // Función para ordenar reservaciones
+  const sortReservations = useCallback((reservationsList: Reservation[]) => {
+    return [...reservationsList].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'createdAt':
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          comparison = dateA - dateB;
+          break;
+        case 'date':
+          const reservationDateA = new Date(a.date).getTime();
+          const reservationDateB = new Date(b.date).getTime();
+          comparison = reservationDateA - reservationDateB;
+          break;
+        case 'area':
+          comparison = a.area.localeCompare(b.area);
+          break;
+        case 'team':
+          comparison = a.teamName.localeCompare(b.teamName);
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [sortBy, sortOrder]);
+
+  // Actualizar reservaciones filtradas cuando cambien las reservaciones o el ordenamiento
   useEffect(() => {
     // Por defecto, mostrar solo las reservas de los próximos 5 días
     const filtered = filterReservationsByNext5Days(reservations);
-    setFilteredReservations(filtered);
-  }, [reservations, filterReservationsByNext5Days]);
+    const sorted = sortReservations(filtered);
+    setFilteredReservations(sorted);
+  }, [reservations, filterReservationsByNext5Days, sortReservations]);
 
   // Función para manejar el cambio de filtros
   const handleFilterChange = (filtered: Reservation[]) => {
-    setFilteredReservations(filtered);
+    const sorted = sortReservations(filtered);
+    setFilteredReservations(sorted);
     // Si se está usando filtro manual, marcar que no se está aplicando el filtro por defecto
     setIsDefaultFilterApplied(false);
   };
@@ -846,11 +885,7 @@ export function Reservations() {
               date: date,
               startTime: hour,
               endTime: addMinutesToTime(hour, parseInt(prevData.duration || '60')),
-              contactPerson: state.auth.currentUser?.name || '',
-              contactEmail: state.auth.currentUser?.email || '',
               teamName: '',
-              contactPhone: '',
-              templateId: '',
               requestedSeats: area.category === 'SALA' ? area.capacity : 1,
               notes: ''
             };
@@ -877,23 +912,42 @@ export function Reservations() {
       setShowForm(true);
     };
 
+    // Función para manejar el clic en área desde disponibilidad
+    const handleAreaClick = (event: CustomEvent) => {
+      console.log('📡 Evento areaClick recibido en Reservations:', event.detail);
+      const { area, date } = event.detail;
+      
+      // Preseleccionar el área y la fecha
+      setFormData(prev => ({
+        ...prev,
+        area: area.name,
+        date: date
+      }));
+      
+      // Abrir el formulario
+      setShowForm(true);
+    };
+
     // Agregar event listeners
     window.addEventListener('availabilityHourClick', handleAvailabilityHourClick);
     window.addEventListener('newReservationClick', handleNewReservationClick);
+    window.addEventListener('areaClick', handleAreaClick as EventListener);
 
     // Cleanup
     return () => {
       window.removeEventListener('availabilityHourClick', handleAvailabilityHourClick);
       window.removeEventListener('newReservationClick', handleNewReservationClick);
+      window.removeEventListener('areaClick', handleAreaClick as EventListener);
     };
-  }, [state.auth.currentUser, state.areas]);
+  }, [state.auth.currentUser]);
 
   // Recargar reservaciones cuando cambie el área, fecha o duración para actualizar horarios disponibles
-  useEffect(() => {
-    if (formData.area && formData.date) {
-      loadReservations();
-    }
-  }, [formData.area, formData.date, formData.duration]);
+  // Comentado para evitar peticiones excesivas - las reservaciones se cargan al montar el componente
+  // useEffect(() => {
+  //   if (formData.area && formData.date) {
+  //     loadReservations();
+  //   }
+  // }, [formData.area, formData.date, formData.duration]);
 
   // Limpiar hora de inicio cuando cambien la fecha o duración (solo si no viene de disponibilidad)
   useEffect(() => {
@@ -906,22 +960,6 @@ export function Reservations() {
       }));
     }
   }, [formData.date, formData.duration, formData.startTime]);
-
-
-
-  const loadReservations = async () => {
-    try {
-      setIsLoading(true);
-      const data = await reservationService.getAllReservations();
-      setReservations(data);
-      setError(null);
-    } catch (error) {
-      console.error('Error cargando reservaciones:', error);
-      setError('Error al cargar las reservaciones');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -995,11 +1033,11 @@ export function Reservations() {
       }
     }
 
-    // Verificar límite de duración para usuarios con rol "user"
-    if (!isFullDayReservation && currentUser?.role === 'user') {
+    // Verificar límite de duración para usuarios con rol "lider"
+    if (!isFullDayReservation && currentUser?.role === 'lider') {
       const durationMinutes = parseInt(formData.duration || '60');
       if (durationMinutes > 180) {
-        setError('Los usuarios con rol "User" solo pueden reservar hasta 3 horas (180 minutos) máximo.');
+        setError('Los usuarios con rol "Lider" solo pueden reservar hasta 3 horas (180 minutos) máximo.');
         return;
       }
     }
@@ -1035,7 +1073,7 @@ export function Reservations() {
       const existingReservations = reservations.filter(r => 
         r.area === formData.area && 
         r.date === formData.date && 
-        r.status === 'active' &&
+        r.status === 'confirmed' &&
         r._id !== editingReservation?._id
       );
       
@@ -1045,9 +1083,15 @@ export function Reservations() {
       }
     }
 
-    // Validar que el número de colaboradores seleccionados sea igual a la cantidad de puestos
-    if (selectedCollaborators.length !== formData.requestedSeats) {
-      setError(`Debe seleccionar exactamente ${formData.requestedSeats} colaborador(es) para ${formData.requestedSeats} puesto(s). Actualmente ha seleccionado ${selectedCollaborators.length}.`);
+    // Validar que se haya seleccionado al menos 1 colaborador
+    if (selectedCollaborators.length === 0) {
+      setError('Debe seleccionar al menos 1 colaborador para la reserva.');
+      return;
+    }
+
+    // Validar que la cantidad de colaboradores sea igual a la cantidad de puestos reservados
+    if (!selectedArea?.isMeetingRoom && selectedCollaborators.length !== formData.requestedSeats) {
+      setError(`La cantidad de colaboradores seleccionados (${selectedCollaborators.length}) debe ser igual a la cantidad de puestos reservados (${formData.requestedSeats}).`);
       return;
     }
 
@@ -1123,13 +1167,19 @@ export function Reservations() {
         }
       }
 
-      // Recargar reservaciones
+      // Recargar reservaciones y actualizar estado global
       await loadReservations();
       
       // Limpiar formulario
       setFormData({
         area: '',
-        date: new Date().toISOString().split('T')[0],
+        date: (() => {
+          const today = new Date();
+          const year = today.getFullYear();
+          const month = (today.getMonth() + 1).toString().padStart(2, '0');
+          const day = today.getDate().toString().padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
         startTime: '09:00',
         endTime: '10:00',
         duration: '60',
@@ -1163,12 +1213,9 @@ export function Reservations() {
       return;
     }
 
-    // Verificar permisos: solo el creador o admin puede eliminar
-    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
-    const canDelete = currentUser.id === reservationUserId || currentUser.role === 'admin';
-    
-    if (!canDelete) {
-      setError('Solo el creador de la reservación o un administrador puede eliminarla');
+    // Verificar permisos: solo administradores pueden eliminar
+    if (currentUser.role !== 'admin') {
+      setError('Solo los administradores pueden eliminar reservaciones');
       return;
     }
 
@@ -1180,11 +1227,45 @@ export function Reservations() {
       setIsLoading(true);
       setError(null);
 
+      // Log detallado antes de eliminar
+      console.log('🗑️ ELIMINANDO RESERVACIÓN:', {
+        timestamp: new Date().toISOString(),
+        deletedBy: {
+          id: currentUser.id,
+          name: currentUser.name,
+          username: currentUser.username,
+          role: currentUser.role
+        },
+        reservation: {
+          id: reservation._id,
+          area: reservation.area,
+          date: reservation.date,
+          startTime: reservation.startTime,
+          endTime: reservation.endTime,
+          teamName: reservation.teamName,
+          requestedSeats: reservation.requestedSeats,
+          status: reservation.status,
+          createdAt: reservation.createdAt,
+          createdBy: reservation.createdBy,
+          colaboradores: reservation.colaboradores,
+          attendees: reservation.attendees
+        }
+      });
+
       await reservationService.deleteReservation(reservation._id, currentUser.id);
       await loadReservations();
 
+      // Log de confirmación
+      console.log('✅ RESERVACIÓN ELIMINADA EXITOSAMENTE:', {
+        timestamp: new Date().toISOString(),
+        deletedBy: currentUser.username,
+        reservationId: reservation._id,
+        area: reservation.area,
+        date: reservation.date
+      });
+
     } catch (error: any) {
-      console.error('Error eliminando reservación:', error);
+      console.error('❌ Error eliminando reservación:', error);
       setError(error.message || 'Error al eliminar la reservación');
     } finally {
       setIsLoading(false);
@@ -1226,7 +1307,13 @@ export function Reservations() {
     setSelectedCollaborators([]);
     setFormData({
       area: '',
-      date: new Date().toISOString().split('T')[0],
+      date: (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        const day = today.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      })(),
       startTime: '09:00',
       endTime: '10:00',
       duration: '60',
@@ -1246,17 +1333,14 @@ export function Reservations() {
   };
 
   const canEditReservation = (reservation: Reservation) => {
-    if (!currentUser) return false;
-    // Verificar si userId es un objeto (con _id) o un string
-    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
-    return currentUser.id === reservationUserId || currentUser.role === 'admin';
+    // Deshabilitar edición de reservas una vez guardadas
+    return false;
   };
 
   const canDeleteReservation = (reservation: Reservation) => {
     if (!currentUser) return false;
-    // Verificar si userId es un objeto (con _id) o un string
-    const reservationUserId = typeof reservation.userId === 'object' ? reservation.userId._id : reservation.userId;
-    return currentUser.id === reservationUserId || currentUser.role === 'admin';
+    // Solo administradores pueden eliminar reservas
+    return currentUser.role === 'admin';
   };
 
 
@@ -1264,19 +1348,291 @@ export function Reservations() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'active': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'completed': return 'bg-blue-100 text-blue-800';
+      // Mantener compatibilidad con el estado anterior
+      case 'active': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Función para abrir la vista completa de la reservación
+  const handleViewReservation = (reservation: Reservation) => {
+    setViewingReservation(reservation);
+  };
+
+  // Función para cerrar la vista de reservación
+  const handleCloseView = () => {
+    setViewingReservation(null);
+  };
+
+  // Función para cambiar el criterio de ordenamiento
+  const handleSortChange = (newSortBy: 'date' | 'createdAt' | 'area' | 'team') => {
+    if (sortBy === newSortBy) {
+      // Si es el mismo criterio, cambiar el orden
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Si es un criterio diferente, establecerlo y usar desc por defecto
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  // Función auxiliar para manejar valores undefined/null
+  // Función auxiliar mejorada para manejar valores undefined/null/unknown
+  const safeValue = (value: any, fallback: string = 'N/A'): string => {
+    if (value === null || value === undefined || value === '' || value === 'null' || value === 'undefined') {
+      return fallback;
+    }
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase();
+      // Solo reemplazar si es exactamente "unknown", "null", "undefined" o vacío
+      if (lowerValue === 'unknown' || lowerValue === 'null' || lowerValue === 'undefined' || lowerValue === '') {
+        return fallback;
+      }
+      // Para emails con "unknown@", usar un fallback más específico
+      if (lowerValue.includes('unknown@') && fallback === 'N/A') {
+        return 'Email no disponible';
+      }
+    }
+    return String(value);
+  };
+
+  // Función para formatear fechas
+  const formatDate = (dateString: any): string => {
+    if (!dateString || dateString === 'N/A') return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  // Función para obtener información del usuario real
+  const getUserInfo = (userId: string): { name: string; email: string; role: string; cedula: string } => {
+    const user = state.users.find(u => u.id === userId || u._id === userId);
+    if (user) {
+      return {
+        name: safeValue(user.name),
+        email: safeValue(user.email),
+        role: safeValue(user.role),
+        cedula: safeValue(user.cedula)
+      };
+    }
+    return { name: 'Usuario no encontrado', email: 'N/A', role: 'N/A', cedula: 'N/A' };
+  };
+
+  // Función para mostrar información debug detallada
+  const showDebugInfo = (reservation: Reservation) => {
+    console.log('🔍 Verificando información debug para reservación:', {
+      reservationId: reservation.reservationId,
+      _id: reservation._id,
+      hasDebug: !!reservation.debug,
+      debugKeys: reservation.debug ? Object.keys(reservation.debug) : []
+    });
+
+    // Log detallado del debug object
+    if (reservation.debug) {
+      console.log('🔍 Debug object completo:', reservation.debug);
+      console.log('🔍 systemInfo:', reservation.debug.systemInfo);
+      console.log('🔍 userInfo:', reservation.debug.userInfo);
+      console.log('🔍 dateProcessing:', reservation.debug.dateProcessing);
+      console.log('🔍 areaInfo:', reservation.debug.areaInfo);
+    }
+
+    if (!reservation.debug) {
+      console.log('No hay información debug disponible para esta reservación');
+      
+      // Mostrar información básica de la reservación aunque no tenga debug
+      const basicInfo = `
+🔍 INFORMACIÓN BÁSICA DE LA RESERVACIÓN
+═══════════════════════════════════════
+
+📋 INFORMACIÓN BÁSICA
+─────────────────────
+ID de Reservación: ${reservation.reservationId || 'N/A'}
+ID de Base de Datos: ${reservation._id}
+Fecha de Creación: ${reservation.createdAt || 'N/A'}
+
+👤 INFORMACIÓN DEL USUARIO
+──────────────────────────
+Usuario: ${reservation.userName || 'N/A'}
+Área: ${reservation.area || 'N/A'}
+Equipo: ${reservation.teamName || 'N/A'}
+
+📅 INFORMACIÓN DE LA RESERVA
+────────────────────────────
+Fecha: ${reservation.date || 'N/A'}
+Hora Inicio: ${reservation.startTime || 'N/A'}
+Hora Fin: ${reservation.endTime || 'N/A'}
+Puestos Solicitados: ${reservation.requestedSeats || 0}
+Estado: ${reservation.status || 'N/A'}
+
+👥 COLABORADORES
+────────────────
+${reservation.colaboradores?.map((c, i) => `${i + 1}. ${c.name || c}`).join('\n') || 'Ninguno'}
+
+📝 NOTAS
+────────
+${reservation.notes || 'Sin notas'}
+
+⚠️ INFORMACIÓN DEBUG
+────────────────────
+Esta reservación fue creada antes de implementar el sistema de debug mejorado.
+Para ver información debug detallada, crea una nueva reservación.
+
+═══════════════════════════════════════
+`;
+      
+      alert(basicInfo);
+      return;
+    }
+
+    console.log('🔍 INFORMACIÓN DEBUG COMPLETA DE LA RESERVACIÓN:', {
+      reservationId: reservation.reservationId,
+      _id: reservation._id,
+      debug: reservation.debug
+    });
+
+    const debug = reservation.debug as any; // Type assertion para compatibilidad con estructura antigua y nueva
+    
+    // Crear información debug estructurada (compatible con estructura antigua y nueva)
+    const debugInfo = `
+🔍 INFORMACIÓN DEBUG DETALLADA
+═══════════════════════════════════════
+
+📋 INFORMACIÓN BÁSICA
+─────────────────────
+ID de Reservación: ${safeValue(reservation.reservationId)}
+ID de Base de Datos: ${safeValue(reservation._id)}
+Versión del Sistema: ${safeValue(debug.systemInfo?.version, '1.0.0')}
+ID de Request: ${safeValue(debug.systemInfo?.requestId)}
+
+👤 INFORMACIÓN DEL USUARIO
+──────────────────────────
+Creador: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    name: safeValue(debug.userInfo?.creator?.name || reservation.userName),
+    email: safeValue(debug.userInfo?.creator?.email),
+    role: safeValue(debug.userInfo?.creator?.role),
+    cedula: safeValue(debug.userInfo?.creator?.cedula)
+  };
+  return creatorInfo.name;
+})()}
+Email: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    name: safeValue(debug.userInfo?.creator?.name || reservation.userName),
+    email: safeValue(debug.userInfo?.creator?.email),
+    role: safeValue(debug.userInfo?.creator?.role),
+    cedula: safeValue(debug.userInfo?.creator?.cedula)
+  };
+  return creatorInfo.email;
+})()}
+Rol: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    name: safeValue(debug.userInfo?.creator?.name || reservation.userName),
+    email: safeValue(debug.userInfo?.creator?.email),
+    role: safeValue(debug.userInfo?.creator?.role),
+    cedula: safeValue(debug.userInfo?.creator?.cedula)
+  };
+  return creatorInfo.role;
+})()}
+Cédula: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    name: safeValue(debug.userInfo?.creator?.name || reservation.userName),
+    email: safeValue(debug.userInfo?.creator?.email),
+    role: safeValue(debug.userInfo?.creator?.role),
+    cedula: safeValue(debug.userInfo?.creator?.cedula)
+  };
+  return creatorInfo.cedula;
+})()}
+
+👥 COLABORADORES (${debug.userInfo?.collaborators?.length || 0})
+${debug.userInfo?.collaborators?.map((c: any, i: number) => {
+  const userInfo = getUserInfo(c.id || c);
+  return `${i + 1}. ${userInfo.name} (${safeValue(c.role || userInfo.role)})`;
+}).join('\n') || 'Ninguno'}
+
+📅 INFORMACIÓN DE FECHAS
+────────────────────────
+Fecha de Creación: ${formatDate(debug.systemInfo?.createdAt || reservation.createdAt)}
+Fecha Reservada: ${formatDate(debug.dateProcessing?.original?.dateString || reservation.date)}
+Fecha UTC: ${formatDate(debug.dateProcessing?.utc?.reservationDate)}
+Hora Inicio: ${safeValue(debug.dateProcessing?.original?.startTimeString || reservation.startTime)}
+Hora Fin: ${safeValue(debug.dateProcessing?.original?.endTimeString || reservation.endTime)}
+Día de la Semana: ${safeValue(debug.dateProcessing?.validation?.dayName)}
+Zona Horaria: ${safeValue(debug.dateProcessing?.utc?.timezone || debug.systemInfo?.timezone, 'America/Bogota')}
+User Agent: ${safeValue(debug.systemInfo?.userAgent || debug.metadata?.userAgent)}
+Es Día de Oficina: ${debug.dateProcessing?.validation?.isOfficeDay ? 'Sí' : 'No'}
+Es Fecha Futura: ${debug.dateProcessing?.validation?.isFutureDate ? 'Sí' : 'No'}
+
+🏢 INFORMACIÓN DEL ÁREA
+────────────────────────
+Área: ${safeValue(debug.areaInfo?.areaName || reservation.area)}
+Tipo: ${safeValue(debug.areaInfo?.areaType)}
+Capacidad Total: ${safeValue(debug.areaInfo?.capacity, '50')}
+Puestos Solicitados: ${safeValue(debug.areaInfo?.requestedSeats || debug.inputData?.processed?.finalRequestedSeats || reservation.requestedSeats, '0')}
+Puestos Disponibles: ${safeValue(debug.areaInfo?.availableSeats, '0')}
+Tasa de Utilización: ${safeValue(debug.areaInfo?.utilizationRate, '0%')}
+
+✅ VALIDACIONES REALIZADAS
+──────────────────────────
+Campos Requeridos: ${Object.entries(debug.validations?.requiredFields || {}).map(([key, value]) => `${key}: ${value ? '✓' : '✗'}`).join(', ')}
+Reglas de Negocio: ${Object.entries(debug.validations?.businessRules || {}).map(([key, value]) => `${key}: ${value ? '✓' : '✗'}`).join(', ')}
+Validación de Capacidad: ${Object.entries(debug.validations?.capacityValidation || {}).map(([key, value]) => `${key}: ${value}`).join(', ')}
+
+📊 INFORMACIÓN DE LA RESERVA
+────────────────────────────
+Duración: ${debug.reservationInfo?.duration?.durationHours || 0} horas (${debug.reservationInfo?.duration?.durationMinutes || 0} minutos)
+Total Participantes: ${debug.reservationInfo?.participants?.total || 0}
+Colaboradores: ${debug.reservationInfo?.participants?.collaborators || 0}
+Asistentes: ${debug.reservationInfo?.participants?.attendees || 0}
+
+🌐 METADATOS DE LA REQUEST
+──────────────────────────
+IP: ${safeValue(debug.metadata?.ipAddress)}
+Referer: ${safeValue(debug.metadata?.referer)}
+Idioma: ${safeValue(debug.metadata?.acceptLanguage)}
+Método: ${safeValue(debug.metadata?.requestMethod)}
+URL: ${safeValue(debug.metadata?.requestUrl)}
+Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 'N/A'}
+
+═══════════════════════════════════════
+`;
+
+    // Mostrar en alert (limitado por tamaño)
+    if (debugInfo.length > 2000) {
+      // Si es muy largo, mostrar en consola y alert resumido
+      console.log(debugInfo);
+      alert(`🔍 Información debug completa mostrada en consola (F12)\n\nResumen:\nID: ${reservation.reservationId}\nCreador: ${debug.userInfo?.creator?.name}\nÁrea: ${debug.areaInfo?.areaName}\nFecha: ${debug.dateProcessing?.original?.dateString}\nPuestos: ${debug.areaInfo?.requestedSeats}/${debug.areaInfo?.capacity}`);
+    } else {
+      alert(debugInfo);
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
       case 'confirmed': return 'Activa';
-      case 'active': return 'Activa';
+      case 'pending': return 'Pendiente';
       case 'cancelled': return 'Cancelada';
       case 'completed': return 'Completada';
+      // Mantener compatibilidad con el estado anterior
+      case 'active': return 'Activa';
       default: return 'Desconocido';
     }
   };
@@ -1403,12 +1759,9 @@ export function Reservations() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fecha de la Reservación *
                   </label>
-                  <input
-                    type="date"
-                    min={getMinDate()}
+                  <DatePicker
                     value={formData.date}
-                    onChange={(e) => {
-                      const dateValue = e.target.value;
+                    onChange={(dateValue) => {
                       if (dateValue) {
                         // Validar que la fecha no esté en el pasado
                         if (isDateInPast(dateValue)) {
@@ -1422,22 +1775,20 @@ export function Reservations() {
                           setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
                           return;
                         }
-                        
-                        // Usar directamente el formato YYYY-MM-DD
-                        setFormData({...formData, date: dateValue});
-                      } else {
-                        setFormData({...formData, date: ''});
                       }
+                      
+                      setFormData(prev => ({
+                        ...prev,
+                        date: dateValue,
+                        startTime: '', // Limpiar hora al cambiar fecha
+                        endTime: ''
+                      }));
                       setError(null); // Limpiar error cuando cambie la fecha
                     }}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      isSelectedDateFullyBooked 
-                        ? 'border-red-500 focus:ring-red-500 bg-red-50' 
-                        : isDateInPast(formData.date)
-                        ? 'border-red-500 focus:ring-red-500 bg-red-50'
-                        : 'border-gray-300 focus:ring-primary-500'
-                    }`}
-                    required
+                    minDate={getMinDate()}
+                    placeholder="Seleccionar fecha de reservación"
+                    error={isSelectedDateFullyBooked || isDateInPast(formData.date)}
+                    className="w-full"
                   />
                   {isSelectedDateFullyBooked && (
                     <div className="mt-1 text-sm text-red-600 flex items-center">
@@ -1511,6 +1862,10 @@ export function Reservations() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     Departamento *
                 </label>
+                {(() => {
+                  console.log('🎯 Renderizando select de departamentos con', departments.length, 'departamentos');
+                  return null;
+                })()}
                 <select
                     value={formData.teamName}
                     onChange={(e) => handleDepartmentChange(e.target.value)}
@@ -1518,11 +1873,14 @@ export function Reservations() {
                     required
                   >
                     <option value="">Seleccione un departamento</option>
-                    {departments.map((dept) => (
-                      <option key={dept._id} value={dept.name}>
-                        {dept.name}
+                    {departments.map((dept) => {
+                      console.log('🏢 Renderizando departamento:', dept);
+                      return (
+                        <option key={dept._id} value={dept.name}>
+                          {dept.name}
                     </option>
-                  ))}
+                      );
+                    })}
                 </select>
                   {departments.length === 0 && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -1636,7 +1994,7 @@ export function Reservations() {
                             <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                             </svg>
-                          </div>
+              </div>
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-blue-800">
                               Reserva de Sala Completa
@@ -1665,7 +2023,7 @@ export function Reservations() {
                 {/* Selección de Colaboradores */}
               <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Seleccionar Colaboradores ({selectedCollaborators.length} de {formData.requestedSeats} seleccionados) *
+                      Seleccionar Colaboradores ({selectedCollaborators.length} seleccionados) *
                 </label>
                     
                     {colaboradoresDisponibles.length === 0 ? (
@@ -1673,23 +2031,20 @@ export function Reservations() {
                         No hay colaboradores disponibles en el departamento "{formData.teamName}".
             </div>
                     ) : (
-                      <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
-                        {/* Selector "Seleccionar todos" */}
+                      <div className="border border-gray-200 rounded-md">
+                        {/* Selector "Seleccionar todos" - FIJO */}
                         {colaboradoresDisponibles.length > 1 && (
-                          <div className="border-b border-gray-200 pb-2 mb-2">
-                            <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                              <input
+                          <div className="bg-gray-50 border-b border-gray-200 p-3 sticky top-0 z-10">
+                            <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded">
+                <input
                                 type="checkbox"
-                                checked={selectedCollaborators.length === formData.requestedSeats && 
-                                         colaboradoresDisponibles.slice(0, formData.requestedSeats).every(c => 
-                                           selectedCollaborators.includes(c.id))}
+                                checked={colaboradoresDisponibles.length > 0 && 
+                                         colaboradoresDisponibles.every(c => selectedCollaborators.includes(c.id))}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    // Seleccionar los primeros N colaboradores según la cantidad solicitada
-                                    const collaboratorsToSelect = colaboradoresDisponibles
-                                      .slice(0, formData.requestedSeats)
-                                      .map(c => c.id);
-                                    setSelectedCollaborators(collaboratorsToSelect);
+                                    // Seleccionar TODOS los colaboradores del departamento
+                                    const allCollaborators = colaboradoresDisponibles.map(c => c.id);
+                                    setSelectedCollaborators(allCollaborators);
                                   } else {
                                     // Deseleccionar todos
                                     setSelectedCollaborators([]);
@@ -1699,18 +2054,22 @@ export function Reservations() {
                               />
                               <div className="flex-1">
                                 <div className="text-sm font-medium text-primary-600">
-                                  {selectedCollaborators.length === formData.requestedSeats ? 
+                                  {colaboradoresDisponibles.length > 0 && 
+                                   colaboradoresDisponibles.every(c => selectedCollaborators.includes(c.id)) ? 
                                     'Deseleccionar todos' : 
-                                    `Seleccionar todos (${Math.min(formData.requestedSeats, colaboradoresDisponibles.length)})`
+                                    `Seleccionar todos (${colaboradoresDisponibles.length})`
                                   }
-                                </div>
+              </div>
                                 <div className="text-xs text-gray-500">
-                                  Selecciona automáticamente los colaboradores necesarios
+                                  Selecciona todos los colaboradores del departamento
                                 </div>
                               </div>
-                            </label>
+                </label>
                           </div>
                         )}
+                        
+                        {/* Lista de colaboradores con scroll */}
+                        <div className="space-y-2 max-h-48 overflow-y-auto p-3">
                         
                         {colaboradoresDisponibles.map((collaborator) => (
                           <label key={collaborator.id} className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded">
@@ -1718,7 +2077,6 @@ export function Reservations() {
                               type="checkbox"
                               checked={selectedCollaborators.includes(collaborator.id)}
                               onChange={(e) => handleCollaboratorSelection(collaborator.id, e.target.checked)}
-                              disabled={!selectedCollaborators.includes(collaborator.id) && selectedCollaborators.length >= formData.requestedSeats}
                               className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                             />
                             <div className="flex-1">
@@ -1727,16 +2085,17 @@ export function Reservations() {
               </div>
                           </label>
                         ))}
+                        </div>
                       </div>
                     )}
                     
                     <div className="text-xs text-gray-500 mt-2">
                       <span className="text-blue-600 font-medium">
-                        {selectedCollaborators.length} de {formData.requestedSeats} colaboradores seleccionados
+                        {selectedCollaborators.length} colaborador(es) seleccionado(s)
                       </span>
-                      {selectedCollaborators.length !== formData.requestedSeats && (
+                      {selectedCollaborators.length === 0 && (
                         <span className="text-red-600 ml-2">
-                          • Debe seleccionar exactamente {formData.requestedSeats} colaborador(es)
+                          • Debe seleccionar al menos 1 colaborador
                         </span>
                       )}
                     </div>
@@ -1744,8 +2103,8 @@ export function Reservations() {
               </div>
             )}
 
-            {/* Paso 4: Nombres de Asistentes (solo para rol user) */}
-            {currentUser?.role === 'user' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
+            {/* Paso 4: Nombres de Asistentes (solo para rol lider) */}
+            {currentUser?.role === 'lider' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                   <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
@@ -1841,7 +2200,7 @@ export function Reservations() {
                           matchingReservations: reservations.filter(r => {
                             const reservationDate = normalizeDate(r.date);
                             const formDate = normalizeDate(formData.date);
-                            return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                            return r.area === formData.area && reservationDate === formDate && r.status === 'confirmed';
                           }).map(r => ({
                             id: r._id,
                             area: r.area,
@@ -1859,7 +2218,7 @@ export function Reservations() {
                           .filter(r => {
                             const reservationDate = normalizeDate(r.date);
                             const formDate = normalizeDate(formData.date);
-                            return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                            return r.area === formData.area && reservationDate === formDate && r.status === 'confirmed';
                           })
                           .map((reservation, index) => (
                             <div key={index} className="text-sm text-gray-600 mb-1">
@@ -1872,7 +2231,7 @@ export function Reservations() {
                         {reservations.filter(r => {
                           const reservationDate = normalizeDate(r.date);
                           const formDate = normalizeDate(formData.date);
-                          return r.area === formData.area && reservationDate === formDate && r.status === 'active';
+                          return r.area === formData.area && reservationDate === formDate && r.status === 'confirmed';
                         }).length === 0 && (
                           <p className="text-sm text-gray-500">No hay reservaciones para esta fecha</p>
                         )}
@@ -2052,6 +2411,71 @@ export function Reservations() {
         </div>
       )}
 
+      {/* Ordenador de Reservaciones */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Ordenar por:</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSortChange('createdAt')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  sortBy === 'createdAt'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title="Fecha de creación"
+              >
+                📅 Creación {sortBy === 'createdAt' && (sortOrder === 'desc' ? '↓' : '↑')}
+              </button>
+              
+              <button
+                onClick={() => handleSortChange('date')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  sortBy === 'date'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title="Fecha de la reservación"
+              >
+                📆 Fecha {sortBy === 'date' && (sortOrder === 'desc' ? '↓' : '↑')}
+              </button>
+              
+              <button
+                onClick={() => handleSortChange('area')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  sortBy === 'area'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title="Área"
+              >
+                🏢 Área {sortBy === 'area' && (sortOrder === 'desc' ? '↓' : '↑')}
+              </button>
+              
+              <button
+                onClick={() => handleSortChange('team')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  sortBy === 'team'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title="Equipo"
+              >
+                👥 Equipo {sortBy === 'team' && (sortOrder === 'desc' ? '↓' : '↑')}
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span>Orden:</span>
+            <span className="font-medium">
+              {sortOrder === 'desc' ? 'Descendente (más reciente primero)' : 'Ascendente (más antiguo primero)'}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Filtros y Exportación */}
       <ReservationFilters
         reservations={reservations}
@@ -2091,11 +2515,16 @@ export function Reservations() {
                       </span>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        <span><strong>Solicitante:</strong> {reservation.contactPerson}</span>
+                    {/* ID único de la reservación */}
+                    {reservation.reservationId && (
+                      <div className="mb-2">
+                        <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
+                          ID: {reservation.reservationId}
+                        </span>
                       </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
@@ -2129,39 +2558,51 @@ export function Reservations() {
                         <span><strong>Equipo:</strong> {reservation.teamName}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400">📧</span>
-                        <span><strong>Email:</strong> {reservation.contactEmail}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400">📞</span>
-                        <span><strong>Teléfono:</strong> {reservation.contactPhone}</span>
-                      </div>
 
                       <div className="flex items-center gap-2">
                         <span className="text-gray-400">🪑</span>
                         <span><strong>Puestos:</strong> {reservation.requestedSeats || 1}</span>
                       </div>
 
-                      {reservation.templateId && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-400">📋</span>
-                          <span><strong>Plantilla:</strong> {state.templates.find(t => t.id === reservation.templateId)?.name || 'Plantilla'}</span>
-                        </div>
-                      )}
 
                       {reservation.createdBy && (
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                           <span className="text-gray-400">👤</span>
                           <span><strong>Creado por:</strong> {reservation.createdBy.userName} ({reservation.createdBy.userRole})</span>
-                        </div>
+                      </div>
                       )}
-                      
+
+                      {reservation.createdAt && (
+                      <div className="flex items-center gap-2">
+                          <span className="text-gray-400">📅</span>
+                          <span><strong>Registrado:</strong> {new Date(reservation.createdAt).toLocaleString('es-ES', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}</span>
+                      </div>
+                      )}
+
                       {reservation.colaboradores && reservation.colaboradores.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400">👥</span>
-                          <span><strong>Colaboradores:</strong> {reservation.colaboradores.map(c => c.name).join(', ')}</span>
+                          <span><strong>Colaboradores:</strong> {
+                            reservation.colaboradores.map(c => {
+                              // Si c es un objeto con name, usar c.name
+                              if (typeof c === 'object' && c.name) {
+                                return c.name;
+                              }
+                              // Si c es un ID (string), buscar el usuario en el estado global
+                              if (typeof c === 'string') {
+                                const user = state.users.find(u => u.id === c || u._id === c);
+                                return user ? user.name : 'Usuario no encontrado';
+                              }
+                              return 'Usuario no encontrado';
+                            }).join(', ')
+                          }</span>
                         </div>
                       )}
                     </div>
@@ -2175,6 +2616,24 @@ export function Reservations() {
                   </div>
 
                   <div className="flex gap-2 ml-4">
+                    {/* Botón para ver reservación completa */}
+                    <button
+                      onClick={() => handleViewReservation(reservation)}
+                      className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                      title="Ver reservación completa"
+                    >
+                      👁️ Ver
+                    </button>
+                    
+                    {/* Botón de Debug */}
+                    <button
+                      onClick={() => showDebugInfo(reservation)}
+                      className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      title="Ver información debug"
+                    >
+                      🔍 Debug
+                    </button>
+                    
                     {canEditReservation(reservation) && (
                       <button
                         onClick={() => handleEdit(reservation)}
@@ -2201,6 +2660,247 @@ export function Reservations() {
           </div>
         )}
       </div>
+
+      {/* Modal de Vista Completa de Reservación */}
+      {viewingReservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header del Modal */}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Vista Completa de Reservación
+                </h2>
+                <button
+                  onClick={handleCloseView}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Información Principal */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Columna Izquierda - Información Básica */}
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Información Básica</h3>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Área:</span>
+                        <span className="font-medium">{viewingReservation.area}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Fecha:</span>
+                        <span className="font-medium">{formatDateWithDay(viewingReservation.date)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Horario:</span>
+                        <span className="font-medium">
+                          {(() => {
+                            const area = areas.find(a => a.name === viewingReservation.area);
+                            const isFullDay = area?.isFullDayReservation || false;
+                            return isFullDay ? 'Día completo' : `${viewingReservation.startTime} - ${viewingReservation.endTime}`;
+                          })()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Equipo:</span>
+                        <span className="font-medium">{viewingReservation.teamName}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Puestos:</span>
+                        <span className="font-medium">{viewingReservation.requestedSeats}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Estado:</span>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(viewingReservation.status)}`}>
+                          {getStatusText(viewingReservation.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* IDs de la Reservación */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Identificadores</h3>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-gray-600 text-sm">ID de Reservación:</span>
+                        <div className="font-mono text-sm bg-white p-2 rounded border mt-1">
+                          {viewingReservation.reservationId || 'No disponible'}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <span className="text-gray-600 text-sm">ID MongoDB:</span>
+                        <div className="font-mono text-sm bg-white p-2 rounded border mt-1">
+                          {viewingReservation._id}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna Derecha - Información Adicional */}
+                <div className="space-y-4">
+                  {/* Colaboradores */}
+                  {viewingReservation.colaboradores && viewingReservation.colaboradores.length > 0 && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Colaboradores</h3>
+                      <div className="space-y-2">
+                        {viewingReservation.colaboradores.map((c, index) => {
+                          const collaboratorName = typeof c === 'object' && c.name 
+                            ? c.name 
+                            : typeof c === 'string' 
+                              ? (state.users.find(u => u.id === c || u._id === c)?.name || 'Usuario no encontrado')
+                              : 'Usuario no encontrado';
+                          return (
+                            <div key={index} className="flex items-center gap-2">
+                              <span className="text-gray-400">👤</span>
+                              <span className="text-sm">{collaboratorName}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Asistentes */}
+                  {viewingReservation.attendees && viewingReservation.attendees.length > 0 && (
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Asistentes</h3>
+                      <div className="space-y-2">
+                        {viewingReservation.attendees.map((attendee, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <span className="text-gray-400">👥</span>
+                            <span className="text-sm">{attendee}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Información de Auditoría */}
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Auditoría</h3>
+                    
+                    <div className="space-y-3">
+                      {viewingReservation.createdBy && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Creado por:</span>
+                          <span className="font-medium">
+                            {viewingReservation.createdBy.userName} ({viewingReservation.createdBy.userRole})
+                          </span>
+                        </div>
+                      )}
+                      
+                      {viewingReservation.createdAt && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Fecha de creación:</span>
+                          <span className="font-medium">
+                            {new Date(viewingReservation.createdAt).toLocaleString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {viewingReservation.updatedAt && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Última actualización:</span>
+                          <span className="font-medium">
+                            {new Date(viewingReservation.updatedAt).toLocaleString('es-ES', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notas */}
+              {viewingReservation.notes && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Notas</h3>
+                  <p className="text-gray-700">{viewingReservation.notes}</p>
+                </div>
+              )}
+
+              {/* Información Debug */}
+              {viewingReservation.debug && (
+                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Información Debug</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Usa el botón "🔍 Debug" para ver información detallada de esta reserva.
+                  </p>
+                  <button
+                    onClick={() => showDebugInfo(viewingReservation)}
+                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                  >
+                    🔍 Ver Debug Completo
+                  </button>
+                </div>
+              )}
+
+              {/* Botones de Acción */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  onClick={handleCloseView}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cerrar
+                </button>
+                
+                {canEditReservation(viewingReservation) && (
+                  <button
+                    onClick={() => {
+                      handleEdit(viewingReservation);
+                      handleCloseView();
+                    }}
+                    className="px-4 py-2 text-blue-600 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"
+                  >
+                    Editar
+                  </button>
+                )}
+                
+                {canDeleteReservation(viewingReservation) && (
+                  <button
+                    onClick={() => {
+                      handleDelete(viewingReservation);
+                      handleCloseView();
+                    }}
+                    className="px-4 py-2 text-red-600 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

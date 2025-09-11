@@ -155,7 +155,7 @@ export function Areas() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {state.areas.map((area) => {
           const reservationsCount = state.reservations.filter(
-            r => r.areaId === area.id && r.status === 'confirmed'
+            r => r.area === area.name && r.status === 'confirmed'
           ).length;
           
           return (

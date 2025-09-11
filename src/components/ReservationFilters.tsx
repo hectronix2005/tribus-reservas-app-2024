@@ -1,26 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Download, Filter, X } from 'lucide-react';
 import { reservationService } from '../services/api';
-
-interface Reservation {
-  _id: string;
-  userId: string | { _id: string; name: string; username: string };
-  userName: string;
-  area: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  contactPerson: string;
-  teamName: string;
-  contactEmail: string;
-  contactPhone: string;
-  templateId?: string | null;
-  requestedSeats: number;
-  status: 'active' | 'cancelled' | 'completed';
-  notes: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Reservation } from '../types';
 
 interface ReservationFiltersProps {
   reservations: Reservation[];
@@ -109,10 +90,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
       new Date(reservation.date).toLocaleDateString('es-ES'),
       reservation.startTime,
       reservation.endTime,
-      reservation.contactPerson,
       reservation.teamName,
-      reservation.contactEmail,
-      reservation.contactPhone,
       reservation.requestedSeats,
       getStatusText(reservation.status),
       reservation.notes,

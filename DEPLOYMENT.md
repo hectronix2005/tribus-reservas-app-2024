@@ -1,165 +1,304 @@
-# 🚀 Guía de Despliegue en Heroku - TRIBUS
+# 🚀 Guía de Despliegue - Sistema de Reservas Tribus
 
 ## 📋 Prerrequisitos
 
-1. **Cuenta de Heroku**: Crear una cuenta en [heroku.com](https://heroku.com)
-2. **Git**: Asegúrate de tener Git instalado
-3. **Node.js**: Versión 18.x o superior
-
-## 🔧 Instalación de Heroku CLI
-
-### Opción 1: Descarga Directa (Recomendada)
-1. Ve a [https://devcenter.heroku.com/articles/heroku-cli](https://devcenter.heroku.com/articles/heroku-cli)
-2. Descarga el instalador para macOS
-3. Instala y ejecuta el instalador
-
-### Opción 2: Usando npm (si tienes permisos)
+### Heroku CLI
 ```bash
-npm install -g heroku
+# Instalar Heroku CLI
+brew install heroku/brew/heroku
+
+# Verificar instalación
+heroku --version
 ```
 
-## 🚀 Pasos para Desplegar
-
-### 1. Inicializar Git (si no está inicializado)
+### Git
 ```bash
-git init
-git add .
-git commit -m "Initial commit for Heroku deployment"
+# Verificar que Git esté configurado
+git config --global user.name "Tu Nombre"
+git config --global user.email "tu@email.com"
 ```
 
-### 2. Crear Aplicación en Heroku
+## 🔧 Configuración de Heroku
+
+### 1. Crear Aplicación en Heroku
 ```bash
-# Iniciar sesión en Heroku
+# Login en Heroku
 heroku login
 
-# Crear nueva aplicación
+# Crear aplicación
 heroku create tribus-reservas-app
 
-# O si quieres un nombre específico
-heroku create tu-nombre-tribus
+# Verificar aplicación creada
+heroku apps
+```
+
+### 2. Configurar Variables de Entorno
+```bash
+# Configurar MongoDB Atlas
+heroku config:set MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/tribus-reservas"
+
+# Configurar JWT Secret
+heroku config:set JWT_SECRET="tu-jwt-secret-super-seguro"
+
+# Configurar puerto (Heroku lo asigna automáticamente)
+heroku config:set PORT=3001
+
+# Verificar variables
+heroku config
 ```
 
 ### 3. Configurar Buildpacks
 ```bash
 # Agregar buildpack de Node.js
-heroku buildpacks:add heroku/nodejs
+heroku buildpacks:set heroku/nodejs
 
-# Agregar buildpack estático
-heroku buildpacks:add https://github.com/heroku/heroku-buildpack-static
+# Verificar buildpacks
+heroku buildpacks
 ```
 
-### 4. Configurar Variables de Entorno
-```bash
-# Configurar entorno de producción
-heroku config:set NODE_ENV=production
+## 📦 Preparación para Despliegue
+
+### 1. Actualizar package.json
+```json
+{
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm run build:client",
+    "build:client": "cd client && npm run build",
+    "heroku-postbuild": "npm install && npm run build"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  }
+}
 ```
 
-### 5. Desplegar la Aplicación
+### 2. Crear Procfile
 ```bash
-# Subir código a Heroku
+# Crear archivo Procfile en la raíz
+echo "web: node server.js" > Procfile
+```
+
+### 3. Configurar Servidor para Producción
+```javascript
+// server.js - Agregar al final
+const PORT = process.env.PORT || 3001;
+
+// Servir archivos estáticos en producción
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'build')));
+  
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  });
+}
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+});
+```
+
+## 🚀 Proceso de Despliegue
+
+### 1. Preparar Repositorio
+```bash
+# Inicializar git si no existe
+git init
+
+# Agregar archivos
+git add .
+
+# Commit inicial
+git commit -m "Initial commit - Sistema de Reservas Tribus"
+
+# Agregar remote de Heroku
+heroku git:remote -a tribus-reservas-app
+```
+
+### 2. Desplegar a Heroku
+```bash
+# Desplegar
 git push heroku main
 
-# O si tu rama principal es master
-git push heroku master
-```
+# Ver logs
+heroku logs --tail
 
-### 6. Abrir la Aplicación
-```bash
-# Abrir en el navegador
+# Abrir aplicación
 heroku open
 ```
 
-## 🔍 Verificar el Despliegue
-
-### Ver Logs
+### 3. Verificar Despliegue
 ```bash
+# Verificar estado
+heroku ps
+
 # Ver logs en tiempo real
 heroku logs --tail
 
+# Abrir aplicación
+heroku open
+```
+
+## 🔧 Configuración de MongoDB Atlas
+
+### 1. Crear Cluster
+1. Ir a [MongoDB Atlas](https://cloud.mongodb.com)
+2. Crear nuevo cluster
+3. Configurar región (us-east-1 para Heroku)
+4. Crear usuario de base de datos
+
+### 2. Configurar Acceso de Red
+```bash
+# Agregar IP de Heroku (0.0.0.0/0 para desarrollo)
+# En MongoDB Atlas > Network Access > Add IP Address
+```
+
+### 3. Obtener Connection String
+```bash
+# Formato de connection string
+mongodb+srv://username:password@cluster.mongodb.net/tribus-reservas?retryWrites=true&w=majority
+```
+
+## 📊 Monitoreo y Mantenimiento
+
+### 1. Logs de Heroku
+```bash
 # Ver logs recientes
 heroku logs
+
+# Ver logs en tiempo real
+heroku logs --tail
+
+# Ver logs de una app específica
+heroku logs --app tribus-reservas-app
 ```
 
-### Verificar Estado
+### 2. Métricas de la Aplicación
 ```bash
-# Ver información de la aplicación
-heroku info
+# Ver métricas
+heroku ps
 
-# Ver variables de entorno
-heroku config
-```
+# Ver uso de recursos
+heroku ps:scale web=1
 
-## 🛠️ Comandos Útiles
-
-### Reiniciar la Aplicación
-```bash
+# Reiniciar aplicación
 heroku restart
 ```
 
-### Ejecutar Comandos en Heroku
+### 3. Base de Datos
 ```bash
-# Ejecutar comando en Heroku
-heroku run npm run build
+# Conectar a MongoDB Atlas
+# Usar MongoDB Compass o mongo shell
+# Connection string: MONGODB_URI de Heroku
 ```
 
-### Ver Escalado
+## 🔒 Configuración de Seguridad
+
+### 1. Variables de Entorno Sensibles
 ```bash
-# Ver dynos activos
-heroku ps
+# JWT Secret (generar uno seguro)
+openssl rand -base64 32
+
+# MongoDB URI (con credenciales seguras)
+# Usar usuario con permisos mínimos necesarios
 ```
 
-## 📝 Notas Importantes
+### 2. Rate Limiting en Producción
+```javascript
+// Ajustar para producción
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // 100 requests por ventana (ajustar según necesidad)
+  message: {
+    error: 'Demasiadas peticiones, intenta de nuevo más tarde'
+  }
+});
+```
 
-### Plan Gratuito de Heroku
-- **Limitaciones**: La aplicación se "duerme" después de 30 minutos de inactividad
-- **Primera carga**: Puede tardar unos segundos en "despertar"
-- **Uso**: Ideal para pruebas y demostraciones
+### 3. CORS para Producción
+```javascript
+// Configurar CORS para dominio específico
+app.use(cors({
+  origin: ['https://tribus-reservas-app.herokuapp.com'],
+  credentials: true
+}));
+```
 
-### Planes de Pago
-- **Hobby**: $7/mes - Sin sleep, mejor rendimiento
-- **Standard**: $25/mes - Para aplicaciones en producción
+## 🧪 Testing en Producción
 
-## 🔧 Solución de Problemas
-
-### Error de Build
+### 1. Verificar Endpoints
 ```bash
-# Ver logs detallados
-heroku logs --tail
+# Probar endpoint principal
+curl https://tribus-reservas-app.herokuapp.com/api/users
 
-# Reconstruir la aplicación
-git commit --allow-empty -m "Trigger rebuild"
+# Probar autenticación
+curl -X POST https://tribus-reservas-app.herokuapp.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "password"}'
+```
+
+### 2. Verificar Base de Datos
+```bash
+# Conectar a MongoDB Atlas
+# Verificar que las colecciones se crearon correctamente
+# Probar operaciones CRUD
+```
+
+## 📋 Checklist de Despliegue
+
+### Pre-Despliegue
+- [ ] Variables de entorno configuradas
+- [ ] MongoDB Atlas configurado
+- [ ] Buildpacks configurados
+- [ ] Procfile creado
+- [ ] Código committeado
+
+### Despliegue
+- [ ] Aplicación desplegada en Heroku
+- [ ] Variables de entorno configuradas en Heroku
+- [ ] Aplicación accesible via URL
+- [ ] Logs sin errores críticos
+
+### Post-Despliegue
+- [ ] Login funcionando
+- [ ] Creación de usuarios funcionando
+- [ ] Creación de reservas funcionando
+- [ ] Calendario de disponibilidad funcionando
+- [ ] Todas las funcionalidades operativas
+
+## 🚨 Troubleshooting
+
+### Error: "Cannot find module"
+```bash
+# Verificar que todas las dependencias estén en package.json
+npm install --save <missing-module>
+git add package.json package-lock.json
+git commit -m "Add missing dependency"
 git push heroku main
 ```
 
-### Error de Buildpack
+### Error: "MongoDB connection failed"
 ```bash
-# Ver buildpacks configurados
-heroku buildpacks
+# Verificar MONGODB_URI
+heroku config:get MONGODB_URI
 
-# Remover y agregar de nuevo
-heroku buildpacks:clear
-heroku buildpacks:add heroku/nodejs
-heroku buildpacks:add https://github.com/heroku/heroku-buildpack-static
+# Verificar que la IP esté en whitelist de MongoDB Atlas
+# Verificar credenciales de usuario
 ```
 
-### Error de Puerto
-- Heroku asigna automáticamente el puerto
-- La aplicación debe usar `process.env.PORT`
-
-## 🌐 URLs de la Aplicación
-
-Una vez desplegada, tu aplicación estará disponible en:
-- **URL principal**: `https://tu-app-name.herokuapp.com`
-- **URL personalizada**: Puedes configurar un dominio personalizado
+### Error: "Port already in use"
+```bash
+# Verificar que el servidor use process.env.PORT
+const PORT = process.env.PORT || 3001;
+```
 
 ## 📞 Soporte
 
-Si tienes problemas con el despliegue:
-1. Revisa los logs: `heroku logs --tail`
-2. Verifica la configuración: `heroku config`
-3. Consulta la documentación de Heroku
-4. Contacta al equipo de desarrollo
+**Desarrollador**: Hector Neira  
+**Email**: hneira@picap.co  
+**Aplicación**: https://tribus-reservas-app.herokuapp.com
 
 ---
 
-**¡Tu aplicación TRIBUS estará lista para ser usada por cualquier persona en internet!** 🌍
+**Última actualización**: Septiembre 11, 2025

@@ -32,7 +32,8 @@ export function UserManagement() {
     email: '',
     username: '',
     password: '',
-    role: 'user' as 'admin' | 'user' | 'colaborador',
+    cedula: '',
+    role: 'lider' as 'admin' | 'lider' | 'colaborador',
     department: '',
     isActive: true
   });
@@ -134,10 +135,30 @@ export function UserManagement() {
           name: formData.name,
           email: formData.email,
           username: formData.username,
+          cedula: formData.cedula.trim(),
           role: formData.role,
           department: formData.department,
           isActive: formData.isActive
         };
+        
+        // Validar que la cédula no esté vacía
+        if (!formData.cedula.trim()) {
+          console.error('❌ Error: Cédula vacía detectada');
+          setError('La cédula es obligatoria');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('📝 Datos para actualizar usuario existente:', userData);
+        console.log('🔍 Cédula en actualización:', {
+          cedula: formData.cedula,
+          cedulaTrimmed: formData.cedula.trim(),
+          cedulaLength: formData.cedula.trim().length,
+          cedulaType: typeof formData.cedula,
+          cedulaIsEmpty: formData.cedula.trim() === '',
+          cedulaIsUndefined: formData.cedula === undefined,
+          cedulaIsNull: formData.cedula === null
+        });
         
         // Solo incluir password si se cambió
         if (formData.password) {
@@ -160,9 +181,9 @@ export function UserManagement() {
         console.log('🆕 Protocolo: Creando nuevo usuario');
         
         // Verificar que los datos no estén vacíos antes de enviar
-        if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim()) {
+        if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim() || !formData.cedula.trim()) {
           console.error('❌ Error: Datos vacíos detectados antes del envío');
-          setError('Todos los campos requeridos deben estar llenos');
+          setError('Todos los campos requeridos deben estar llenos, incluyendo la cédula');
           setIsLoading(false);
           return;
         }
@@ -172,12 +193,19 @@ export function UserManagement() {
           email: formData.email.trim(),
           username: formData.username.trim(),
           password: formData.password.trim(),
+          cedula: formData.cedula.trim(),
           role: formData.role,
           department: formData.department.trim(),
           isActive: formData.isActive
         };
         
         console.log('📤 Datos que se van a enviar al backend:', userData);
+        console.log('🔍 Cédula específicamente:', {
+          cedula: formData.cedula,
+          cedulaTrimmed: formData.cedula.trim(),
+          cedulaLength: formData.cedula.trim().length
+        });
+        
         console.log('🔍 Validación de datos antes del envío:', {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -215,7 +243,8 @@ export function UserManagement() {
         email: '',
         username: '',
         password: '',
-        role: 'user',
+        cedula: '',
+        role: 'lider',
         department: '',
         isActive: true
       });
@@ -267,12 +296,22 @@ export function UserManagement() {
   };
 
   const handleEdit = (user: UserType) => {
+    console.log('🔍 Editando usuario:', {
+      id: user.id,
+      name: user.name,
+      cedula: user.cedula,
+      cedulaType: typeof user.cedula,
+      cedulaIsNull: user.cedula === null,
+      cedulaIsUndefined: user.cedula === undefined
+    });
+    
     setEditingUser(user);
     setFormData({
       name: user.name,
       email: user.email,
       username: user.username,
       password: '', // No mostrar contraseña actual
+      cedula: user.cedula || '',
       role: user.role,
       department: user.department || '',
       isActive: user.isActive
@@ -373,7 +412,8 @@ export function UserManagement() {
       email: '',
       username: '',
       password: '',
-      role: 'user',
+      cedula: '',
+      role: 'lider',
       department: '',
       isActive: true
     });
@@ -396,6 +436,7 @@ export function UserManagement() {
     if (!formData.name.trim()) return false;
     if (!formData.email.trim()) return false;
     if (!formData.username.trim()) return false;
+    if (!formData.cedula.trim()) return false; // Cédula es obligatoria
     if (!formData.department.trim()) return false; // Departamento es obligatorio
     if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
     
@@ -408,11 +449,12 @@ export function UserManagement() {
       return false;
     }
     
-    // Verificar que el username y email no existan ya (solo para nuevos usuarios)
+    // Verificar que el username, email y cédula no existan ya (solo para nuevos usuarios)
     if (!editingUser) {
       const existingUser = state.users.find(user => 
         user.username.toLowerCase() === formData.username.toLowerCase() ||
-        user.email.toLowerCase() === formData.email.toLowerCase()
+        user.email.toLowerCase() === formData.email.toLowerCase() ||
+        user.cedula === formData.cedula
       );
       if (existingUser) return false;
     }
@@ -426,6 +468,7 @@ export function UserManagement() {
     if (!formData.name.trim()) errors.push('El nombre es requerido');
     if (!formData.email.trim()) errors.push('El email es requerido');
     if (!formData.username.trim()) errors.push('El nombre de usuario es requerido');
+    if (!formData.cedula.trim()) errors.push('La cédula es requerida');
     if (!formData.department.trim()) errors.push('El departamento es requerido');
     if (!editingUser && !formData.password.trim()) errors.push('La contraseña es requerida para nuevos usuarios');
     
@@ -444,10 +487,11 @@ export function UserManagement() {
     if (!editingUser) {
       const existingUser = state.users.find(user => 
         user.username.toLowerCase() === formData.username.toLowerCase() ||
-        user.email.toLowerCase() === formData.email.toLowerCase()
+        user.email.toLowerCase() === formData.email.toLowerCase() ||
+        user.cedula === formData.cedula
       );
       if (existingUser) {
-        errors.push('El nombre de usuario o email ya existe en el sistema');
+        errors.push('El nombre de usuario, email o cédula ya existe en el sistema');
       }
     }
     
@@ -527,11 +571,16 @@ export function UserManagement() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Cédula:</span>
+                <span className="font-medium text-gray-900">{user.cedula || 'No especificada'}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Rol:</span>
                 <span className={`badge ${
                   user.role === 'admin' ? 'badge-warning' : 'badge-info'
                 }`}>
-                  {user.role === 'admin' ? 'Administrador' : 'Usuario'}
+                  {user.role === 'admin' ? 'Administrador' : user.role === 'lider' ? 'Lider' : 'Colaborador'}
                 </span>
               </div>
 
@@ -650,6 +699,23 @@ export function UserManagement() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Cédula <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.cedula}
+                    onChange={(e) => setFormData(prev => ({ ...prev, cedula: e.target.value }))}
+                    className={`input-field ${!formData.cedula.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    placeholder="12345678"
+                    required
+                  />
+                  {!formData.cedula.trim() && (
+                    <p className="text-xs text-red-600 mt-1">La cédula es requerida</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     {editingUser ? (
                       'Nueva Contraseña (dejar en blanco para mantener)'
                     ) : (
@@ -695,11 +761,11 @@ export function UserManagement() {
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'admin' | 'user' | 'colaborador' }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'admin' | 'lider' | 'colaborador' }))}
                     className="input-field"
                     required
                   >
-                    <option value="user">Usuario</option>
+                    <option value="lider">Lider</option>
                     <option value="admin">Administrador</option>
                     <option value="colaborador">Colaborador</option>
                   </select>

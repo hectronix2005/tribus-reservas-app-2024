@@ -52,13 +52,11 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
   const userConfigItems = [
     { id: 'profile', label: 'Mi Perfil', icon: UserCheck },
-    { id: 'userTemplates', label: 'Mis Plantillas', icon: FileText },
   ];
 
   const adminItems = [
     { id: 'admin', label: 'Administración', icon: Settings },
     { id: 'areas', label: 'Áreas', icon: Building2 },
-    { id: 'templates', label: 'Plantillas', icon: FileText },
     { id: 'users', label: 'Usuarios', icon: Users },
   ];
 
@@ -98,7 +96,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               <div className="relative" ref={adminMenuRef}>
                 <button
                   onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
-                  className={`nav-link ${['admin', 'areas', 'templates', 'users'].includes(currentView) ? 'nav-link-active' : ''} group`}
+                  className={`nav-link ${['admin', 'areas', 'users'].includes(currentView) ? 'nav-link-active' : ''} group`}
                 >
                   <Settings className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
                   <span>Administración</span>
@@ -137,11 +135,11 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
             )}
 
             {/* User Configuration Dropdown Menu */}
-            {(state.auth.currentUser?.role === 'user' || state.auth.currentUser?.role === 'colaborador') && (
+            {(state.auth.currentUser?.role === 'lider' || state.auth.currentUser?.role === 'colaborador') && (
               <div className="relative" ref={userConfigMenuRef}>
                 <button
                   onClick={() => setIsUserConfigMenuOpen(!isUserConfigMenuOpen)}
-                  className={`nav-link ${['profile', 'userTemplates'].includes(currentView) ? 'nav-link-active' : ''} group`}
+                  className={`nav-link ${['profile'].includes(currentView) ? 'nav-link-active' : ''} group`}
                 >
                   <Settings className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
                   <span>Configuración</span>
@@ -284,7 +282,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               )}
 
               {/* User Configuration Menu for Mobile */}
-              {(state.auth.currentUser?.role === 'user' || state.auth.currentUser?.role === 'colaborador') && (
+              {(state.auth.currentUser?.role === 'lider' || state.auth.currentUser?.role === 'colaborador') && (
                 <>
                   <div className="border-t border-slate-200 pt-4 mt-4">
                     <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-2">

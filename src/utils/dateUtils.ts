@@ -1,112 +1,233 @@
-import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+// Utilidades unificadas para el manejo de fechas en UTC
+// Este archivo centraliza todo el manejo de fechas para evitar inconsistencias
 
-// Función para obtener la fecha actual
-export const getCurrentDateInBogota = (): Date => {
+/**
+ * Convierte una fecha local a UTC manteniendo la misma fecha
+ * @param localDate - Fecha en formato local (YYYY-MM-DD)
+ * @returns Fecha UTC correspondiente
+ */
+export const localDateToUTC = (localDate: string): Date => {
+  const [year, month, day] = localDate.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
+/**
+ * Convierte una fecha UTC a string local (YYYY-MM-DD)
+ * @param utcDate - Fecha UTC
+ * @returns String en formato YYYY-MM-DD
+ */
+export const utcDateToLocalString = (utcDate: Date): string => {
+  const year = utcDate.getUTCFullYear();
+  const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(utcDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Obtiene la fecha actual en UTC
+ * @returns Fecha actual en UTC
+ */
+export const getCurrentUTCDate = (): Date => {
   return new Date();
 };
 
-// Función para formatear fecha
-export const formatDateInBogota = (date: Date | string, formatString: string = 'yyyy-MM-dd'): string => {
-  const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  return format(dateObj, formatString, { locale: es });
+/**
+ * Obtiene la fecha actual en formato string UTC (YYYY-MM-DD)
+ * @returns String de fecha actual en formato YYYY-MM-DD
+ */
+export const getCurrentUTCDateString = (): string => {
+  return utcDateToLocalString(getCurrentUTCDate());
 };
 
-// Función para formatear hora
-export const formatTimeInBogota = (date: Date | string, formatString: string = 'HH:mm'): string => {
-  const dateObj = typeof date === 'string' ? parseISO(date) : date;
-  return format(dateObj, formatString, { locale: es });
+/**
+ * Verifica si una fecha es hoy (comparando solo la fecha, no la hora)
+ * @param date - Fecha a verificar
+ * @returns true si es hoy, false en caso contrario
+ */
+export const isToday = (date: Date): boolean => {
+  const today = getCurrentUTCDate();
+  return utcDateToLocalString(date) === utcDateToLocalString(today);
 };
 
-// Función para convertir fecha local a UTC
-export const localToUTC = (date: Date): Date => {
-  return date;
+/**
+ * Verifica si una fecha es mañana (comparando solo la fecha, no la hora)
+ * @param date - Fecha a verificar
+ * @returns true si es mañana, false en caso contrario
+ */
+export const isTomorrow = (date: Date): boolean => {
+  const tomorrow = new Date(getCurrentUTCDate());
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  return utcDateToLocalString(date) === utcDateToLocalString(tomorrow);
 };
 
-// Función para convertir UTC a fecha local
-export const utcToLocal = (date: Date): Date => {
-  return date;
+/**
+ * Formatea una fecha para mostrar en la interfaz (usando UTC)
+ * @param date - Fecha a formatear
+ * @param options - Opciones de formateo
+ * @returns String formateado
+ */
+export const formatDateForDisplay = (date: Date, options?: {
+  weekday?: 'short' | 'long';
+  year?: 'numeric';
+  month?: 'long' | 'short';
+  day?: 'numeric';
+}): string => {
+  const defaultOptions = {
+    weekday: 'short' as const,
+    year: 'numeric' as const,
+    month: 'long' as const,
+    day: 'numeric' as const,
+    timeZone: 'UTC'
+  };
+  
+  return date.toLocaleDateString('es-ES', { ...defaultOptions, ...options });
 };
 
-// Función para obtener la fecha actual en formato YYYY-MM-DD en Bogotá
+/**
+ * Genera las próximas N días a partir de hoy (usando UTC)
+ * @param days - Número de días a generar
+ * @returns Array de fechas UTC
+ */
+export const generateNextDays = (days: number): Date[] => {
+  const dates: Date[] = [];
+  const today = getCurrentUTCDate();
+  
+  console.log('🔍 [dateUtils] Generando próximos', days, 'días a partir de hoy:', today.toISOString());
+  
+  for (let i = 0; i < days; i++) {
+    const date = new Date(today);
+    date.setUTCDate(today.getUTCDate() + i);
+    const dayName = getDayName(date, true);
+    const dateString = date.toISOString().split('T')[0];
+    console.log('🔍 [dateUtils] Día generado:', {
+      index: i,
+      dateString,
+      dayName,
+      dayIndex: date.getUTCDay()
+    });
+    dates.push(date);
+  }
+  
+  return dates;
+};
+
+/**
+ * Convierte una hora local a UTC manteniendo la misma hora
+ * @param timeString - Hora en formato HH:MM
+ * @param date - Fecha base (opcional, por defecto hoy)
+ * @returns Fecha UTC con la hora especificada
+ */
+export const localTimeToUTC = (timeString: string, date?: Date): Date => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const baseDate = date || getCurrentUTCDate();
+  
+  const utcDate = new Date(baseDate);
+  utcDate.setUTCHours(hours, minutes, 0, 0);
+  
+  return utcDate;
+};
+
+/**
+ * Convierte una fecha UTC a hora local (HH:MM)
+ * @param utcDate - Fecha UTC
+ * @returns String de hora en formato HH:MM
+ */
+export const utcDateToLocalTime = (utcDate: Date): string => {
+  const hours = String(utcDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(utcDate.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+/**
+ * Valida si una fecha es válida
+ * @param dateString - String de fecha a validar
+ * @returns true si es válida, false en caso contrario
+ */
+export const isValidDate = (dateString: string): boolean => {
+  const date = new Date(dateString);
+  return !isNaN(date.getTime());
+};
+
+/**
+ * Valida si una hora es válida
+ * @param timeString - String de hora a validar (HH:MM)
+ * @returns true si es válida, false en caso contrario
+ */
+export const isValidTime = (timeString: string): boolean => {
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  return timeRegex.test(timeString);
+};
+
+/**
+ * Compara dos fechas ignorando la hora (solo fecha)
+ * @param date1 - Primera fecha
+ * @param date2 - Segunda fecha
+ * @returns -1 si date1 < date2, 0 si son iguales, 1 si date1 > date2
+ */
+export const compareDates = (date1: Date, date2: Date): number => {
+  const date1String = utcDateToLocalString(date1);
+  const date2String = utcDateToLocalString(date2);
+  
+  if (date1String < date2String) return -1;
+  if (date1String > date2String) return 1;
+  return 0;
+};
+
+/**
+ * Obtiene el día de la semana en UTC (0 = Domingo, 1 = Lunes, etc.)
+ * @param date - Fecha a evaluar
+ * @returns Número del día de la semana (0-6)
+ */
+export const getUTCDayOfWeek = (date: Date): number => {
+  return date.getUTCDay();
+};
+
+/**
+ * Obtiene el nombre del día de la semana en español
+ * @param date - Fecha a evaluar
+ * @param short - Si true, devuelve nombre corto (ej: "lun"), si false, nombre completo (ej: "lunes")
+ * @returns Nombre del día de la semana
+ */
+export const getDayName = (date: Date, short: boolean = false): string => {
+  const dayNames = {
+    short: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
+    long: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+  };
+  
+  const dayIndex = getUTCDayOfWeek(date);
+  return dayNames[short ? 'short' : 'long'][dayIndex];
+};
+
+/**
+ * Formatea una fecha en la zona horaria de Bogotá (UTC-5)
+ * @param date - Fecha a formatear
+ * @param format - Formato deseado (ej: 'dd/MM/yyyy', 'yyyy-MM-dd')
+ * @returns String formateado
+ */
+export const formatDateInBogota = (date: Date | string, format: string = 'dd/MM/yyyy'): string => {
+  if (!date) return 'Sin fecha';
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  if (isNaN(dateObj.getTime())) return 'Fecha inválida';
+  
+  // Convertir a zona horaria de Bogotá (UTC-5)
+  const bogotaDate = new Date(dateObj.getTime() - (5 * 60 * 60 * 1000));
+  
+  const day = String(bogotaDate.getUTCDate()).padStart(2, '0');
+  const month = String(bogotaDate.getUTCMonth() + 1).padStart(2, '0');
+  const year = bogotaDate.getUTCFullYear();
+  
+  return format
+    .replace('dd', day)
+    .replace('MM', month)
+    .replace('yyyy', year.toString());
+};
+
+/**
+ * Obtiene la fecha actual en formato string (YYYY-MM-DD)
+ * @returns String de fecha actual
+ */
 export const getCurrentDateString = (): string => {
-  return formatDateInBogota(getCurrentDateInBogota(), 'yyyy-MM-dd');
-};
-
-// Función para obtener la hora actual en formato HH:mm en Bogotá
-export const getCurrentTimeString = (): string => {
-  return formatTimeInBogota(getCurrentDateInBogota(), 'HH:mm');
-};
-
-// Función para verificar si una fecha es hoy
-export const isTodayInBogota = (date: string): boolean => {
-  const today = getCurrentDateString();
-  return date === today;
-};
-
-// Función para verificar si una fecha es mañana
-export const isTomorrowInBogota = (date: string): boolean => {
-  const tomorrow = formatDateInBogota(addDays(getCurrentDateInBogota(), 1), 'yyyy-MM-dd');
-  return date === tomorrow;
-};
-
-// Función para obtener la etiqueta de fecha (Hoy, Mañana, etc.)
-export const getDateLabel = (date: string): string => {
-  if (isTodayInBogota(date)) return 'Hoy';
-  if (isTomorrowInBogota(date)) return 'Mañana';
-  return format(parseISO(date), 'EEEE', { locale: es });
-};
-
-// Función para obtener la clase CSS de la fecha
-export const getDateClass = (date: string): string => {
-  if (isTodayInBogota(date)) {
-    return 'border-primary-500 bg-primary-50 text-primary-700';
-  } else if (isTomorrowInBogota(date)) {
-    return 'border-warning-500 bg-warning-50 text-warning-700';
-  } else {
-    return 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50';
-  }
-};
-
-// Función para validar horarios de oficina (7 AM - 6 PM)
-export const isValidBusinessHours = (time: string, duration: number): boolean => {
-  const [hours, minutes] = time.split(':').map(Number);
-  const startTime = hours * 60 + minutes;
-  const endTime = startTime + duration;
-  
-  // Horario de oficina: 7:00 AM (420 minutos) a 6:00 PM (1080 minutos)
-  const officeStart = 7 * 60; // 7:00 AM
-  const officeEnd = 18 * 60;  // 6:00 PM
-  
-  return startTime >= officeStart && endTime <= officeEnd;
-};
-
-// Función para obtener la hora de fin basada en la hora de inicio y duración
-export const getEndTime = (startTime: string, duration: number): string => {
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const totalMinutes = hours * 60 + minutes + duration;
-  
-  const endHours = Math.floor(totalMinutes / 60);
-  const endMinutes = totalMinutes % 60;
-  
-  return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-};
-
-// Función para generar horarios disponibles
-export const generateTimeSlots = (): Array<{time: string, label: string}> => {
-  const slots = [];
-  const startHour = 7; // 7 AM
-  const endHour = 18; // 6 PM
-  
-  for (let hour = startHour; hour < endHour; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) { // Incrementos de 30 minutos
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      slots.push({
-        time,
-        label: `${time}`
-      });
-    }
-  }
-  
-  return slots;
+  return getCurrentUTCDateString();
 };

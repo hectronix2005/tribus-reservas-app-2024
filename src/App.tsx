@@ -1,30 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
 import { Reservations } from './components/Reservations';
 import { Areas } from './components/Areas';
 import { Admin } from './components/Admin';
-import { Templates } from './components/Templates';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
 import { Availability } from './components/Availability';
 import { UserProfile } from './components/UserProfile';
-import { UserTemplates } from './components/UserTemplates';
 import { ColaboradorView } from './components/ColaboradorView';
 
 function AppContent() {
   const { state } = useApp();
   const [currentView, setCurrentView] = useState(() => {
-    // Todos los usuarios (incluyendo admin) ven disponibilidad por defecto; solo colaboradores ven su vista específica
+    // Todos los usuarios (incluyendo admin) ven reservas por defecto; solo colaboradores ven su vista específica
     if (state.auth.currentUser?.role === 'colaborador') return 'colaborador';
-    return 'availability';
+    return 'reservations';
   });
 
   // Actualizar la vista cuando cambie el usuario autenticado
   useEffect(() => {
     if (state.auth.isAuthenticated) {
-      let defaultView = 'availability';
+      let defaultView = 'reservations';
       if (state.auth.currentUser?.role === 'colaborador') defaultView = 'colaborador';
       setCurrentView(defaultView);
     }
@@ -66,6 +63,25 @@ function AppContent() {
     }, 200);
   };
 
+  // Manejar clic en área desde la vista de disponibilidad
+  const handleAreaClick = (area: any, date: string) => {
+    console.log('🚀 Navegando desde disponibilidad a nueva reserva con área preseleccionada:', { area: area.name, date });
+    
+    // Cambiar a la vista de reservaciones
+    setCurrentView('reservations');
+    
+    // Usar setTimeout para asegurar que la navegación se complete antes de disparar el evento
+    setTimeout(() => {
+      // Emitir un evento personalizado para que Reservations.tsx pueda escucharlo
+      const event = new CustomEvent('areaClick', {
+        detail: { area, date }
+      });
+      window.dispatchEvent(event);
+      
+      console.log('📡 Evento areaClick disparado');
+    }, 200);
+  };
+
   // Si no está autenticado, mostrar login
   if (!state.auth.isAuthenticated) {
     return <Login />;
@@ -73,20 +89,12 @@ function AppContent() {
 
   const renderContent = () => {
     switch (currentView) {
-      case 'dashboard':
-        return state.auth.currentUser?.role === 'admin' ? <Dashboard /> : <div className="text-center py-12">
-          <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
-        </div>;
       case 'reservations':
         return <Reservations />;
       case 'availability':
-        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} />;
+        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} onAreaClick={handleAreaClick} />;
       case 'areas':
         return state.auth.currentUser?.role === 'admin' ? <Areas /> : <div className="text-center py-12">
-          <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
-        </div>;
-      case 'templates':
-        return state.auth.currentUser?.role === 'admin' ? <Templates /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
         </div>;
       case 'users':
@@ -99,15 +107,13 @@ function AppContent() {
         </div>;
       case 'profile':
         return <UserProfile />;
-      case 'userTemplates':
-        return <UserTemplates />;
       case 'colaborador':
         return state.auth.currentUser?.role === 'colaborador' ? <ColaboradorView /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo colaboradores.</div>
         </div>;
       default:
         if (state.auth.currentUser?.role === 'colaborador') return <ColaboradorView />;
-        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} />;
+        return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} onAreaClick={handleAreaClick} />;
     }
   };
 

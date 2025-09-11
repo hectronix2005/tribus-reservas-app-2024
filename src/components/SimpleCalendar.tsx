@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, X, Users, Clock, User } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 interface DayAvailability {
@@ -14,35 +14,12 @@ interface DayAvailability {
   };
 }
 
-interface AvailabilityProps {
+interface SimpleCalendarProps {
   onHourClick?: (area: any, date: string, hour: string) => void;
   onNewReservation?: () => void;
-  onAreaClick?: (area: any, date: string) => void;
 }
 
-interface Reservation {
-  _id: string;
-  area: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  teamName: string;
-  requestedSeats: number;
-  status: string;
-  colaboradores: string[];
-  attendees: string[];
-  notes?: string;
-  createdBy: {
-    userId: string;
-    userName: string;
-    userEmail: string;
-    userRole: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-export function Availability({ onHourClick, onNewReservation, onAreaClick }: AvailabilityProps) {
+export function SimpleCalendar({ onHourClick, onNewReservation }: SimpleCalendarProps) {
   const { state } = useApp();
   
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
@@ -51,12 +28,6 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'total' | 'week' | 'day'>('total');
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
-  const [showReservationsModal, setShowReservationsModal] = useState(false);
-  const [selectedAreaReservations, setSelectedAreaReservations] = useState<{
-    area: string;
-    date: string;
-    reservations: Reservation[];
-  } | null>(null);
 
   // Función simple para verificar si es día de oficina
   const isOfficeDay = (date: Date): boolean => {
@@ -102,33 +73,6 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
     return date.toDateString() === today.toDateString();
   };
 
-  // Función para manejar el clic en reservas activas
-  const handleReservationsClick = (area: string, date: string, reservations: Reservation[]) => {
-    setSelectedAreaReservations({
-      area,
-      date,
-      reservations
-    });
-    setShowReservationsModal(true);
-  };
-
-  // Función para formatear fecha y hora
-  const formatDateTime = (dateString: string, timeString: string): string => {
-    const date = new Date(dateString);
-    const formattedDate = date.toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-    return `${formattedDate} ${timeString}`;
-  };
-
-  // Función para obtener el nombre de usuario por ID
-  const getUserName = (userId: string): string => {
-    const user = state.users.find(u => u._id === userId);
-    return user ? user.name : 'Usuario no encontrado';
-  };
-
   // Generar los próximos 15 días de oficina
   const generateNext15Days = (): Date[] => {
     const days: Date[] = [];
@@ -136,14 +80,14 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
     let currentDate = new Date(today);
     let daysFound = 0;
     
-    console.log('🔍 [Availability] Generando próximos 15 días de oficina desde:', today.toDateString());
+    console.log('🔍 [SimpleCalendar] Generando próximos 15 días de oficina desde:', today.toDateString());
     
     // Buscar los próximos 15 días de oficina
     while (daysFound < 15) {
       if (isOfficeDay(currentDate)) {
         const dayName = getDayName(currentDate, true);
         const dateString = formatDate(currentDate);
-        console.log('🔍 [Availability] Día de oficina encontrado:', {
+        console.log('🔍 [SimpleCalendar] Día de oficina encontrado:', {
           index: daysFound + 1,
           dateString,
           dayName,
@@ -156,7 +100,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    console.log('🔍 [Availability] Total días de oficina generados:', days.length);
+    console.log('🔍 [SimpleCalendar] Total días de oficina generados:', days.length);
     return days;
   };
 
@@ -169,7 +113,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       const reservations = state.reservations;
       const areas = state.areas;
 
-      console.log('🔍 [Availability] Estado global de reservaciones:', {
+      console.log('🔍 [SimpleCalendar] Estado global de reservaciones:', {
         totalReservations: reservations.length,
         hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
         reservationsFor09_10: reservations.filter(r => {
@@ -206,7 +150,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
           return reservationDate === dateString && reservation.status === 'confirmed';
         });
 
-        console.log(`🔍 [Availability] Procesando fecha ${dateString}:`, {
+        console.log(`🔍 [SimpleCalendar] Procesando fecha ${dateString}:`, {
           dateString,
           dayName: getDayName(date, true),
           dayIndex: date.getDay(),
@@ -233,7 +177,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
           
           const availableSpaces = Math.max(0, area.capacity - totalReservedSeats);
           
-          console.log(`🔍 [Availability] Área ${area.name} para ${dateString}:`, {
+          console.log(`🔍 [SimpleCalendar] Área ${area.name} para ${dateString}:`, {
             areaName: area.name,
             totalCapacity: area.capacity,
             areaReservations: areaReservations.length,
@@ -273,7 +217,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
   // Escuchar eventos de actualización de reservaciones
   useEffect(() => {
     const handleReservationsUpdate = (event: CustomEvent) => {
-      console.log('🔄 [Availability] Evento de actualización recibido:', event.detail);
+      console.log('🔄 [SimpleCalendar] Evento de actualización recibido:', event.detail);
       if (state.areas.length > 0) {
         loadAvailability();
       }
@@ -316,38 +260,18 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
   if (viewMode === 'total') {
     daysToShow = generateNext15Days();
   } else if (viewMode === 'week') {
-    // Mostrar los días restantes de la semana actual, incluyendo hoy
+    // Mostrar la semana actual
     const today = new Date();
-    const currentDay = today.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Lunes
     
-    console.log('🔍 [Availability] Modo semana - Día actual:', {
-      today: today.toDateString(),
-      currentDay,
-      dayName: getDayName(today, true)
-    });
-    
-    // Si es domingo (0), empezar desde hoy
-    // Si es lunes a viernes (1-5), empezar desde hoy
-    // Si es sábado (6), mostrar solo hoy
-    const startDay = currentDay === 0 ? 0 : currentDay; // Empezar desde hoy o domingo
-    
-    for (let i = startDay; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + (i - currentDay));
-      
-      console.log('🔍 [Availability] Procesando día de la semana:', {
-        i,
-        date: date.toDateString(),
-        dayName: getDayName(date, true),
-        isOfficeDay: isOfficeDay(date)
-      });
-      
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
       if (isOfficeDay(date)) {
         daysToShow.push(date);
       }
     }
-    
-    console.log('🔍 [Availability] Días de la semana generados:', daysToShow.length);
   } else if (viewMode === 'day') {
     // Mostrar solo el día actual o el siguiente día hábil
     const today = new Date();
@@ -496,7 +420,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
               const dayAvailability = availability.find(day => day.date === dateString);
               const isTodayDate = isToday(date);
               
-              console.log('🔍 [Availability] Fecha mostrada en calendario:', {
+              console.log('🔍 [SimpleCalendar] Fecha mostrada en calendario:', {
                 index,
                 dateString,
                 dayName: getDayName(date, true),
@@ -550,15 +474,10 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                         return (
                           <div
                             key={area._id}
-                            onClick={() => {
-                              if (isAvailable && onAreaClick) {
-                                onAreaClick(area, dateString);
-                              }
-                            }}
-                            className={`p-3 rounded-lg border transition-all duration-200 ${
+                            className={`p-3 rounded-lg border ${
                               isAvailable
-                                ? 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 cursor-pointer'
-                                : 'bg-red-50 border-red-200 cursor-not-allowed'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
                             }`}
                           >
                             <div className="flex items-center justify-between">
@@ -581,23 +500,12 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                                 <div className="text-xs text-gray-500">
                                   Capacidad: {totalSpaces} puestos
                                 </div>
-                                {isAvailable && (
-                                  <div className="text-xs text-blue-600 font-medium mt-1">
-                                    Click para reservar
-                                  </div>
-                                )}
                               </div>
                             </div>
                             
                             {areaData?.reservations && areaData.reservations.length > 0 && (
-                              <div 
-                                className="mt-2 text-xs text-blue-600 font-medium cursor-pointer hover:text-blue-800 hover:underline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleReservationsClick(area.name, dateString, areaData.reservations);
-                                }}
-                              >
-                                {areaData.reservations.length} reserva(s) activa(s) - Click para ver
+                              <div className="mt-2 text-xs text-gray-600">
+                                {areaData.reservations.length} reserva(s) activa(s)
                               </div>
                             )}
                           </div>
@@ -610,132 +518,6 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
           </div>
         </div>
       </div>
-
-      {/* Modal de reservas activas */}
-      {showReservationsModal && selectedAreaReservations && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            {/* Header del modal */}
-            <div className="bg-gray-50 border-b border-gray-200 p-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Reservas Activas - {selectedAreaReservations.area}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {new Date(selectedAreaReservations.date).toLocaleDateString('es-ES', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowReservationsModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Contenido del modal */}
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-              {selectedAreaReservations.reservations.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay reservas activas para esta área en esta fecha</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {selectedAreaReservations.reservations.map((reservation) => (
-                    <div
-                      key={reservation._id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                            <Users className="w-5 h-5 text-primary-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">
-                              {reservation.teamName}
-                            </h4>
-                            <p className="text-sm text-gray-600">
-                              Creada por {reservation.createdBy.userName}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">
-                            {reservation.requestedSeats} puesto(s)
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {reservation.startTime} - {reservation.endTime}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Información de colaboradores */}
-                      {reservation.colaboradores && reservation.colaboradores.length > 0 && (
-                        <div className="mb-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Colaboradores ({reservation.colaboradores.length})
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {reservation.colaboradores.map((userId, index) => (
-                              <span
-                                key={index}
-                                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                              >
-                                {getUserName(userId)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Información adicional */}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            <span>
-                              Creada: {new Date(reservation.createdAt).toLocaleDateString('es-ES')}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span className="capitalize">{reservation.status}</span>
-                          </div>
-                        </div>
-                        {reservation.notes && (
-                          <div className="text-gray-600 italic">
-                            "{reservation.notes}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer del modal */}
-            <div className="bg-gray-50 border-t border-gray-200 p-4 flex justify-end">
-              <button
-                onClick={() => setShowReservationsModal(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

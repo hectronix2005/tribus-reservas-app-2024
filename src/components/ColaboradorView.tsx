@@ -11,10 +11,7 @@ interface Reservation {
   date: string;
   startTime: string;
   endTime: string;
-  contactPerson: string;
   teamName: string;
-  contactEmail: string;
-  contactPhone: string;
   templateId?: string | null;
   requestedSeats: number;
   status: 'active' | 'cancelled' | 'completed';
@@ -224,9 +221,6 @@ export function ColaboradorView() {
                       <h4 className="font-medium text-gray-900 mb-2">Información de la Reserva</h4>
                       <div className="space-y-1 text-sm text-gray-600">
                         <div><strong>Equipo:</strong> {reservation.teamName}</div>
-                        <div><strong>Contacto:</strong> {reservation.contactPerson}</div>
-                        <div><strong>Email:</strong> {reservation.contactEmail}</div>
-                        <div><strong>Teléfono:</strong> {reservation.contactPhone}</div>
                         <div><strong>Puestos:</strong> {reservation.requestedSeats}</div>
                       </div>
                     </div>
@@ -240,6 +234,16 @@ export function ColaboradorView() {
                             <div><strong>Rol:</strong> {reservation.createdBy.userRole}</div>
                             <div><strong>Email:</strong> {reservation.createdBy.userEmail}</div>
                           </>
+                        )}
+                        {reservation.createdAt && (
+                          <div><strong>Registrado:</strong> {new Date(reservation.createdAt).toLocaleString('es-ES', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })}</div>
                         )}
                       </div>
                     </div>

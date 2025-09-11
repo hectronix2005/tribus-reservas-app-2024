@@ -142,11 +142,27 @@ export const authService = {
 export const userService = {
   async getAllUsers() {
     const users = await apiRequest<any[]>('/users');
+    console.log('📋 Usuarios recibidos del backend:', users.map(u => ({
+      id: u._id || u.id,
+      name: u.name,
+      cedula: u.cedula,
+      cedulaType: typeof u.cedula
+    })));
+    
     // Transformar _id a id para compatibilidad con el frontend
-    return users.map(user => ({
+    const transformedUsers = users.map(user => ({
       ...user,
       id: user._id || user.id
     }));
+    
+    console.log('📋 Usuarios transformados:', transformedUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      cedula: u.cedula,
+      cedulaType: typeof u.cedula
+    })));
+    
+    return transformedUsers;
   },
 
   async getUserById(id: string) {
@@ -208,6 +224,7 @@ export const userService = {
 
   async updateUser(id: string, userData: any) {
     console.log('🔄 Actualizando usuario en MongoDB Atlas...', { id, userData });
+    console.log('🔍 Cédula en userData:', userData.cedula);
     
     try {
       const response = await apiRequest<{ user: any }>(`/users/${id}`, {
@@ -216,12 +233,15 @@ export const userService = {
       });
       
       console.log('✅ Usuario actualizado exitosamente en MongoDB Atlas:', response.user);
+      console.log('🔍 Cédula en respuesta del servidor:', response.user.cedula);
       
       // Transformar _id a id para compatibilidad con el frontend
       const transformedUser = {
         ...response.user,
         id: response.user._id || response.user.id
       };
+      
+      console.log('🔍 Usuario transformado:', transformedUser);
       
       return { user: transformedUser };
     } catch (error) {
@@ -344,36 +364,6 @@ export const areaService = {
   }
 };
 
-// Servicios de templates
-export const templateService = {
-  async getAllTemplates() {
-    return apiRequest<any[]>('/templates');
-  },
-
-  async getTemplateById(id: string) {
-    return apiRequest<any>(`/templates/${id}`);
-  },
-
-  async createTemplate(templateData: any) {
-    return apiRequest<any>('/templates', {
-      method: 'POST',
-      body: JSON.stringify(templateData),
-    });
-  },
-
-  async updateTemplate(id: string, templateData: any) {
-    return apiRequest<any>(`/templates/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(templateData),
-    });
-  },
-
-  async deleteTemplate(id: string) {
-    return apiRequest<any>(`/templates/${id}`, {
-      method: 'DELETE',
-    });
-  }
-};
 
 // Servicios de reservas con protocolo automático
 export const reservationService = {
@@ -473,13 +463,27 @@ export const departmentService = {
   // Obtener todos los departamentos activos
   async getDepartments(): Promise<Department[]> {
     try {
+      console.log('🔄 departmentService.getDepartments() - Iniciando petición...');
+      console.log('🔗 URL:', `${API_BASE_URL}/departments`);
+      
       const response = await fetch(`${API_BASE_URL}/departments`);
+      
+      console.log('📡 Respuesta recibida:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
-      return await response.json();
+      
+      const data = await response.json();
+      console.log('✅ Datos de departamentos recibidos:', data);
+      
+      return data;
     } catch (error) {
-      console.error('Error obteniendo departamentos:', error);
+      console.error('❌ Error obteniendo departamentos:', error);
       throw error;
     }
   },

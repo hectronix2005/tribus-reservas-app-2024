@@ -14,33 +14,8 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
     return false;
   }
   
-  // Determinar el día de la semana correctamente
-  let dayOfWeek: number;
-  
-  // Verificar si la fecha original es UTC (tiene 'Z' al final)
-  const isUTC = date.toISOString().endsWith('Z');
-  
-  // Para fechas que vienen del formulario (new Date('YYYY-MM-DD')), 
-  // JavaScript las interpreta como UTC pero queremos tratarlas como locales
-  // Verificamos si la fecha fue creada a partir de un string simple de fecha
-  const isSimpleDateString = date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0;
-  
-  if (isUTC && !isSimpleDateString) {
-    // Si es UTC real (no una fecha simple), convertir a la zona horaria local
-    const localTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    dayOfWeek = localTime.getUTCDay();
-  } else if (isSimpleDateString) {
-    // Si es una fecha simple (YYYY-MM-DD), crear una nueva fecha local
-    // Extraer los componentes UTC y crear una fecha local
-    const year = date.getUTCFullYear();
-    const month = date.getUTCMonth();
-    const day = date.getUTCDate();
-    const localDate = new Date(year, month, day);
-    dayOfWeek = localDate.getDay();
-  } else {
-    // Si es local, usar directamente
-    dayOfWeek = date.getDay();
-  }
+  // Determinar el día de la semana correctamente usando fechas locales
+  const dayOfWeek = date.getDay();
   
   const dayMap = {
     0: 'sunday',
@@ -59,8 +34,6 @@ export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays'])
   if (process.env.NODE_ENV === 'development') {
     console.log('🔍 isOfficeDay debug:', {
       originalDate: date.toISOString(),
-      isUTC,
-      isSimpleDateString,
       dayOfWeek,
       dayKey,
       officeDays,
@@ -183,7 +156,7 @@ export const generateAvailableTimeSlots = (
   return slots;
 };
 
-// Función para verificar si una fecha está en el futuro y es un día de oficina
+// Función para verificar si una fecha está en el futuro y es un día de oficina usando fechas locales
 export const isValidReservationDate = (
   date: Date, 
   adminSettings: AdminSettings,

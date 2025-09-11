@@ -18,23 +18,168 @@ export interface Area {
 }
 
 export interface Reservation {
-  id: string;
-  areaId: string;
-  areaName: string;
+  _id: string;
+  reservationId?: string; // ID único legible para identificación fácil
+  userId: string | { _id: string; name: string; username: string };
+  userName: string;
   area: string; // Nombre del área (usado en la API)
-  groupName: string;
-  requestedSeats: number;
   date: string;
-  time: string;
-  duration: number; // duración en minutos
-  contactPerson: string;
-  contactEmail: string;
-  contactPhone: string;
+  startTime: string;
+  endTime: string;
+  teamName: string;
+  requestedSeats: number;
   status: 'pending' | 'confirmed' | 'cancelled';
+  notes: string;
   createdAt: string;
-  notes?: string;
-  colaboradores?: string[]; // Array de IDs de usuarios colaboradores
-  attendees?: string[]; // Array de nombres de asistentes
+  updatedAt: string;
+  // Información del usuario que creó la reserva (auditoría)
+  createdBy?: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userRole: 'admin' | 'lider' | 'colaborador';
+  };
+  // Colaboradores incluidos en la reserva
+  colaboradores?: Array<{
+    _id: string;
+    name: string;
+    username: string;
+    email: string;
+  }>;
+  // Nombres de asistentes
+  attendees?: string[];
+  // Campo debug detallado para análisis y troubleshooting
+  debug?: {
+    // Información básica del sistema
+    systemInfo?: {
+      createdAt: string;
+      timezone: string;
+      userAgent: string;
+      version: string;
+      serverTime: string;
+      requestId: string;
+    };
+    
+    // Datos de entrada originales
+    inputData?: {
+      raw: {
+        userId: string;
+        userName: string;
+        area: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+        teamName: string;
+        requestedSeats: number;
+        notes: string;
+        colaboradores: any[];
+        attendees: string[];
+      };
+      processed: {
+        finalRequestedSeats: number;
+        validColaboradores: any[];
+        reservationDate: string;
+        areaInfo: any;
+      };
+    };
+    
+    // Información del usuario que crea la reserva
+    userInfo?: {
+      creator: {
+        id: string;
+        name: string;
+        email: string;
+        username: string;
+        role: string;
+        cedula: string | null;
+      };
+      collaborators: Array<{
+        id: string;
+        name: string;
+        role: string;
+      }>;
+    };
+    
+    // Procesamiento de fechas detallado
+    dateProcessing?: {
+      original: {
+        dateString: string;
+        startTimeString: string;
+        endTimeString: string;
+      };
+      parsed: {
+        year: number;
+        month: number;
+        day: number;
+        hours: number;
+        minutes: number;
+      };
+      utc: {
+        reservationDate: string;
+        localTime: string;
+        utcOffset: number;
+        timezone: string;
+      };
+      validation: {
+        isOfficeDay: boolean;
+        isWithinOfficeHours: boolean;
+        isFutureDate: boolean;
+        dayOfWeek: number;
+        dayName: string;
+      };
+    };
+    
+    // Información del área y capacidad
+    areaInfo?: {
+      areaName: string;
+      areaType: string;
+      capacity: number;
+      requestedSeats: number;
+      availableSeats: number;
+      utilizationRate: string;
+    };
+    
+    // Validaciones realizadas
+    validations?: {
+      requiredFields: {
+        [key: string]: boolean;
+      };
+      businessRules: {
+        [key: string]: boolean;
+      };
+      capacityValidation: {
+        [key: string]: any;
+      };
+    };
+    
+    // Información de la reserva generada
+    reservationInfo?: {
+      reservationId: string;
+      duration: {
+        startTime: string;
+        endTime: string;
+        durationMinutes: number;
+        durationHours: number;
+      };
+      participants: {
+        total: number;
+        collaborators: number;
+        attendees: number;
+        creator: number;
+      };
+    };
+    
+    // Metadatos adicionales
+    metadata?: {
+      ipAddress: string;
+      referer: string;
+      acceptLanguage: string;
+      contentType: string;
+      requestMethod: string;
+      requestUrl: string;
+      timestamp: number;
+    };
+  };
 }
 
 export interface DailyCapacity {
@@ -71,11 +216,13 @@ export interface AdminSettings {
 
 export interface User {
   id: string;
+  _id?: string; // MongoDB ObjectId
   name: string;
   email: string;
   username: string;
   password: string; // En producción debería estar hasheada
-  role: 'admin' | 'user' | 'colaborador';
+  cedula: string;
+  role: 'admin' | 'lider' | 'colaborador';
   department?: string;
   isActive: boolean;
   createdAt: string;
@@ -115,23 +262,6 @@ export interface ReservationFormData {
   date: string;
   time: string;
   duration: number; // duración en minutos
-  contactPerson: string;
-  contactEmail: string;
-  contactPhone: string;
   notes?: string;
 }
 
-export interface ReservationTemplate {
-  id: string;
-  name: string;
-  description?: string;
-  groupName: string;
-  contactPerson: string;
-  contactEmail: string;
-  contactPhone: string;
-  notes?: string;
-  isActive: boolean;
-  createdAt: string;
-  createdBy?: string; // ID del usuario que creó la plantilla
-  userId?: string; // ID del usuario propietario (para compatibilidad)
-}
