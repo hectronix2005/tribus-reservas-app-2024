@@ -667,7 +667,14 @@ export function Reservations() {
     }
     
     // Verificar que la fecha seleccionada sea un día de oficina
-    const selectedDate = new Date(formData.date);
+    // Crear fecha local correctamente para evitar problemas de timezone
+    const selectedDate = (() => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+        const [year, month, day] = formData.date.split('-').map(Number);
+        return new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
+      }
+      return new Date(formData.date);
+    })();
     if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
       console.log('❌ Fecha seleccionada no es un día de oficina:', {
         date: formData.date,
@@ -982,7 +989,14 @@ export function Reservations() {
 
     // Verificar que la fecha sea un día de oficina
     if (formData.date) {
-      const selectedDate = new Date(formData.date);
+      // Crear fecha local correctamente para evitar problemas de timezone
+      const selectedDate = (() => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+          const [year, month, day] = formData.date.split('-').map(Number);
+          return new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
+        }
+        return new Date(formData.date);
+      })();
       const officeDays = ensureAdminSettings();
       
       console.log('🔍 Validando día de oficina:', {
@@ -1797,7 +1811,13 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                       No se pueden seleccionar fechas pasadas
                     </div>
                   )}
-                  {formData.date && !isOfficeDay(new Date(formData.date), state.adminSettings.officeDays) && (
+                  {formData.date && !isOfficeDay((() => {
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+                      const [year, month, day] = formData.date.split('-').map(Number);
+                      return new Date(year, month - 1, day);
+                    }
+                    return new Date(formData.date);
+                  })(), state.adminSettings.officeDays) && (
                     <div className="mt-1 text-sm text-red-600 flex items-center">
                       <span className="mr-1">🏢</span>
                       La fecha seleccionada no es un día de oficina
