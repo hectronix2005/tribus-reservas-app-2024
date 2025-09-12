@@ -1,7 +1,7 @@
 // Use relative URL for local development, fallback to production for deployment
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? '/api'
-  : 'https://tribus-reservas-app-2024-d989e6f9d084.herokuapp.com/api';
+  : 'https://tribus-reservas-2024-6b783eae459c.herokuapp.com/api';
 
 // Debug logging for API configuration
 console.log('🔧 API Configuration:', {
