@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Filter, X, Users, Clock, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Users, Clock, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { isOfficeDay, createLocalDate, formatDateToString, getDayName } from '../utils/unifiedDateUtils';
 
 interface DayAvailability {
   date: string;
@@ -58,48 +59,25 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
     reservations: Reservation[];
   } | null>(null);
 
-  // Función simple para verificar si es día de oficina
-  const isOfficeDay = (date: Date): boolean => {
-    if (!state.adminSettings.officeDays) return true;
-    
-    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, etc.
-    const dayMap = {
-      0: 'sunday',
-      1: 'monday', 
-      2: 'tuesday',
-      3: 'wednesday',
-      4: 'thursday',
-      5: 'friday',
-      6: 'saturday'
-    };
-    
-    const dayKey = dayMap[dayOfWeek as keyof typeof dayMap];
-    return state.adminSettings.officeDays[dayKey as keyof typeof state.adminSettings.officeDays] || false;
+  // Usar la función isOfficeDay del sistema unificado
+  const isOfficeDayLocal = (date: Date): boolean => {
+    return isOfficeDay(date, state.adminSettings.officeDays);
   };
 
-  // Función simple para obtener el nombre del día
-  const getDayName = (date: Date, short: boolean = false): string => {
-    const dayNames = {
-      short: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
-      long: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-    };
-    
-    const dayIndex = date.getDay();
-    return dayNames[short ? 'short' : 'long'][dayIndex];
+  // Usar la función getDayName del sistema unificado
+  const getDayNameLocal = (date: Date, short: boolean = false): string => {
+    return getDayName(date, short);
   };
 
-  // Función simple para formatear fecha
+  // Usar la función formatDateToString del sistema unificado
   const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatDateToString(date);
   };
 
-  // Función simple para verificar si es hoy
-  const isToday = (date: Date): boolean => {
+  // Usar la función isToday del sistema unificado
+  const isTodayLocal = (date: Date): boolean => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return formatDateToString(date) === formatDateToString(today);
   };
 
   // Función para manejar el clic en reservas activas
@@ -140,8 +118,8 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
     
     // Buscar los próximos 15 días de oficina
     while (daysFound < 15) {
-      if (isOfficeDay(currentDate)) {
-        const dayName = getDayName(currentDate, true);
+      if (isOfficeDayLocal(currentDate)) {
+        const dayName = getDayNameLocal(currentDate, true);
         const dateString = formatDate(currentDate);
         console.log('🔍 [Availability] Día de oficina encontrado:', {
           index: daysFound + 1,
@@ -208,7 +186,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
 
         console.log(`🔍 [Availability] Procesando fecha ${dateString}:`, {
           dateString,
-          dayName: getDayName(date, true),
+          dayName: getDayNameLocal(date, true),
           dayIndex: date.getDay(),
           dayReservations: dayReservations.length,
           reservations: dayReservations.map(r => ({
@@ -323,7 +301,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
     console.log('🔍 [Availability] Modo semana - Día actual:', {
       today: today.toDateString(),
       currentDay,
-      dayName: getDayName(today, true)
+      dayName: getDayNameLocal(today, true)
     });
     
     // Si es domingo (0), empezar desde hoy
@@ -338,11 +316,11 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       console.log('🔍 [Availability] Procesando día de la semana:', {
         i,
         date: date.toDateString(),
-        dayName: getDayName(date, true),
-        isOfficeDay: isOfficeDay(date)
+        dayName: getDayNameLocal(date, true),
+        isOfficeDayLocal: isOfficeDayLocal(date)
       });
       
-      if (isOfficeDay(date)) {
+      if (isOfficeDayLocal(date)) {
         daysToShow.push(date);
       }
     }
@@ -351,13 +329,13 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
   } else if (viewMode === 'day') {
     // Mostrar solo el día actual o el siguiente día hábil
     const today = new Date();
-    if (isOfficeDay(today)) {
+    if (isOfficeDayLocal(today)) {
       daysToShow = [today];
     } else {
       // Buscar el siguiente día de oficina
       const nextOfficeDay = new Date(today);
       nextOfficeDay.setDate(today.getDate() + 1);
-      while (!isOfficeDay(nextOfficeDay)) {
+      while (!isOfficeDayLocal(nextOfficeDay)) {
         nextOfficeDay.setDate(nextOfficeDay.getDate() + 1);
       }
       daysToShow = [nextOfficeDay];
@@ -494,14 +472,14 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
             {daysToShow.map((date, index) => {
               const dateString = formatDate(date);
               const dayAvailability = availability.find(day => day.date === dateString);
-              const isTodayDate = isToday(date);
+              const isTodayLocalDate = isTodayLocal(date);
               
               console.log('🔍 [Availability] Fecha mostrada en calendario:', {
                 index,
                 dateString,
-                dayName: getDayName(date, true),
+                dayName: getDayNameLocal(date, true),
                 dayIndex: date.getDay(),
-                isToday: isTodayDate,
+                isTodayLocal: isTodayLocalDate,
                 fullDate: date.toDateString()
               });
               
@@ -509,7 +487,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                 <div
                   key={index}
                   className={`border border-gray-200 rounded-lg p-4 ${
-                    isTodayDate ? 'bg-primary-50 border-primary-200' : 'bg-white'
+                    isTodayLocalDate ? 'bg-primary-50 border-primary-200' : 'bg-white'
                   }`}
                 >
                   {/* Header del día */}
@@ -517,7 +495,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                     <div className="flex items-center gap-3">
                       <div className="text-center">
                         <div className="text-sm font-medium text-gray-600">
-                          {getDayName(date, true)}
+                          {getDayNameLocal(date, true)}
                         </div>
                         <div className="text-lg font-semibold text-gray-900">
                           {date.getDate()}
@@ -529,7 +507,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                           year: 'numeric' 
                         })}
                       </div>
-                      {isTodayDate && (
+                      {isTodayLocalDate && (
                         <span className="bg-primary-100 text-primary-700 text-xs font-medium px-2 py-1 rounded-full">
                           Hoy
                         </span>

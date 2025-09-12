@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService, departmentService } from '../services/api';
-import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour } from '../utils/officeHoursUtils';
+import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour, createLocalDate, formatDateToString } from '../utils/unifiedDateUtils';
 import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
 import { ReservationFilters } from './ReservationFilters';
 import { DatePicker } from './DatePicker';
@@ -573,18 +573,11 @@ export function Reservations() {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     
-    // Crear fecha de la reservación local (inicio del día)
-    let reservationDate: Date;
+    // Crear fecha de la reservación local usando el sistema unificado
+    const reservationDate = createLocalDate(date);
+    reservationDate.setHours(0, 0, 0, 0);
     
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      // Formato YYYY-MM-DD - crear fecha local
-      const [year, month, day] = date.split('-').map(Number);
-      reservationDate = new Date(year, month - 1, day, 0, 0, 0, 0);
-    } else {
-      return false; // Formato no soportado
-    }
-    
-    console.log('📅 Validación fecha pasada (LOCAL):', {
+    console.log('📅 Validación fecha pasada (LOCAL UNIFICADO):', {
       inputDate: date,
       now: now.toISOString(),
       nowLocal: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
@@ -610,10 +603,7 @@ export function Reservations() {
       
       // Si es antes del horario de oficina, permitir hoy
       if (currentHour < officeStartHour) {
-        const year = currentDate.getFullYear();
-        const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-        const day = currentDate.getDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return formatDateToString(currentDate);
       }
     }
     
@@ -623,10 +613,7 @@ export function Reservations() {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    const year = currentDate.getFullYear();
-    const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-    const day = currentDate.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatDateToString(currentDate);
   }, [state.adminSettings.officeDays, state.adminSettings.officeHours.start]);
 
   // Función para obtener horas de inicio disponibles (memoizada)
@@ -667,14 +654,8 @@ export function Reservations() {
     }
     
     // Verificar que la fecha seleccionada sea un día de oficina
-    // Crear fecha local correctamente para evitar problemas de timezone
-    const selectedDate = (() => {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
-        const [year, month, day] = formData.date.split('-').map(Number);
-        return new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
-      }
-      return new Date(formData.date);
-    })();
+    // Crear fecha local usando el sistema unificado
+    const selectedDate = createLocalDate(formData.date);
     if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
       console.log('❌ Fecha seleccionada no es un día de oficina:', {
         date: formData.date,
@@ -989,14 +970,8 @@ export function Reservations() {
 
     // Verificar que la fecha sea un día de oficina
     if (formData.date) {
-      // Crear fecha local correctamente para evitar problemas de timezone
-      const selectedDate = (() => {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
-          const [year, month, day] = formData.date.split('-').map(Number);
-          return new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
-        }
-        return new Date(formData.date);
-      })();
+      // Crear fecha local usando el sistema unificado
+      const selectedDate = createLocalDate(formData.date);
       const officeDays = ensureAdminSettings();
       
       console.log('🔍 Validando día de oficina:', {
@@ -1826,13 +1801,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                       No se pueden seleccionar fechas pasadas
                     </div>
                   )}
-                  {formData.date && !isOfficeDay((() => {
-                    if (/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
-                      const [year, month, day] = formData.date.split('-').map(Number);
-                      return new Date(year, month - 1, day);
-                    }
-                    return new Date(formData.date);
-                  })(), state.adminSettings.officeDays) && (
+                  {formData.date && !isOfficeDay(createLocalDate(formData.date), state.adminSettings.officeDays) && (
                     <div className="mt-1 text-sm text-red-600 flex items-center">
                       <span className="mr-1">🏢</span>
                       La fecha seleccionada no es un día de oficina
