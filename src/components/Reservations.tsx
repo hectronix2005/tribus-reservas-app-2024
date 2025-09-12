@@ -46,7 +46,7 @@ export function Reservations() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(true);
+  // const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(false);
   
   // Debounce para evitar peticiones excesivas
   const [loadReservationsTimeout, setLoadReservationsTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -769,28 +769,28 @@ export function Reservations() {
   }, [loadReservations, loadReservationsTimeout]);
 
   // Función para obtener las fechas de los próximos 5 días
-  const getNext5Days = useCallback(() => {
-    const dates = [];
-    const today = new Date();
-    
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
-    }
-    
-    return dates;
-  }, []);
+  // const getNext5Days = useCallback(() => {
+  //   const dates = [];
+  //   const today = new Date();
+  //   
+  //   for (let i = 0; i < 5; i++) {
+  //     const date = new Date(today);
+  //     date.setDate(today.getDate() + i);
+  //     dates.push(date.toISOString().split('T')[0]); // Formato YYYY-MM-DD
+  //   }
+  //   
+  //   return dates;
+  // }, []);
 
-  // Función para filtrar reservas por los próximos 5 días
-  const filterReservationsByNext5Days = useCallback((reservationsList: Reservation[]) => {
-    const next5Days = getNext5Days();
-    
-    return reservationsList.filter(reservation => {
-      const reservationDate = normalizeDate(reservation.date);
-      return next5Days.includes(reservationDate);
-    });
-  }, [getNext5Days, normalizeDate]);
+  // Función para filtrar reservas por los próximos 5 días (comentada - no se usa por defecto)
+  // const filterReservationsByNext5Days = useCallback((reservationsList: Reservation[]) => {
+  //   const next5Days = getNext5Days();
+  //   
+  //   return reservationsList.filter(reservation => {
+  //     const reservationDate = normalizeDate(reservation.date);
+  //     return next5Days.includes(reservationDate);
+  //   });
+  // }, [getNext5Days, normalizeDate]);
 
   // Función para ordenar reservaciones
   const sortReservations = useCallback((reservationsList: Reservation[]) => {
@@ -824,18 +824,15 @@ export function Reservations() {
 
   // Actualizar reservaciones filtradas cuando cambien las reservaciones o el ordenamiento
   useEffect(() => {
-    // Por defecto, mostrar solo las reservas de los próximos 5 días
-    const filtered = filterReservationsByNext5Days(reservations);
-    const sorted = sortReservations(filtered);
+    // Por defecto, mostrar todas las reservaciones (sin filtro)
+    const sorted = sortReservations(reservations);
     setFilteredReservations(sorted);
-  }, [reservations, filterReservationsByNext5Days, sortReservations]);
+  }, [reservations, sortReservations]);
 
   // Función para manejar el cambio de filtros
   const handleFilterChange = (filtered: Reservation[]) => {
     const sorted = sortReservations(filtered);
     setFilteredReservations(sorted);
-    // Si se está usando filtro manual, marcar que no se está aplicando el filtro por defecto
-    setIsDefaultFilterApplied(false);
   };
 
   // useEffect temporal para probar la normalización de fechas
