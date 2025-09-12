@@ -563,6 +563,18 @@ export const departmentService = {
       console.error('Error eliminando departamento:', error);
       throw error;
     }
+  },
+
+  async updateReservationStatus() {
+    try {
+      const response = await apiRequest<any>('/reservations/update-status', {
+        method: 'POST',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error actualizando estados de reservaciones:', error);
+      throw error;
+    }
   }
 };
 

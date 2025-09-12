@@ -28,7 +28,7 @@ export interface Reservation {
   endTime: string;
   teamName: string;
   requestedSeats: number;
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled';
   notes: string;
   createdAt: string;
   updatedAt: string;

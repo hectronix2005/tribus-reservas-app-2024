@@ -195,7 +195,7 @@ const reservationSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['pending', 'confirmed', 'cancelled'], 
+    enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled'], 
     default: 'confirmed' 
   },
   notes: { 
@@ -223,6 +223,46 @@ const reservationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null
   }
+});
+
+// Middleware para actualizar automáticamente el estado de las reservaciones
+reservationSchema.pre('save', function(next) {
+  const now = new Date();
+  const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+  
+  const reservationDate = this.date.toISOString().split('T')[0];
+  const reservationStartTime = this.startTime;
+  const reservationEndTime = this.endTime;
+  
+  // Si la reserva es para hoy
+  if (reservationDate === today) {
+    // Si el tiempo actual está entre startTime y endTime, marcar como 'active'
+    if (currentTime >= reservationStartTime && currentTime <= reservationEndTime) {
+      this.status = 'active';
+    }
+    // Si el tiempo actual es después de endTime, marcar como 'completed'
+    else if (currentTime > reservationEndTime) {
+      this.status = 'completed';
+    }
+    // Si el tiempo actual es antes de startTime, mantener como 'confirmed'
+    else {
+      this.status = 'confirmed';
+    }
+  }
+  // Si la reserva es para una fecha pasada
+  else if (reservationDate < today) {
+    this.status = 'completed';
+  }
+  // Si la reserva es para una fecha futura
+  else {
+    this.status = 'confirmed';
+  }
+  
+  // Actualizar updatedAt
+  this.updatedAt = now;
+  
+  next();
 });
 
 const Reservation = mongoose.model('Reservation', reservationSchema);
@@ -811,13 +851,127 @@ app.get('/api/reservations', async (req, res) => {
       filter.status = status;
     }
     
-    const reservations = await Reservation.find(filter)
+    // Obtener reservaciones
+    let reservations = await Reservation.find(filter)
       .populate('userId', 'name username')
       .sort({ date: 1, startTime: 1 });
+
+    // Actualizar estados automáticamente antes de devolver los datos
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+    
+    for (const reservation of reservations) {
+      const reservationDate = reservation.date.toISOString().split('T')[0];
+      const reservationStartTime = reservation.startTime;
+      const reservationEndTime = reservation.endTime;
+      
+      let newStatus = reservation.status;
+      
+      // Si la reserva es para hoy
+      if (reservationDate === today) {
+        // Si el tiempo actual está entre startTime y endTime, marcar como 'active'
+        if (currentTime >= reservationStartTime && currentTime <= reservationEndTime) {
+          newStatus = 'active';
+        }
+        // Si el tiempo actual es después de endTime, marcar como 'completed'
+        else if (currentTime > reservationEndTime) {
+          newStatus = 'completed';
+        }
+        // Si el tiempo actual es antes de startTime, mantener como 'confirmed'
+        else {
+          newStatus = 'confirmed';
+        }
+      }
+      // Si la reserva es para una fecha pasada
+      else if (reservationDate < today) {
+        newStatus = 'completed';
+      }
+      // Si la reserva es para una fecha futura
+      else {
+        newStatus = 'confirmed';
+      }
+      
+      // Solo actualizar si el estado cambió
+      if (newStatus !== reservation.status) {
+        reservation.status = newStatus;
+        reservation.updatedAt = now;
+        await reservation.save();
+      }
+    }
 
     res.json(reservations);
   } catch (error) {
     console.error('Error obteniendo reservaciones:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Endpoint para actualizar automáticamente el estado de todas las reservaciones
+app.post('/api/reservations/update-status', async (req, res) => {
+  try {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+    
+    // Obtener todas las reservaciones que no estén canceladas
+    const reservations = await Reservation.find({ 
+      status: { $in: ['confirmed', 'active', 'completed'] } 
+    });
+    
+    let updatedCount = 0;
+    
+    for (const reservation of reservations) {
+      const reservationDate = reservation.date.toISOString().split('T')[0];
+      const reservationStartTime = reservation.startTime;
+      const reservationEndTime = reservation.endTime;
+      
+      let newStatus = reservation.status;
+      
+      // Si la reserva es para hoy
+      if (reservationDate === today) {
+        // Si el tiempo actual está entre startTime y endTime, marcar como 'active'
+        if (currentTime >= reservationStartTime && currentTime <= reservationEndTime) {
+          newStatus = 'active';
+        }
+        // Si el tiempo actual es después de endTime, marcar como 'completed'
+        else if (currentTime > reservationEndTime) {
+          newStatus = 'completed';
+        }
+        // Si el tiempo actual es antes de startTime, mantener como 'confirmed'
+        else {
+          newStatus = 'confirmed';
+        }
+      }
+      // Si la reserva es para una fecha pasada
+      else if (reservationDate < today) {
+        newStatus = 'completed';
+      }
+      // Si la reserva es para una fecha futura
+      else {
+        newStatus = 'confirmed';
+      }
+      
+      // Solo actualizar si el estado cambió
+      if (newStatus !== reservation.status) {
+        await Reservation.findByIdAndUpdate(reservation._id, {
+          status: newStatus,
+          updatedAt: now
+        });
+        updatedCount++;
+      }
+    }
+    
+    res.json({
+      message: `Estados actualizados exitosamente`,
+      updatedCount,
+      totalReservations: reservations.length,
+      currentTime,
+      today
+    });
+    
+  } catch (error) {
+    console.error('Error actualizando estados de reservaciones:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

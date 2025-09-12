@@ -388,8 +388,8 @@ export function Reservations() {
       
       if (reservation.area !== area || reservationDate !== normalizedDate) return false;
       
-      // Verificar que la reservación esté activa
-      if (reservation.status !== 'confirmed') return false;
+      // Verificar que la reservación esté activa o confirmada
+      if (reservation.status !== 'confirmed' && reservation.status !== 'active') return false;
       
       // Verificar conflicto de horarios
       const reservationStart = reservation.startTime;
@@ -440,13 +440,13 @@ export function Reservations() {
         reservationDateDisplay: formatDateForDisplay(reservation.date),
         areaMatch: reservation.area === area,
         dateMatch: reservationDate === normalizedDate,
-        statusMatch: reservation.status === 'confirmed',
-        isMatch: reservation.area === area && reservationDate === normalizedDate && reservation.status === 'confirmed'
+        statusMatch: reservation.status === 'confirmed' || reservation.status === 'active',
+        isMatch: reservation.area === area && reservationDate === normalizedDate && (reservation.status === 'confirmed' || reservation.status === 'active')
       });
       
       return reservation.area === area && 
              reservationDate === normalizedDate && 
-             reservation.status === 'confirmed';
+             (reservation.status === 'confirmed' || reservation.status === 'active');
     });
 
     if (areaReservations.length === 0) return false;
@@ -1070,7 +1070,7 @@ export function Reservations() {
       const existingReservations = reservations.filter(r => 
         r.area === formData.area && 
         r.date === formData.date && 
-        r.status === 'confirmed' &&
+        (r.status === 'confirmed' || r.status === 'active') &&
         r._id !== editingReservation?._id
       );
       
@@ -1344,12 +1344,11 @@ export function Reservations() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
+      case 'active': return 'bg-green-100 text-green-800';
+      case 'completed': return 'bg-gray-100 text-gray-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      // Mantener compatibilidad con el estado anterior
-      case 'active': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -1624,12 +1623,11 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'Activa';
+      case 'confirmed': return 'Confirmada';
+      case 'active': return 'Activa';
+      case 'completed': return 'Cumplida';
       case 'pending': return 'Pendiente';
       case 'cancelled': return 'Cancelada';
-      case 'completed': return 'Completada';
-      // Mantener compatibilidad con el estado anterior
-      case 'active': return 'Activa';
       default: return 'Desconocido';
     }
   };
@@ -2197,7 +2195,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                           matchingReservations: reservations.filter(r => {
                             const reservationDate = normalizeDate(r.date);
                             const formDate = normalizeDate(formData.date);
-                            return r.area === formData.area && reservationDate === formDate && r.status === 'confirmed';
+                            return r.area === formData.area && reservationDate === formDate && (r.status === 'confirmed' || r.status === 'active');
                           }).map(r => ({
                             id: r._id,
                             area: r.area,
@@ -2215,7 +2213,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                           .filter(r => {
                             const reservationDate = normalizeDate(r.date);
                             const formDate = normalizeDate(formData.date);
-                            return r.area === formData.area && reservationDate === formDate && r.status === 'confirmed';
+                            return r.area === formData.area && reservationDate === formDate && (r.status === 'confirmed' || r.status === 'active');
                           })
                           .map((reservation, index) => (
                             <div key={index} className="text-sm text-gray-600 mb-1">
