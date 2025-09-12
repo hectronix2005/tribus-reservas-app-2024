@@ -12,7 +12,21 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configuración de seguridad
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://tribus-reservas-2024-6b783eae459c.herokuapp.com"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+}));
 app.use(cors({
   origin: true, // Permitir todas las origenes para desarrollo
   credentials: true
@@ -56,7 +70,7 @@ app.use(express.json());
 
 // Solo servir archivos estáticos en producción
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'build')));
+app.use(express.static(path.join(__dirname, 'build')));
 }
 
 // MongoDB Query Logging
@@ -151,20 +165,20 @@ const reservationSchema = new mongoose.Schema({
     userId: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'User', 
-      required: true 
-    },
+    required: true 
+  },
     userName: { 
       type: String, 
-      required: true 
-    },
+    required: true 
+  },
     userEmail: { 
-      type: String, 
-      required: true 
-    },
+    type: String, 
+    required: true 
+  },
     userRole: { 
-      type: String, 
+    type: String, 
       enum: ['admin', 'user', 'colaborador'], 
-      required: true 
+    required: true 
     }
   },
   area: { 
@@ -2231,11 +2245,11 @@ if (process.env.NODE_ENV === 'development') {
 } else {
   // En producción, servir archivos estáticos de React
   app.use(express.static(path.join(__dirname, 'build')));
-  
-  // Servir el frontend React para todas las demás rutas
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-  });
+
+// Servir el frontend React para todas las demás rutas
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
 }
 
 // Servir archivos estáticos en producción
