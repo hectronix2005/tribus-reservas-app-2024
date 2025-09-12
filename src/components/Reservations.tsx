@@ -734,13 +734,13 @@ export function Reservations() {
 
     // Crear nuevo timeout
     const timeout = setTimeout(async () => {
-      try {
-        setIsLoading(true);
-        const data = await reservationService.getAllReservations();
-        setReservations(data);
+    try {
+      setIsLoading(true);
+      const data = await reservationService.getAllReservations();
+      setReservations(data);
         // Actualizar también el estado global para que otros componentes vean los cambios
         dispatch({ type: 'SET_RESERVATIONS', payload: data });
-        setError(null);
+      setError(null);
         
         // Log para debug
         console.log('🔄 [Reservations] Estado global actualizado:', {
@@ -752,12 +752,12 @@ export function Reservations() {
         window.dispatchEvent(new CustomEvent('reservationsUpdated', {
           detail: { reservations: data }
         }));
-      } catch (error) {
-        console.error('Error cargando reservaciones:', error);
-        setError('Error al cargar las reservaciones');
-      } finally {
-        setIsLoading(false);
-      }
+    } catch (error) {
+      console.error('Error cargando reservaciones:', error);
+      setError('Error al cargar las reservaciones');
+    } finally {
+      setIsLoading(false);
+    }
     }, 300); // Debounce de 300ms
 
     setLoadReservationsTimeout(timeout);
@@ -1008,7 +1008,14 @@ export function Reservations() {
         }),
         officeDays: officeDays,
         adminSettings: state.adminSettings,
-        isOfficeDay: isOfficeDay(selectedDate, officeDays)
+        isOfficeDay: isOfficeDay(selectedDate, officeDays),
+        // Debug adicional
+        formDataDate: formData.date,
+        selectedDateString: selectedDate.toString(),
+        selectedDateDay: selectedDate.getDay(),
+        officeDaysMonday: officeDays.monday,
+        stateAdminSettings: state.adminSettings,
+        stateOfficeDays: state.adminSettings?.officeDays
       });
       
       if (!isOfficeDay(selectedDate, officeDays)) {
@@ -1648,6 +1655,12 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
 
   // Función para verificar y cargar configuración de admin
   const ensureAdminSettings = () => {
+    console.log('🔍 ensureAdminSettings debug:', {
+      stateAdminSettings: state.adminSettings,
+      hasOfficeDays: !!state.adminSettings?.officeDays,
+      officeDays: state.adminSettings?.officeDays
+    });
+    
     if (!state.adminSettings || !state.adminSettings.officeDays) {
       console.warn('⚠️ Configuración de admin no encontrada, usando configuración por defecto');
       // Configuración por defecto
@@ -1660,8 +1673,10 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
         saturday: false,
         sunday: false
       };
+      console.log('🔍 Usando configuración por defecto:', defaultOfficeDays);
       return defaultOfficeDays;
     }
+    console.log('🔍 Usando configuración del estado:', state.adminSettings.officeDays);
     return state.adminSettings.officeDays;
   };
 
