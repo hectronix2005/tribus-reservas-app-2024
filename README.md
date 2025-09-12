@@ -1,313 +1,244 @@
-# 🏢 Sistema de Reservas Tribus - Aplicación Web
+# 🏢 Sistema de Reservas Tribus - 2024
 
-## 📋 Descripción General
-
-Sistema de gestión de reservas de espacios de trabajo desarrollado para Tribus, que permite a los usuarios reservar áreas como Hot Desk y salas de reuniones. La aplicación incluye funcionalidades de administración de usuarios, departamentos, y un calendario de disponibilidad interactivo.
+Sistema completo de gestión de reservas para espacios de trabajo, salas de reuniones y hot desks con administración de usuarios, áreas y configuraciones avanzadas.
 
 ## 🚀 Características Principales
 
+### 📅 Gestión de Reservas
+- **Reservas por área**: Salas de reuniones, hot desks, espacios colaborativos
+- **Validación de fechas**: Sistema unificado de fechas locales sin problemas de timezone
+- **Horarios de oficina**: Configuración flexible de días y horarios laborales
+- **Estados automáticos**: Actualización automática de estados (activa → completada)
+- **Filtros avanzados**: Por fecha, área, estado, equipo
+- **Exportación CSV**: Descarga de reportes de reservas
+
 ### 👥 Gestión de Usuarios
-- **Roles de Usuario**:
-  - `admin`: Administrador del sistema con acceso completo
-  - `lider`: Líder de equipo que puede crear reservas y gestionar colaboradores
-  - `colaborador`: Usuario que solo puede ver reservas donde está incluido
-- **Campos de Usuario**:
-  - Nombre completo
-  - Email
-  - Username único
-  - Cédula (obligatorio)
-  - Departamento
-  - Estado activo/inactivo
+- **Roles de usuario**: Administrador, Colaborador
+- **Autenticación segura**: JWT con bcrypt para contraseñas
+- **Perfiles de usuario**: Información personal y preferencias
+- **Gestión de departamentos**: Organización por equipos
 
-### 🏢 Gestión de Departamentos
-- Creación y edición de departamentos
-- Asignación de usuarios a departamentos
-- Estado activo/inactivo
+### 🏢 Administración de Áreas
+- **Configuración de espacios**: Capacidad, tipo de reserva, horarios
+- **Salas de reuniones**: Reservas por tiempo específico
+- **Hot desks**: Reservas por día completo
+- **Espacios colaborativos**: Configuración flexible
 
-### 📅 Sistema de Reservas
-- **Tipos de Área**:
-  - **Hot Desk**: Reservas de día completo (08:00 - 18:00)
-  - **Sala de Reuniones**: Reservas por horas con duración configurable
-- **Funcionalidades**:
-  - Selección de colaboradores por departamento
-  - Validación de disponibilidad en tiempo real
-  - Filtros por fecha, área y estado
-  - Exportación a CSV
-  - Auditoría completa (quién creó, cuándo, etc.)
-
-### 📊 Calendario de Disponibilidad
-- Vista tipo Google Calendar
-- Muestra 15 días desde la fecha actual
-- Filtros: Total, Semana, Día
-- **Funcionalidades Interactivas**:
-  - Click en área disponible → Abre formulario de nueva reserva
-  - Click en "X reserva(s) activa(s)" → Modal con detalles de reservas
-  - Indicadores visuales de disponibilidad
-  - Ocultación de días no laborales
+### ⚙️ Configuración del Sistema
+- **Días de oficina**: Configuración de días laborales
+- **Horarios de trabajo**: Horarios de inicio y fin
+- **Configuración de administrador**: Panel de control completo
 
 ## 🛠️ Tecnologías Utilizadas
 
 ### Frontend
 - **React 18** con TypeScript
-- **Tailwind CSS** para estilos
-- **Lucide React** para iconos
+- **React Router** para navegación
 - **Context API** para estado global
-- **React Hooks** (useState, useEffect, useCallback, useMemo)
+- **Lucide React** para iconos
+- **CSS Modules** para estilos
 
 ### Backend
-- **Node.js** con Express.js
-- **MongoDB** con Mongoose
+- **Node.js** con Express
+- **MongoDB** con Mongoose ODM
 - **JWT** para autenticación
 - **bcryptjs** para hash de contraseñas
-- **express-rate-limit** para rate limiting
-- **helmet** para seguridad
+- **Helmet** para seguridad
+- **CORS** para cross-origin requests
+- **Express Rate Limit** para protección contra abuso
 
-### Herramientas de Desarrollo
-- **Webpack** para bundling
-- **ESLint** para linting
-- **CORS** para comunicación frontend-backend
+### Despliegue
+- **Heroku** para hosting
+- **MongoDB Atlas** para base de datos
+- **Git** para control de versiones
 
 ## 📁 Estructura del Proyecto
 
 ```
 tribus-reservas-app-2024/
-├── public/
-│   ├── images/
-│   │   └── tribus-logo.svg
-│   ├── manifest.json
-│   └── favicon.svg
 ├── src/
-│   ├── components/
-│   │   ├── Admin.tsx              # Panel de administración
-│   │   ├── Availability.tsx       # Calendario de disponibilidad
-│   │   ├── ColaboradorView.tsx    # Vista para colaboradores
-│   │   ├── DepartmentManagement.tsx # Gestión de departamentos
-│   │   ├── Header.tsx             # Header de la aplicación
-│   │   ├── Login.tsx              # Formulario de login
-│   │   ├── ProtocolNotification.tsx # Notificaciones
-│   │   ├── Reservations.tsx       # Gestión de reservas
-│   │   ├── UserManagement.tsx     # Gestión de usuarios
-│   │   └── UserProfile.tsx        # Perfil de usuario
-│   ├── context/
-│   │   └── AppContext.tsx         # Contexto global
-│   ├── services/
-│   │   └── api.ts                 # Servicios de API
-│   ├── types/
-│   │   └── index.ts               # Definiciones de tipos
-│   ├── utils/
-│   │   ├── dateUtils.ts           # Utilidades de fecha
-│   │   └── officeHoursUtils.ts    # Utilidades de horarios
-│   ├── App.tsx                    # Componente principal
-│   └── index.tsx                  # Punto de entrada
-├── server.js                      # Servidor Express
-├── mongodb-config.js              # Configuración de MongoDB
-├── package.json
-└── README.md
+│   ├── components/          # Componentes React
+│   │   ├── Admin.tsx       # Panel de administración
+│   │   ├── Availability.tsx # Vista de disponibilidad
+│   │   ├── Login.tsx       # Autenticación
+│   │   ├── Reservations.tsx # Gestión de reservas
+│   │   └── ...
+│   ├── context/            # Context API
+│   │   └── AppContext.tsx  # Estado global
+│   ├── services/           # Servicios API
+│   │   └── api.ts         # Cliente HTTP
+│   ├── types/             # Tipos TypeScript
+│   │   └── index.ts       # Definiciones de tipos
+│   ├── utils/             # Utilidades
+│   │   ├── unifiedDateUtils.ts # Sistema unificado de fechas
+│   │   └── officeHoursUtils.ts # Utilidades de horarios
+│   └── App.tsx            # Componente principal
+├── server.js              # Servidor Express
+├── package.json           # Dependencias y scripts
+├── Procfile              # Configuración Heroku
+└── README.md             # Este archivo
 ```
 
-## 🔧 Instalación y Configuración
+## 🚀 Instalación y Configuración
 
 ### Prerrequisitos
-- Node.js (versión 16 o superior)
-- MongoDB (local o Atlas)
-- npm o yarn
+- Node.js 18.x o superior
+- npm 9.x o superior
+- MongoDB Atlas (para producción) o MongoDB local
 
-### Instalación
-1. **Clonar el repositorio**:
-   ```bash
-   git clone <repository-url>
-   cd tribus-reservas-app-2024
-   ```
+### Instalación Local
 
-2. **Instalar dependencias**:
-   ```bash
-   npm install
-   ```
-
-3. **Configurar variables de entorno**:
-   - Crear archivo `.env` en la raíz del proyecto
-   - Configurar `MONGODB_URI` con la URL de tu base de datos MongoDB
-   - Configurar `JWT_SECRET` para la autenticación
-
-4. **Iniciar el servidor de desarrollo**:
-   ```bash
-   # Terminal 1 - Backend
-   NODE_ENV=development npm run server
-   
-   # Terminal 2 - Frontend
-   npm start
-   ```
-
-5. **Acceder a la aplicación**:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3001
-
-## 🚀 Scripts Disponibles
-
+1. **Clonar el repositorio**
 ```bash
-# Desarrollo
-npm start                    # Inicia el frontend en modo desarrollo
-npm run server              # Inicia el servidor backend
-npm run build               # Construye la aplicación para producción
-
-# Utilidades
-npm run start-dev.sh        # Script para iniciar ambos servidores
-npm run stop-dev.sh         # Script para detener todos los procesos
+git clone <repository-url>
+cd tribus-reservas-app-2024
 ```
 
-## 🔐 Autenticación y Seguridad
+2. **Instalar dependencias**
+```bash
+npm install
+```
 
-### JWT (JSON Web Tokens)
-- Tokens con expiración de 24 horas
-- Renovación automática en el frontend
-- Validación en todas las rutas protegidas
+3. **Configurar variables de entorno**
+```bash
+cp env.example .env
+# Editar .env con tus configuraciones
+```
 
-### Rate Limiting
-- Límite de 1000 requests por 15 minutos
-- Configuración ajustable para desarrollo/producción
+4. **Ejecutar en desarrollo**
+```bash
+npm start
+```
+
+5. **Construir para producción**
+```bash
+npm run build
+```
+
+### Variables de Entorno
+
+```env
+# Base de datos
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/tribus-reservas
+
+# JWT
+JWT_SECRET=tu-jwt-secret-super-seguro
+
+# Servidor
+PORT=3000
+NODE_ENV=production
+
+# CORS
+ALLOWED_ORIGINS=https://tu-dominio.herokuapp.com
+```
+
+## 🌐 Despliegue
+
+### Heroku + MongoDB Atlas
+
+1. **Crear aplicación en Heroku**
+```bash
+heroku create tu-app-name
+```
+
+2. **Configurar variables de entorno**
+```bash
+heroku config:set MONGODB_URI="tu-mongodb-uri"
+heroku config:set JWT_SECRET="tu-jwt-secret"
+heroku config:set NODE_ENV="production"
+```
+
+3. **Desplegar**
+```bash
+git push heroku main
+```
+
+### URLs de Producción
+- **Aplicación**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com
+- **Base de datos**: MongoDB Atlas (remota)
+
+## 🔧 Funcionalidades Técnicas
+
+### Sistema de Fechas Unificado
+- **Problema resuelto**: Inconsistencias entre UTC y horarios locales
+- **Solución**: Sistema centralizado en `unifiedDateUtils.ts`
+- **Funciones clave**:
+  - `createLocalDate()`: Creación de fechas en zona local
+  - `formatDateToString()`: Formateo consistente
+  - `isOfficeDay()`: Validación de días laborales
+  - `isWithinOfficeHours()`: Validación de horarios
+
+### Seguridad
+- **Autenticación JWT**: Tokens seguros con expiración
+- **Hash de contraseñas**: bcryptjs con salt
+- **Headers de seguridad**: Helmet con CSP
+- **Rate limiting**: Protección contra abuso de API
+- **CORS configurado**: Orígenes permitidos específicos
 
 ### Validaciones
-- Validación de roles en frontend y backend
-- Sanitización de datos de entrada
-- Validación de fechas y horarios
+- **Fechas pasadas**: No se permiten reservas en fechas anteriores
+- **Días de oficina**: Solo días laborales configurados
+- **Horarios de oficina**: Solo dentro del horario laboral
+- **Capacidad**: Validación de asientos disponibles
+- **Datos requeridos**: Validación de campos obligatorios
 
-## 📊 Base de Datos
+## 📊 Estados de Reservas
 
-### Colecciones MongoDB
+- **`active`**: Reserva activa y vigente
+- **`completed`**: Reserva completada (automático al finalizar)
+- **`cancelled`**: Reserva cancelada por el usuario
+- **`no_show`**: Usuario no se presentó
 
-#### Users
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  email: String,
-  username: String,
-  password: String (hashed),
-  cedula: String,
-  role: String (admin|lider|colaborador),
-  department: String,
-  isActive: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+## 🎯 Usuarios por Defecto
 
-#### Reservations
-```javascript
-{
-  _id: ObjectId,
-  area: String,
-  date: Date,
-  startTime: String,
-  endTime: String,
-  teamName: String,
-  requestedSeats: Number,
-  status: String (confirmed|cancelled),
-  colaboradores: [ObjectId],
-  attendees: [String],
-  notes: String,
-  createdBy: {
-    userId: ObjectId,
-    userName: String,
-    userEmail: String,
-    userRole: String
-  },
-  createdAt: Date,
-  updatedAt: Date,
-  debug: Object
-}
-```
+### Administrador
+- **Usuario**: `admin`
+- **Contraseña**: `admin123`
+- **Acceso**: Panel completo de administración
 
-#### Departments
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  description: String,
-  isActive: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+### Colaboradores
+- **Usuario**: `daniel.r`
+- **Contraseña**: `daniel123`
+- **Usuario**: `maria.g`
+- **Contraseña**: `maria123`
 
-#### Areas
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  capacity: Number,
-  category: String (HOT_DESK|SALA),
-  isActive: Boolean
-}
-```
+## 🔍 Monitoreo y Debug
 
-## 🎯 Funcionalidades Clave Implementadas
+### Logs de Debug
+El sistema incluye logs detallados para:
+- Validación de fechas
+- Carga de configuraciones
+- Procesamiento de reservas
+- Errores de autenticación
 
-### 1. Sistema de Reservas Inteligente
-- **Preselección automática**: Click en área disponible preselecciona área y fecha
-- **Validación en tiempo real**: Verificación de disponibilidad antes de crear reserva
-- **Gestión de colaboradores**: Selección por departamento con validación de cantidad
+### Herramientas de Diagnóstico
+- Scripts de prueba de fechas
+- Validación de configuraciones
+- Verificación de conexiones
+- Análisis de capacidad
 
-### 2. Calendario Interactivo
-- **Vista Google Calendar**: Interfaz familiar y intuitiva
-- **Navegación fluida**: Filtros por período (Total, Semana, Día)
-- **Información detallada**: Modal con detalles de reservas activas
+## 🚨 Problemas Conocidos y Soluciones
 
-### 3. Gestión de Usuarios Avanzada
-- **Roles granulares**: Diferentes niveles de acceso
-- **Auditoría completa**: Registro de quién creó/modificó cada elemento
-- **Validaciones robustas**: Cédula obligatoria, emails únicos, etc.
+### ✅ Problemas Resueltos
+1. **Inconsistencias de timezone**: Sistema unificado de fechas
+2. **Errores de validación**: Corrección de `new Date()` problemático
+3. **Conexión con servidor**: Configuración correcta de URLs
+4. **Autenticación**: Gestión correcta de contraseñas
+5. **Estados de reservas**: Actualización automática
 
-### 4. Sistema de Notificaciones
-- **Feedback visual**: Notificaciones de éxito/error
-- **Protocolo de eliminación**: Confirmaciones antes de eliminar elementos
-- **Logging detallado**: Registro de todas las operaciones
-
-## 🔧 Configuración de Desarrollo
-
-### Rate Limiting
-```javascript
-// server.js
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 1000, // máximo 1000 requests por ventana
-  message: {
-    error: 'Demasiadas peticiones, intenta de nuevo más tarde',
-    retryAfter: '15 minutos'
-  }
-});
-```
-
-### CORS
-```javascript
-app.use(cors({
-  origin: true, // Permitir todas las origenes para desarrollo
-  credentials: true
-}));
-```
-
-## 🐛 Problemas Conocidos y Soluciones
-
-### 1. Error HTTP 429 (Too Many Requests)
-**Problema**: Rate limiting muy restrictivo bloqueaba operaciones
-**Solución**: Aumentar límite a 1000 requests por ventana de 15 minutos
-
-### 2. Inconsistencias de Fecha
-**Problema**: Diferencias entre horario local y UTC
-**Solución**: Uso consistente de métodos de fecha local en frontend
-
-### 3. Peticiones Excesivas
-**Problema**: useEffect causaba peticiones excesivas al servidor
-**Solución**: Implementación de debounce y optimización de dependencias
+### 🔧 Mantenimiento
+- **Actualización de estados**: Automática cada 5 minutos
+- **Limpieza de datos**: Scripts de mantenimiento disponibles
+- **Backup**: MongoDB Atlas con respaldos automáticos
 
 ## 📈 Próximas Mejoras
 
-- [ ] Implementar notificaciones push
-- [ ] Agregar reportes avanzados
-- [ ] Integración con calendarios externos (Google Calendar, Outlook)
-- [ ] Aplicación móvil (React Native)
-- [ ] Sistema de notificaciones por email
-- [ ] Dashboard con métricas en tiempo real
+- [ ] Notificaciones por email
+- [ ] Integración con calendarios externos
+- [ ] Reportes avanzados
+- [ ] API REST completa
+- [ ] Aplicación móvil
+- [ ] Integración con sistemas de acceso
 
 ## 🤝 Contribución
 
@@ -319,21 +250,15 @@ app.use(cors({
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
-
-## 👥 Equipo de Desarrollo
-
-- **Desarrollador Principal**: Hector Neira
-- **Empresa**: Tribus
-- **Año**: 2024
+Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
 ## 📞 Soporte
 
-Para soporte técnico o preguntas sobre el sistema, contactar a:
-- Email: hneira@picap.co
-- Username: Hneira
+Para soporte técnico o preguntas:
+- **Email**: soporte@tribus.com
+- **Documentación**: Ver `CHECKPOINT.md` para detalles técnicos
+- **Issues**: Usar el sistema de issues de GitHub
 
 ---
 
-**Versión**: 1.0.0  
-**Última actualización**: Septiembre 2025
+**Desarrollado con ❤️ para Tribus - 2024**
