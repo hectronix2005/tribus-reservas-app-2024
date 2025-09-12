@@ -792,8 +792,8 @@ export function Reservations() {
           comparison = dateA - dateB;
           break;
         case 'date':
-          const reservationDateA = new Date(a.date).getTime();
-          const reservationDateB = new Date(b.date).getTime();
+          const reservationDateA = createLocalDate(a.date).getTime();
+          const reservationDateB = createLocalDate(b.date).getTime();
           comparison = reservationDateA - reservationDateB;
           break;
         case 'area':
@@ -1274,7 +1274,7 @@ export function Reservations() {
     
     setFormData({
       area: reservation.area,
-      date: new Date(reservation.date).toISOString().split('T')[0],
+      date: formatDateToString(new Date(reservation.date)),
       startTime: reservation.startTime,
       endTime: reservation.endTime,
       duration: duration,
@@ -1769,7 +1769,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                         }
                         
                         // Validar que sea un día de oficina
-                        const selectedDate = new Date(dateValue);
+                        const selectedDate = createLocalDate(dateValue);
                         if (!isOfficeDay(selectedDate, state.adminSettings.officeDays)) {
                           setError('La fecha seleccionada no es un día de oficina. Por favor, seleccione un día laboral.');
                           return;

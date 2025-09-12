@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Download, Filter, X } from 'lucide-react';
 import { reservationService } from '../services/api';
 import { Reservation } from '../types';
+import { createLocalDate, formatDateToString } from '../utils/unifiedDateUtils';
 
 interface ReservationFiltersProps {
   reservations: Reservation[];
@@ -87,7 +88,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     const rows = filteredReservations.map(reservation => [
       reservation._id,
       reservation.area,
-      new Date(reservation.date).toLocaleDateString('es-ES'),
+      formatDateToString(createLocalDate(reservation.date)),
       reservation.startTime,
       reservation.endTime,
       reservation.teamName,
@@ -120,16 +121,16 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
 
     if (startDate) {
       filtered = filtered.filter(reservation => {
-        const reservationDate = new Date(reservation.date);
-        const start = new Date(startDate);
+        const reservationDate = createLocalDate(reservation.date);
+        const start = createLocalDate(startDate);
         return reservationDate >= start;
       });
     }
 
     if (endDate) {
       filtered = filtered.filter(reservation => {
-        const reservationDate = new Date(reservation.date);
-        const end = new Date(endDate);
+        const reservationDate = createLocalDate(reservation.date);
+        const end = createLocalDate(endDate);
         return reservationDate <= end;
       });
     }
