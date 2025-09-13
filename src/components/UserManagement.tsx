@@ -33,6 +33,7 @@ export function UserManagement() {
     username: '',
     password: '',
     cedula: '',
+    employeeId: '',
     role: 'lider' as 'admin' | 'lider' | 'colaborador',
     department: '',
     isActive: true
@@ -136,6 +137,7 @@ export function UserManagement() {
           email: formData.email,
           username: formData.username,
           cedula: formData.cedula.trim(),
+          employeeId: formData.employeeId.trim(),
           role: formData.role,
           department: formData.department,
           isActive: formData.isActive
@@ -181,9 +183,9 @@ export function UserManagement() {
         console.log('🆕 Protocolo: Creando nuevo usuario');
         
         // Verificar que los datos no estén vacíos antes de enviar
-        if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim() || !formData.cedula.trim()) {
+        if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim() || !formData.cedula.trim() || !formData.employeeId.trim()) {
           console.error('❌ Error: Datos vacíos detectados antes del envío');
-          setError('Todos los campos requeridos deben estar llenos, incluyendo la cédula');
+          setError('Todos los campos requeridos deben estar llenos, incluyendo la cédula y el ID de empleado');
           setIsLoading(false);
           return;
         }
@@ -194,6 +196,7 @@ export function UserManagement() {
           username: formData.username.trim(),
           password: formData.password.trim(),
           cedula: formData.cedula.trim(),
+          employeeId: formData.employeeId.trim(),
           role: formData.role,
           department: formData.department.trim(),
           isActive: formData.isActive
@@ -244,6 +247,7 @@ export function UserManagement() {
         username: '',
         password: '',
         cedula: '',
+        employeeId: '',
         role: 'lider',
         department: '',
         isActive: true
@@ -312,6 +316,7 @@ export function UserManagement() {
       username: user.username,
       password: '', // No mostrar contraseña actual
       cedula: user.cedula || '',
+      employeeId: user.employeeId || '',
       role: user.role,
       department: user.department || '',
       isActive: user.isActive
@@ -413,6 +418,7 @@ export function UserManagement() {
       username: '',
       password: '',
       cedula: '',
+      employeeId: '',
       role: 'lider',
       department: '',
       isActive: true
@@ -437,6 +443,7 @@ export function UserManagement() {
     if (!formData.email.trim()) return false;
     if (!formData.username.trim()) return false;
     if (!formData.cedula.trim()) return false; // Cédula es obligatoria
+    if (!formData.employeeId.trim()) return false; // ID de empleado es obligatorio
     if (!formData.department.trim()) return false; // Departamento es obligatorio
     if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
     
@@ -454,7 +461,8 @@ export function UserManagement() {
       const existingUser = state.users.find(user => 
         user.username.toLowerCase() === formData.username.toLowerCase() ||
         user.email.toLowerCase() === formData.email.toLowerCase() ||
-        user.cedula === formData.cedula
+        user.cedula === formData.cedula ||
+        user.employeeId === formData.employeeId
       );
       if (existingUser) return false;
     }
@@ -469,6 +477,7 @@ export function UserManagement() {
     if (!formData.email.trim()) errors.push('El email es requerido');
     if (!formData.username.trim()) errors.push('El nombre de usuario es requerido');
     if (!formData.cedula.trim()) errors.push('La cédula es requerida');
+    if (!formData.employeeId.trim()) errors.push('El ID de empleado es requerido');
     if (!formData.department.trim()) errors.push('El departamento es requerido');
     if (!editingUser && !formData.password.trim()) errors.push('La contraseña es requerida para nuevos usuarios');
     
@@ -488,10 +497,11 @@ export function UserManagement() {
       const existingUser = state.users.find(user => 
         user.username.toLowerCase() === formData.username.toLowerCase() ||
         user.email.toLowerCase() === formData.email.toLowerCase() ||
-        user.cedula === formData.cedula
+        user.cedula === formData.cedula ||
+        user.employeeId === formData.employeeId
       );
       if (existingUser) {
-        errors.push('El nombre de usuario, email o cédula ya existe en el sistema');
+        errors.push('El nombre de usuario, email, cédula o ID de empleado ya existe en el sistema');
       }
     }
     
@@ -711,6 +721,23 @@ export function UserManagement() {
                   />
                   {!formData.cedula.trim() && (
                     <p className="text-xs text-red-600 mt-1">La cédula es requerida</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ID de Empleado <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData(prev => ({ ...prev, employeeId: e.target.value }))}
+                    className={`input-field ${!formData.employeeId.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                    placeholder="EMP001"
+                    required
+                  />
+                  {!formData.employeeId.trim() && (
+                    <p className="text-xs text-red-600 mt-1">El ID de empleado es requerido</p>
                   )}
                 </div>
 

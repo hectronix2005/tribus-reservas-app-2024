@@ -222,6 +222,7 @@ export interface User {
   username: string;
   password: string; // En producción debería estar hasheada
   cedula: string;
+  employeeId: string;
   role: 'admin' | 'lider' | 'colaborador';
   department?: string;
   isActive: boolean;
