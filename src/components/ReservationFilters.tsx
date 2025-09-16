@@ -17,6 +17,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [filtersApplied, setFiltersApplied] = useState(false);
 
   // Función para filtrar reservaciones
   const applyFilters = async () => {
@@ -31,6 +32,9 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
       
       const filteredReservations = await reservationService.getAllReservations(filters);
       onFilterChange(filteredReservations);
+      
+      // Marcar que los filtros están aplicados
+      setFiltersApplied(true);
     } catch (error) {
       console.error('Error aplicando filtros:', error);
       // En caso de error, mostrar todas las reservaciones
@@ -46,6 +50,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     setEndDate('');
     setSelectedArea('');
     setSelectedStatus('');
+    setFiltersApplied(false); // Marcar que los filtros no están aplicados
     try {
       onLoadingChange(true);
       const allReservations = await reservationService.getAllReservations();
@@ -263,20 +268,23 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
 
           {/* Botones de acción */}
           <div className="flex gap-3 pt-2">
-            <button
-              onClick={applyFilters}
-              className="btn-primary flex items-center gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              Aplicar Filtros
-            </button>
-            <button
-              onClick={clearFilters}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <X className="w-4 h-4" />
-              Limpiar Filtros
-            </button>
+            {!filtersApplied ? (
+              <button
+                onClick={applyFilters}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                Aplicar Filtros
+              </button>
+            ) : (
+              <button
+                onClick={clearFilters}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Limpiar Filtros
+              </button>
+            )}
           </div>
 
           {/* Información del filtro activo */}
