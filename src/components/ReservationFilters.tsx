@@ -17,7 +17,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [filtersApplied, setFiltersApplied] = useState(false);
+  const [filtersApplied, setFiltersApplied] = useState(true);
 
   // Función para filtrar reservaciones
   const applyFilters = async () => {
