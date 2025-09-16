@@ -549,20 +549,20 @@ app.get('/api/areas/:id/availability', async (req, res) => {
 // Endpoint para crear usuarios sin autenticación
 app.post('/api/users/register', async (req, res) => {
   try {
-    const { name, email, username, password, cedula, role, department, isActive } = req.body;
+    const { name, email, username, password, cedula, employeeId, role, department, isActive } = req.body;
 
     // Validar campos requeridos
-    if (!name || !email || !username || !password || !cedula) {
-      return res.status(400).json({ error: 'Todos los campos son requeridos, incluyendo la cédula' });
+    if (!name || !email || !username || !password || !cedula || !employeeId) {
+      return res.status(400).json({ error: 'Todos los campos son requeridos, incluyendo la cédula y el ID de empleado' });
     }
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }, { cedula }]
+      $or: [{ email }, { username }, { cedula }, { employeeId }]
     });
 
     if (existingUser) {
-      return res.status(409).json({ error: 'El email, nombre de usuario o cédula ya existe' });
+      return res.status(409).json({ error: 'El email, nombre de usuario, cédula o ID de empleado ya existe' });
     }
 
     // Hashear la contraseña
@@ -581,6 +581,7 @@ app.post('/api/users/register', async (req, res) => {
       username,
       password: hashedPassword,
       cedula,
+      employeeId,
       role: userRole,
       department: department || '',
       isActive: isActive !== undefined ? isActive : true
@@ -718,10 +719,10 @@ app.get('/api/users/:id', async (req, res) => {
 // Endpoint para actualizar usuario (sin autenticación para facilitar el desarrollo)
 app.put('/api/users/:id', async (req, res) => {
   try {
-    const { name, email, username, password, cedula, role, department, isActive } = req.body;
+    const { name, email, username, password, cedula, employeeId, role, department, isActive } = req.body;
     console.log('🔄 Actualizando usuario:', {
       id: req.params.id,
-      receivedData: { name, email, username, cedula, role, department, isActive }
+      receivedData: { name, email, username, cedula, employeeId, role, department, isActive }
     });
     console.log('🔍 Cédula recibida en backend:', {
       cedula: cedula,
@@ -729,8 +730,14 @@ app.put('/api/users/:id', async (req, res) => {
       cedulaLength: cedula ? cedula.length : 0,
       cedulaTrimmed: cedula ? cedula.trim() : null
     });
+    console.log('🔍 EmployeeId recibido en backend:', {
+      employeeId: employeeId,
+      employeeIdType: typeof employeeId,
+      employeeIdLength: employeeId ? employeeId.length : 0,
+      employeeIdTrimmed: employeeId ? employeeId.trim() : null
+    });
     
-    const updateData = { name, email, username, cedula, role, department, isActive };
+    const updateData = { name, email, username, cedula, employeeId, role, department, isActive };
     
     // Convertir rol 'user' a 'lider' para compatibilidad
     if (updateData.role === 'user') {
