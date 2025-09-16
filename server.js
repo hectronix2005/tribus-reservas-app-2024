@@ -1224,19 +1224,37 @@ app.post('/api/reservations', async (req, res) => {
       // Verificar conflictos de horarios
       const [year, month, day] = date.split('-').map(Number);
       const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      
+      // Buscar reservas que se solapen con el horario solicitado
+      console.log('🔍 Validando conflictos para SALA:', {
+        area,
+        date: utcDate.toISOString(),
+        startTime,
+        endTime,
+        status: ['confirmed', 'active']
+      });
+      
       conflictingReservation = await Reservation.findOne({
         area,
         date: utcDate,
         status: { $in: ['confirmed', 'active'] }, // Incluir reservas activas también
-        $or: [
-          {
-            startTime: { $lt: endTime },
-            endTime: { $gt: startTime }
-          }
+        $and: [
+          { startTime: { $lt: endTime } },    // La reserva existente empieza antes de que termine la nueva
+          { endTime: { $gt: startTime } }     // La reserva existente termina después de que empiece la nueva
         ]
       });
       
+      console.log('🔍 Resultado de búsqueda de conflictos:', conflictingReservation ? {
+        id: conflictingReservation.reservationId,
+        area: conflictingReservation.area,
+        date: conflictingReservation.date.toISOString(),
+        startTime: conflictingReservation.startTime,
+        endTime: conflictingReservation.endTime,
+        status: conflictingReservation.status
+      } : 'No se encontraron conflictos');
+      
       if (conflictingReservation) {
+        console.log('❌ CONFLICTO DETECTADO - Bloqueando reserva duplicada');
         return res.status(409).json({ 
           error: 'Ya existe una reservación para este horario en esta sala' 
         });
