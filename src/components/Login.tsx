@@ -174,36 +174,7 @@ export function Login() {
               </button>
             </div>
 
-            {/* Botón temporal para debug */}
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  const allUsers = (window as any).sessionUsers || state.users;
-                  console.log('=== DEBUG COMPLETO ===');
-                  console.log('State users:', state.users);
-                  console.log('Session users:', (window as any).sessionUsers);
-                  console.log('All users:', allUsers);
-                  console.log('=====================');
-                  
-                  const userList = allUsers.map((u: any) => `${u.username} (${u.role})`).join(', ');
-                  alert(`Usuarios disponibles: ${userList}\n\nTotal: ${allUsers.length} usuarios`);
-                }}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Ver usuarios disponibles (Debug)
-              </button>
-            </div>
           </form>
-
-          {/* Información de usuarios de prueba */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Usuarios de Prueba:</h4>
-            <div className="space-y-1 text-xs text-gray-600">
-              <div><strong>Admin:</strong> admin / admin123</div>
-              <div><strong>Usuario:</strong> usuario / user123</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
