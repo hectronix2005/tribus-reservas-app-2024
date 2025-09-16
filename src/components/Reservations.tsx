@@ -1076,8 +1076,8 @@ export function Reservations() {
       }
     }
 
-    // Validar que se haya seleccionado al menos 1 colaborador
-    if (selectedCollaborators.length === 0) {
+    // Validar que se haya seleccionado al menos 1 colaborador (solo para Hot Desk, no para salas)
+    if (!selectedArea?.isMeetingRoom && selectedCollaborators.length === 0) {
       setError('Debe seleccionar al menos 1 colaborador para la reserva.');
       return;
     }
@@ -2092,7 +2092,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                       <span className="text-blue-600 font-medium">
                         {selectedCollaborators.length} colaborador(es) seleccionado(s)
                       </span>
-                      {selectedCollaborators.length === 0 && (
+                      {selectedCollaborators.length === 0 && !selectedArea?.isMeetingRoom && (
                         <span className="text-red-600 ml-2">
                           • Debe seleccionar al menos 1 colaborador
                         </span>
