@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Download, Filter, X } from 'lucide-react';
 import { reservationService } from '../services/api';
 import { Reservation } from '../types';
@@ -17,7 +17,25 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [filtersApplied, setFiltersApplied] = useState(true);
+  const [filtersApplied, setFiltersApplied] = useState(false);
+
+  // Cargar todas las reservaciones al inicio
+  useEffect(() => {
+    const loadAllReservations = async () => {
+      try {
+        onLoadingChange(true);
+        const allReservations = await reservationService.getAllReservations();
+        onFilterChange(allReservations);
+      } catch (error) {
+        console.error('Error cargando todas las reservaciones:', error);
+        onFilterChange(reservations);
+      } finally {
+        onLoadingChange(false);
+      }
+    };
+
+    loadAllReservations();
+  }, []);
 
   // Función para filtrar reservaciones
   const applyFilters = async () => {
@@ -50,7 +68,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     setEndDate('');
     setSelectedArea('');
     setSelectedStatus('');
-    setFiltersApplied(false); // Marcar que los filtros no están aplicados
+    setFiltersApplied(false);
     try {
       onLoadingChange(true);
       const allReservations = await reservationService.getAllReservations();
@@ -268,23 +286,20 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
 
           {/* Botones de acción */}
           <div className="flex gap-3 pt-2">
-            {!filtersApplied ? (
-              <button
-                onClick={applyFilters}
-                className="btn-primary flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" />
-                Aplicar Filtros
-              </button>
-            ) : (
-              <button
-                onClick={clearFilters}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Limpiar Filtros
-              </button>
-            )}
+            <button
+              onClick={applyFilters}
+              className="btn-primary flex items-center gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              Aplicar Filtros
+            </button>
+            <button
+              onClick={clearFilters}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Limpiar Filtros
+            </button>
           </div>
 
           {/* Información del filtro activo */}
