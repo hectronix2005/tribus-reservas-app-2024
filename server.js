@@ -1227,7 +1227,7 @@ app.post('/api/reservations', async (req, res) => {
       conflictingReservation = await Reservation.findOne({
         area,
         date: utcDate,
-        status: 'confirmed',
+        status: { $in: ['confirmed', 'active'] }, // Incluir reservas activas también
         $or: [
           {
             startTime: { $lt: endTime },
@@ -1250,7 +1250,7 @@ app.post('/api/reservations', async (req, res) => {
       const existingReservations = await Reservation.find({
         area,
         date: utcDate,
-        status: 'confirmed'
+        status: { $in: ['confirmed', 'active'] } // Incluir reservas activas también
       });
       
       const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
