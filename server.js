@@ -1234,14 +1234,18 @@ app.post('/api/reservations', async (req, res) => {
         status: ['confirmed', 'active']
       });
       
+      // Lógica correcta para detectar solapamientos:
+      // Dos intervalos se solapan si: start1 < end2 AND start2 < end1
       conflictingReservation = await Reservation.findOne({
         area,
         date: utcDate,
-        status: { $in: ['confirmed', 'active'] }, // Incluir reservas activas también
-        $and: [
-          { startTime: { $lt: endTime } },    // La reserva existente empieza antes de que termine la nueva
-          { endTime: { $gt: startTime } }     // La reserva existente termina después de que empiece la nueva
-        ]
+        status: { $in: ['confirmed', 'active'] },
+        $expr: {
+          $and: [
+            { $lt: ["$startTime", endTime] },    // La reserva existente empieza antes de que termine la nueva
+            { $gt: ["$endTime", startTime] }     // La reserva existente termina después de que empiece la nueva
+          ]
+        }
       });
       
       console.log('🔍 Resultado de búsqueda de conflictos:', conflictingReservation ? {

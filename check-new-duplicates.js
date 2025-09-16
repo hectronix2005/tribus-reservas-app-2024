@@ -2,15 +2,10 @@ const mongoose = require('mongoose');
 
 // Configuración de MongoDB
 const MONGODB_CONFIG = {
-  uri: process.env.MONGODB_URI || 'mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0',
+  uri: 'mongodb+srv://tribus_admin:Tribus2024@cluster0.o16ucum.mongodb.net/tribus?retryWrites=true&w=majority&appName=Cluster0',
   options: {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-  },
-  database: {
-    name: 'tribus',
-    cluster: 'cluster0.o16ucum.mongodb.net',
-    provider: 'MongoDB Atlas'
   }
 };
 
@@ -33,14 +28,14 @@ const reservationSchema = new mongoose.Schema({
 
 const Reservation = mongoose.model('Reservation', reservationSchema);
 
-async function checkDuplicateReservations() {
+async function checkNewDuplicates() {
   try {
     console.log('🔍 Conectando a MongoDB...');
     await mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options);
     console.log('✅ Conectado a MongoDB');
 
     // Buscar las reservas específicas mencionadas
-    const specificIds = ['RES-20250916-204657-8245', 'RES-20250916-225148-7952'];
+    const specificIds = ['RES-20250916-225617-7051', 'RES-20250916-230340-0180'];
     
     console.log('\n🔍 Buscando reservas específicas...');
     const specificReservations = await Reservation.find({
@@ -61,29 +56,30 @@ async function checkDuplicateReservations() {
         console.log(`   Creada: ${res.createdAt.toISOString()}`);
       });
 
-      // Verificar si son duplicadas
+      // Verificar si se solapan
       if (specificReservations.length === 2) {
         const [res1, res2] = specificReservations;
-        const isDuplicate = 
+        const isOverlapping = 
           res1.area === res2.area &&
           res1.date.toISOString().split('T')[0] === res2.date.toISOString().split('T')[0] &&
-          res1.startTime === res2.startTime &&
-          res1.endTime === res2.endTime;
+          res1.startTime < res2.endTime &&
+          res2.startTime < res1.endTime;
 
-        console.log(`\n🚨 ¿Son duplicadas?: ${isDuplicate ? 'SÍ' : 'NO'}`);
+        console.log(`\n🚨 ¿Se solapan?: ${isOverlapping ? 'SÍ' : 'NO'}`);
         
-        if (isDuplicate) {
-          console.log('❌ PROBLEMA CONFIRMADO: Reservas duplicadas detectadas');
+        if (isOverlapping) {
+          console.log('❌ PROBLEMA CONFIRMADO: Reservas solapadas detectadas');
           console.log('   - Misma área:', res1.area);
           console.log('   - Misma fecha:', res1.date.toISOString().split('T')[0]);
-          console.log('   - Misma hora inicio:', res1.startTime);
-          console.log('   - Misma hora fin:', res1.endTime);
+          console.log('   - Solapamiento de horarios detectado');
+          console.log(`   - Reserva 1: ${res1.startTime} - ${res1.endTime}`);
+          console.log(`   - Reserva 2: ${res2.startTime} - ${res2.endTime}`);
         }
       }
     }
 
-    // Buscar TODAS las reservas duplicadas en el sistema
-    console.log('\n🔍 Buscando TODAS las reservas duplicadas en el sistema...');
+    // Buscar TODAS las reservas duplicadas/solapadas en el sistema
+    console.log('\n🔍 Buscando TODAS las reservas solapadas en el sistema...');
     
     const allReservations = await Reservation.find({
       status: { $in: ['confirmed', 'active', 'completed'] }
@@ -91,12 +87,12 @@ async function checkDuplicateReservations() {
 
     console.log(`📊 Total de reservas activas: ${allReservations.length}`);
 
-    // Agrupar por área, fecha y horario
+    // Agrupar por área y fecha
     const groupedReservations = {};
-    const duplicates = [];
+    const overlappingReservations = [];
 
     allReservations.forEach(reservation => {
-      const key = `${reservation.area}-${reservation.date.toISOString().split('T')[0]}-${reservation.startTime}-${reservation.endTime}`;
+      const key = `${reservation.area}-${reservation.date.toISOString().split('T')[0]}`;
       
       if (!groupedReservations[key]) {
         groupedReservations[key] = [];
@@ -104,29 +100,41 @@ async function checkDuplicateReservations() {
       groupedReservations[key].push(reservation);
     });
 
-    // Encontrar duplicados
+    // Encontrar solapamientos
     Object.entries(groupedReservations).forEach(([key, reservations]) => {
       if (reservations.length > 1) {
-        duplicates.push({
-          key,
-          count: reservations.length,
-          reservations
-        });
+        // Ordenar por hora de inicio
+        reservations.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        
+        // Verificar solapamientos
+        for (let i = 0; i < reservations.length - 1; i++) {
+          for (let j = i + 1; j < reservations.length; j++) {
+            const res1 = reservations[i];
+            const res2 = reservations[j];
+            
+            // Verificar si se solapan
+            if (res1.startTime < res2.endTime && res2.startTime < res1.endTime) {
+              overlappingReservations.push({
+                key,
+                reservation1: res1,
+                reservation2: res2
+              });
+            }
+          }
+        }
       }
     });
 
-    console.log(`\n🚨 Duplicados encontrados: ${duplicates.length}`);
+    console.log(`\n🚨 Solapamientos encontrados: ${overlappingReservations.length}`);
     
-    if (duplicates.length > 0) {
-      duplicates.forEach((duplicate, index) => {
-        console.log(`\n${index + 1}. Duplicado: ${duplicate.key}`);
-        console.log(`   Cantidad: ${duplicate.count} reservas`);
-        duplicate.reservations.forEach((res, resIndex) => {
-          console.log(`   ${resIndex + 1}. ID: ${res.reservationId} | Usuario: ${res.userName} | Estado: ${res.status} | Creada: ${res.createdAt.toISOString()}`);
-        });
+    if (overlappingReservations.length > 0) {
+      overlappingReservations.forEach((overlap, index) => {
+        console.log(`\n${index + 1}. Solapamiento: ${overlap.key}`);
+        console.log(`   Reserva 1: ${overlap.reservation1.reservationId} | ${overlap.reservation1.userName} | ${overlap.reservation1.startTime}-${overlap.reservation1.endTime} | Estado: ${overlap.reservation1.status}`);
+        console.log(`   Reserva 2: ${overlap.reservation2.reservationId} | ${overlap.reservation2.userName} | ${overlap.reservation2.startTime}-${overlap.reservation2.endTime} | Estado: ${overlap.reservation2.status}`);
       });
     } else {
-      console.log('✅ No se encontraron duplicados en el sistema');
+      console.log('✅ No se encontraron solapamientos en el sistema');
     }
 
   } catch (error) {
@@ -137,4 +145,4 @@ async function checkDuplicateReservations() {
   }
 }
 
-checkDuplicateReservations();
+checkNewDuplicates();
