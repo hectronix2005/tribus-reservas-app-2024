@@ -178,7 +178,7 @@ const reservationSchema = new mongoose.Schema({
   },
     userRole: { 
     type: String, 
-      enum: ['admin', 'user', 'colaborador'], 
+      enum: ['admin', 'lider', 'colaborador'], 
     required: true 
     }
   },
