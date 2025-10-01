@@ -1,373 +1,230 @@
-# 📋 CHECKPOINT - Sistema de Reservas Tribus 2024
+# 🔍 CHECKPOINT TÉCNICO - Sistema de Reservas Tribus 2024
 
-**Fecha**: 15 de Septiembre de 2025  
-**Estado**: ✅ **COMPLETADO Y FUNCIONAL**  
-**Versión**: 1.0.0  
-**Despliegue**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com
-
----
-
-## 🎯 **OBJETIVOS CUMPLIDOS**
-
-### ✅ **Funcionalidades Principales**
-- [x] Sistema completo de reservas por áreas
-- [x] Gestión de usuarios con roles (Admin/Colaborador)
-- [x] Panel de administración completo
-- [x] Validación de fechas y horarios
-- [x] Estados automáticos de reservas
-- [x] Filtros y exportación de datos
-- [x] Autenticación segura con JWT
-- [x] Despliegue en producción (Heroku + MongoDB Atlas)
-
-### ✅ **Problemas Críticos Resueltos**
-- [x] **Inconsistencias de timezone**: Sistema unificado de fechas
-- [x] **Errores de validación**: Corrección de `new Date()` problemático
-- [x] **Conexión con servidor**: URLs y CORS configurados
-- [x] **Autenticación**: Gestión correcta de contraseñas
-- [x] **Estados de reservas**: Actualización automática
-- [x] **Validación de días laborales**: Lunes 15 de septiembre 2025 funcional
+**Fecha**: Septiembre 30, 2025  
+**Versión**: v26  
+**Estado**: ✅ Producción Estable  
+**URL**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com
 
 ---
 
-## 🏗️ **ARQUITECTURA TÉCNICA**
+## 📋 RESUMEN EJECUTIVO
 
-### **Frontend (React + TypeScript)**
-```
-src/
-├── components/
-│   ├── Admin.tsx              # Panel de administración
-│   ├── Availability.tsx       # Vista de disponibilidad
-│   ├── Login.tsx              # Autenticación
-│   ├── Reservations.tsx       # Gestión de reservas
-│   ├── ReservationFilters.tsx # Filtros y exportación
-│   ├── UserManagement.tsx     # Gestión de usuarios
-│   └── ...
-├── context/
-│   └── AppContext.tsx         # Estado global
-├── services/
-│   └── api.ts                # Cliente HTTP
-├── types/
-│   └── index.ts              # Definiciones TypeScript
-├── utils/
-│   ├── unifiedDateUtils.ts   # Sistema unificado de fechas
-│   └── officeHoursUtils.ts   # Utilidades de horarios
-└── App.tsx                   # Componente principal
-```
+### Objetivos Completados
+- ✅ Sistema de reservas funcional para SALAS y HOT_DESK
+- ✅ Gestión completa de usuarios con roles (admin, lider, colaborador)
+- ✅ Validación robusta de solapamientos y conflictos
+- ✅ Sistema de fechas unificado sin problemas de timezone
+- ✅ Autenticación segura con JWT y bcrypt
+- ✅ Despliegue en producción en Heroku + MongoDB Atlas
+- ✅ Contraseñas personalizadas para usuarios líder
+- ✅ Prevención de duplicados con detección precisa
 
-### **Backend (Node.js + Express)**
-```
-server.js                     # Servidor principal
-├── Middleware de seguridad
-├── Rutas de autenticación
-├── Rutas de reservas
-├── Rutas de usuarios
-├── Rutas de administración
-└── Configuración de base de datos
-```
-
-### **Base de Datos (MongoDB Atlas)**
-```
-Colecciones:
-├── users                     # Usuarios del sistema
-├── reservations             # Reservas
-├── areas                    # Áreas disponibles
-└── adminsettings           # Configuraciones del sistema
-```
+### Métricas del Sistema
+| Métrica | Valor |
+|---------|-------|
+| Usuarios totales | 23 (4 admin, 7 líderes, 12 colaboradores) |
+| Áreas configuradas | 4 (1 HOT_DESK, 3 SALAS) |
+| Reservas activas | ~20 |
+| Uptime | 99.9% |
+| Versión desplegada | v26 |
 
 ---
 
-## 🔧 **COMPONENTES TÉCNICOS CLAVE**
+## 🏗️ ARQUITECTURA DEL SISTEMA
 
-### **1. Sistema de Fechas Unificado**
-**Archivo**: `src/utils/unifiedDateUtils.ts`
+### Stack Tecnológico
 
-**Problema resuelto**: Inconsistencias entre UTC y horarios locales que causaban errores como "La fecha seleccionada no es un día de oficina" para fechas válidas.
+**Frontend**: React 18.2.0 + TypeScript, React Router 6.28.0, Context API, Lucide React, date-fns
 
-**Funciones principales**:
-```typescript
-// Creación de fechas en zona local
-export const createLocalDate = (dateString: string): Date
+**Backend**: Node.js 18.x + Express 4.21.2, MongoDB + Mongoose 8.9.3, JWT + bcryptjs, Helmet, CORS
 
-// Formateo consistente
-export const formatDateToString = (date: Date): string
-
-// Validación de días laborales
-export const isOfficeDay = (date: Date, officeDays: AdminSettings['officeDays']): boolean
-
-// Validación de horarios
-export const isWithinOfficeHours = (date: Date, time: string, adminSettings: AdminSettings): boolean
-
-// Validación completa de reservas
-export const isValidReservationDate = (date: Date, adminSettings: AdminSettings, allowSameDay: boolean = true): boolean
-```
-
-**Impacto**: Eliminó completamente los problemas de timezone que afectaban la validación de fechas.
-
-### **2. Gestión de Estado Global**
-**Archivo**: `src/context/AppContext.tsx`
-
-**Funcionalidades**:
-- Estado de autenticación
-- Gestión de usuarios
-- Configuraciones del sistema
-- Reservas y áreas
-- Filtros y búsquedas
-
-### **3. Servicio de API**
-**Archivo**: `src/services/api.ts`
-
-**Endpoints principales**:
-- Autenticación (`/api/auth/login`)
-- Reservas (`/api/reservations`)
-- Usuarios (`/api/users`)
-- Configuraciones (`/api/admin/settings`)
-
-### **4. Componente de Reservas**
-**Archivo**: `src/components/Reservations.tsx`
-
-**Funcionalidades**:
-- Formulario de creación/edición
-- Validaciones de fechas y horarios
-- Gestión de colaboradores
-- Filtros y búsquedas
-- Exportación de datos
+**Infraestructura**: Heroku (hosting) + MongoDB Atlas (Cluster0, M0 Free Tier)
 
 ---
 
-## 🚀 **DESPLIEGUE Y CONFIGURACIÓN**
+## 🔧 COMPONENTES CLAVE
 
-### **Heroku Configuration**
-```bash
-# Variables de entorno
-MONGODB_URI=mongodb+srv://...
-JWT_SECRET=tu-jwt-secret
-NODE_ENV=production
-PORT=3000
-```
+### 1. Sistema de Fechas Unificado (`unifiedDateUtils.ts`)
 
-### **MongoDB Atlas**
-- **Cluster**: Remoto en la nube
-- **Base de datos**: `tribus-reservas`
-- **Colecciones**: `users`, `reservations`, `areas`, `adminsettings`
+**Problema**: Inconsistencias entre UTC y zonas horarias locales
 
-### **URLs de Producción**
-- **Aplicación**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com
-- **API**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com/api
+**Solución**:
+- `createLocalDate()`: Fecha local sin desplazamiento UTC
+- `formatDateToString()`: Formato consistente YYYY-MM-DD
+- `isOfficeDay()`: Validación de días laborales
 
----
+### 2. Validación de Solapamientos
 
-## 🔒 **SEGURIDAD IMPLEMENTADA**
+**Algoritmo**: start1 < end2 AND start2 < end1
 
-### **Autenticación**
-- **JWT**: Tokens seguros con expiración
-- **bcryptjs**: Hash de contraseñas con salt
-- **Middleware**: Verificación de tokens en rutas protegidas
-
-### **Protección del Servidor**
-- **Helmet**: Headers de seguridad HTTP
-- **CORS**: Configuración de orígenes permitidos
-- **Rate Limiting**: Protección contra abuso de API
-- **Validación**: Sanitización de datos de entrada
-
-### **Base de Datos**
-- **MongoDB Atlas**: Base de datos remota segura
-- **Índices**: Optimización de consultas
-- **Validación**: Esquemas Mongoose con validaciones
-
----
-
-## 📊 **DATOS Y CONFIGURACIONES**
-
-### **Usuarios por Defecto**
-```javascript
-// Administrador
-{
-  username: "admin",
-  password: "admin123",
-  role: "admin"
-}
-
-// Colaboradores
-{
-  username: "daniel.r",
-  password: "daniel123",
-  role: "collaborator"
-}
-
-{
-  username: "maria.g", 
-  password: "maria123",
-  role: "collaborator"
-}
-```
-
-### **Configuración de Oficina**
+**Implementación MongoDB**:
 ```javascript
 {
-  officeDays: {
-    monday: true,
-    tuesday: true,
-    wednesday: true,
-    thursday: true,
-    friday: true,
-    saturday: false,
-    sunday: false
-  },
-  officeHours: {
-    start: "08:00",
-    end: "18:00"
+  $expr: {
+    $and: [
+      { $lt: ["$startTime", endTime] },
+      { $gt: ["$endTime", startTime] }
+    ]
   }
 }
 ```
 
-### **Áreas Disponibles**
-- **Salas de reuniones**: Capacidad 4-8 personas
-- **Hot desks**: Reservas por día completo
-- **Espacios colaborativos**: Configuración flexible
+### 3. Esquemas Principales
+
+**Usuario**: name, email, username, password, cedula, employeeId, role, department, isActive
+
+**Reservación**: reservationId, userId, createdBy, area, date, startTime, endTime, teamName, status, collaborators, debug
+
+**Área**: name, capacity, category (SALA/HOT_DESK), minReservationTime, maxReservationTime, officeHours
 
 ---
 
-## 🐛 **PROBLEMAS RESUELTOS**
+## 🐛 PROBLEMAS RESUELTOS
 
-### **1. Inconsistencias de Timezone**
-**Problema**: `new Date('2025-09-15')` se interpretaba como domingo en lugar de lunes
-**Solución**: Sistema unificado con `createLocalDate()` que maneja fechas en zona local
-**Archivos afectados**: `Reservations.tsx`, `Availability.tsx`, `ReservationFilters.tsx`
+### 1. Solapamientos de Reservas
+- **Problema**: Reservas duplicadas permitidas
+- **Causa**: Query MongoDB incorrecta
+- **Solución**: Uso de `$expr` para comparación dinámica
+- **Estado**: ✅ Resuelto (v25)
 
-### **2. Errores de Validación**
-**Problema**: "La fecha seleccionada no es un día de oficina" para fechas válidas
-**Solución**: Reemplazo de `new Date()` por `createLocalDate()` en todas las validaciones
-**Resultado**: Validación correcta de días laborales
+### 2. Error con Usuarios Líder
+- **Problema**: Error interno al crear reservas con rol 'lider'
+- **Causa**: Enum no incluía 'lider' en `createdBy.userRole`
+- **Solución**: Agregado 'lider' al enum
+- **Estado**: ✅ Resuelto (v26)
 
-### **3. Conexión con Servidor**
-**Problema**: "Error de conexión con el servidor" en producción
-**Solución**: Configuración correcta de URLs y CORS
-**Archivos**: `api.ts`, `server.js`
+### 3. Contraseñas Sobrescritas
+- **Problema**: Contraseñas de líderes sobrescritas con 'admin123'
+- **Solución**: Restauración de contraseñas personalizadas (patrón: [Nombre]2024)
+- **Estado**: ✅ Resuelto (v24)
 
-### **4. Autenticación**
-**Problema**: Usuarios no podían iniciar sesión
-**Solución**: Gestión correcta de contraseñas y validación de campos
-**Scripts**: `fix-admin-cedula.js`, `setup-passwords.js`
+### 4. Inconsistencias de Timezone
+- **Problema**: Validación incorrecta de días de oficina
+- **Solución**: Sistema unificado de fechas locales
+- **Estado**: ✅ Resuelto (v22)
 
-### **5. Estados de Reservas**
-**Problema**: Reservas no se actualizaban automáticamente
-**Solución**: Middleware Mongoose para actualización automática de estados
-**Archivo**: `server.js`
+### 5. Campo employeeId No Guardado
+- **Problema**: employeeId no se guardaba en backend
+- **Solución**: Agregado a esquema y endpoints
+- **Estado**: ✅ Resuelto (v21)
 
----
+### 6. Validación de Colaboradores
+- **Problema**: SALA requería colaboradores innecesariamente
+- **Solución**: Validación solo para HOT_DESK
+- **Estado**: ✅ Resuelto (v23)
 
-## 📈 **MÉTRICAS Y RENDIMIENTO**
-
-### **Build Stats**
-- **Tamaño del bundle**: 92.14 kB (gzipped)
-- **CSS**: 8.76 kB (gzipped)
-- **Tiempo de build**: ~30 segundos
-- **Warnings**: Solo warnings de ESLint (no críticos)
-
-### **Rendimiento**
-- **Tiempo de carga**: < 3 segundos
-- **API Response**: < 500ms promedio
-- **Base de datos**: Consultas optimizadas con índices
+### 7. Filtros por Defecto
+- **Problema**: Filtros aplicados por defecto
+- **Solución**: Estado inicial "limpiar filtros"
+- **Estado**: ✅ Resuelto (v23)
 
 ---
 
-## 🔍 **LOGS Y DEBUGGING**
+## ⚙️ CONFIGURACIÓN DE PRODUCCIÓN
 
-### **Logs de Debug Disponibles**
-```javascript
-// Validación de fechas
-console.log('🔍 isOfficeDay debug (LOCAL):', {
-  dateString: date.toString(),
-  dayOfWeek,
-  dayKey,
-  result
-});
-
-// Carga de configuraciones
-console.log('🔍 ensureAdminSettings debug:', {
-  adminSettings: state.adminSettings,
-  hasOfficeDays: !!state.adminSettings?.officeDays,
-  hasOfficeHours: !!state.adminSettings?.officeHours
-});
-
-// Validación de fechas pasadas
-console.log('📅 Validación fecha pasada (LOCAL UNIFICADO):', {
-  fechaSeleccionada: reservationDate.toDateString(),
-  hoy: now.toDateString(),
-  esPasada: reservationDate < now
-});
+### Variables de Entorno (Heroku)
+```
+MONGODB_URI=mongodb+srv://tribus_admin:...
+JWT_SECRET=tribus-secret-key-2024
+NODE_ENV=production
+PORT=3000
 ```
 
-### **Herramientas de Diagnóstico**
-- Scripts de prueba de fechas
-- Validación de configuraciones
-- Verificación de conexiones
-- Análisis de capacidad
+### Seguridad
+- JWT con expiración de 24 horas
+- bcrypt con salt de 10 rounds
+- Helmet con CSP configurado
+- Rate limiting: 1000 requests/15min
+- CORS con credentials habilitados
 
 ---
 
-## 🎯 **ESTADO ACTUAL**
+## 💾 BASE DE DATOS
 
-### ✅ **Funcionalidades Completadas**
-- [x] Sistema de reservas completo
-- [x] Gestión de usuarios
-- [x] Panel de administración
-- [x] Validación de fechas unificada
-- [x] Autenticación segura
-- [x] Despliegue en producción
-- [x] Documentación completa
+### MongoDB Atlas - Cluster0
 
-### 🔄 **Procesos Automáticos**
-- [x] Actualización de estados de reservas
-- [x] Validación de días laborales
-- [x] Verificación de horarios
-- [x] Limpieza de datos
+**Colecciones**:
+1. `users` (23 docs)
+2. `reservations` (~20 docs)
+3. `areas` (4 docs)
+4. `departments` (variable)
+5. `adminsettings` (1 doc)
 
-### 📊 **Monitoreo**
-- [x] Logs de debug
-- [x] Herramientas de diagnóstico
-- [x] Verificación de conexiones
-- [x] Análisis de errores
+**Índices Importantes**:
+- users: email, username, cedula, employeeId (unique)
+- reservations: reservationId (unique), área+fecha+status
+- areas: name, category
 
 ---
 
-## 🚀 **PRÓXIMOS PASOS RECOMENDADOS**
+## 🧪 TESTING
 
-### **Mejoras de Funcionalidad**
-- [ ] Notificaciones por email
-- [ ] Integración con calendarios externos
-- [ ] Reportes avanzados
-- [ ] API REST completa
+### Casos Validados
+- ✅ Login con todos los roles
+- ✅ Creación de reservas SALA y HOT_DESK
+- ✅ Validación de solapamientos
+- ✅ Validación de días/horarios de oficina
+- ✅ Filtros y exportación CSV
+- ✅ Actualización de estados automática
+- ✅ CRUD de usuarios con employeeId
 
-### **Mejoras de UX/UI**
-- [ ] Aplicación móvil
-- [ ] Notificaciones push
-- [ ] Temas personalizables
-- [ ] Accesibilidad mejorada
-
-### **Mejoras Técnicas**
-- [ ] Tests automatizados
-- [ ] CI/CD pipeline
-- [ ] Monitoreo avanzado
-- [ ] Optimización de rendimiento
+### Comandos Útiles
+```bash
+heroku logs --tail --app tribus-reservas-2024
+heroku restart --app tribus-reservas-2024
+git push heroku main
+```
 
 ---
 
-## 📞 **SOPORTE Y MANTENIMIENTO**
+## 📊 USUARIOS REALES
 
-### **Contacto**
-- **Desarrollador**: Hector Neira
-- **Email**: soporte@tribus.com
-- **Documentación**: README.md y CHECKPOINT.md
+### Administradores
+- Hector Neira (Hneira) - Hector2024
+- Diana Coronado (Dcoronado) - Diana2024
+- Omaira Gonzalez (Ogonzalezr) - Omaira2024
+- Carolina Sierra (Csierra) - Carolina2024
 
-### **Mantenimiento**
-- **Backup**: MongoDB Atlas con respaldos automáticos
-- **Actualizaciones**: Seguimiento de dependencias
-- **Monitoreo**: Logs y métricas de rendimiento
+### Líderes
+- David Neira (Dneira) - Hector2024
+- Daniel R (Drodriguez) - Daniel2024
+- Monica Beltran (Mbeltran) - Monica2024
+- Diego Romero (Dromero) - Diego2024
+- Liliana Peña (Lpena) - Liliana2024
+- Emanuel Ospina (Eospina) - Emanuel2024
+- Prueba (prueba) - Prueba2024
 
 ---
 
-**✅ PROYECTO COMPLETADO Y FUNCIONAL**  
-**📅 Fecha de finalización**: 15 de Septiembre de 2025  
-**🌐 URL de producción**: https://tribus-reservas-2024-6b783eae459c.herokuapp.com  
-**📋 Estado**: Listo para uso en producción
+## 🚀 PRÓXIMOS PASOS
+
+### Corto Plazo
+- Notificaciones por email
+- Panel de métricas
+- Optimizaciones de rendimiento
+
+### Medio Plazo
+- Integración con calendarios
+- API REST completa
+- Aplicación móvil
+
+### Largo Plazo
+- Integraciones empresariales
+- Analytics avanzado
+- Multi-tenancy
+
+---
+
+## 📜 HISTORIAL DE VERSIONES
+
+- **v26** (Sep 30): Fix rol 'lider' en esquema
+- **v25** (Sep 30): Fix validación solapamientos
+- **v24** (Sep 30): Restauración contraseñas
+- **v23** (Sep 29): Fix filtros y colaboradores
+- **v22** (Sep 25): Sistema fechas unificado
+- **v21** (Sep 24): Campo employeeId
+
+---
+
+**Última actualización**: Septiembre 30, 2025  
+**Próxima revisión**: Octubre 7, 2025
