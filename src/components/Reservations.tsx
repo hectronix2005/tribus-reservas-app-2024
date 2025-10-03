@@ -1277,7 +1277,6 @@ export function Reservations() {
       requestedSeats: reservation.requestedSeats || 1,
       notes: reservation.notes,
       colaboradores: reservation.colaboradores?.map(c => c._id) || [],
-      attendees: reservation.attendees || [],
       // Campos para reservaciones recurrentes (solo para admins)
       isRecurring: false,
       recurrenceType: 'weekly',
