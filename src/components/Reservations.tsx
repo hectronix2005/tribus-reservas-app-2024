@@ -18,7 +18,6 @@ interface ReservationFormData {
   requestedSeats: number;
   notes: string;
   colaboradores: string[]; // Array de IDs de colaboradores
-  attendees: string[]; // Array de nombres de asistentes
   // Campos para reservaciones recurrentes (solo para admins)
   isRecurring: boolean;
   recurrenceType: 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -75,7 +74,6 @@ export function Reservations() {
     requestedSeats: 1,
     notes: '',
     colaboradores: [],
-    attendees: [],
     // Campos para reservaciones recurrentes (solo para admins)
     isRecurring: false,
     recurrenceType: 'weekly',
@@ -1123,7 +1121,6 @@ export function Reservations() {
         teamName: formData.teamName,
         requestedSeats: formData.requestedSeats,
         notes: formData.notes,
-        attendees: formData.attendees,
         colaboradores: selectedCollaborators
       };
 
@@ -1145,7 +1142,6 @@ export function Reservations() {
           teamName: formData.teamName,
           requestedSeats: formData.requestedSeats,
           notes: formData.notes,
-          attendees: formData.attendees,
           colaboradores: selectedCollaborators
         };
 
@@ -1180,7 +1176,6 @@ export function Reservations() {
         requestedSeats: 1,
         notes: '',
         colaboradores: [],
-        attendees: [],
         // Campos para reservaciones recurrentes (solo para admins)
         isRecurring: false,
         recurrenceType: 'weekly',
@@ -1314,7 +1309,6 @@ export function Reservations() {
       requestedSeats: 1,
       notes: '',
       colaboradores: [],
-      attendees: [],
       // Campos para reservaciones recurrentes (solo para admins)
       isRecurring: false,
       recurrenceType: 'weekly',
@@ -2098,43 +2092,11 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
               </div>
             )}
 
-            {/* Paso 4: Nombres de Asistentes (solo para rol lider) */}
-            {currentUser?.role === 'lider' && selectedArea && !selectedArea.isMeetingRoom && formData.requestedSeats > 1 && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
-                  👥 Nombres de Asistentes
-                </h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ingrese los nombres de los asistentes (uno por línea)
-                </label>
-                  <textarea
-                    value={formData.attendees.join('\n')}
-                  onChange={(e) => {
-                      const names = e.target.value.split('\n').filter(name => name.trim() !== '');
-                      setFormData({...formData, attendees: names});
-                  }}
-                    rows={Math.min(formData.requestedSeats, 5)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder={`Ingrese ${formData.requestedSeats} nombre(s) de asistente(s), uno por línea...`}
-                />
-                  <div className="text-xs text-gray-500 mt-1">
-                    <span className="text-blue-600 font-medium">
-                      {formData.attendees.length} de {formData.requestedSeats} asistentes especificados
-                    </span>
-              </div>
-            </div>
-              </div>
-            )}
-
-
-
             {/* Horarios (solo para reservas que no son de día completo) */}
               {!isFullDayReservation && (
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
-                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">5</span>
+                  <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
                   ⏰ Horarios
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
