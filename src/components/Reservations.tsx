@@ -57,7 +57,6 @@ export function Reservations() {
   console.log('🔍 Cantidad de departamentos:', departments.length);
   console.log('🔍 ¿Array vacío?', departments.length === 0);
   const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
-  const [hasManuallyDeselected, setHasManuallyDeselected] = useState(false);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
@@ -138,32 +137,21 @@ export function Reservations() {
   // Función para limpiar colaboradores seleccionados cuando cambia el departamento
   const handleDepartmentChange = (departmentName: string) => {
     setFormData({...formData, teamName: departmentName});
-    // Al cambiar departamento, limpiar selección y marcar que debe auto-seleccionar
-    setSelectedCollaborators([]);
-    setHasManuallyDeselected(false);
+    // Al cambiar departamento, seleccionar automáticamente todos los colaboradores
+    const newCollaborators = getCollaboratorsByDepartment(departmentName);
+    setSelectedCollaborators(newCollaborators.map(c => c.id));
   };
 
+  // Función para seleccionar todos los colaboradores
+  const handleSelectAll = () => {
+    const allCollaborators = colaboradoresDisponibles.map(c => c.id);
+    setSelectedCollaborators(allCollaborators);
+  };
 
-  // Seleccionar automáticamente todos los colaboradores cuando cambia el departamento
-  useEffect(() => {
-    // Solo auto-seleccionar si:
-    // 1. Hay colaboradores disponibles
-    // 2. No se ha deseleccionado manualmente
-    // 3. Hay un departamento seleccionado
-    if (formData.teamName && colaboradoresDisponibles.length > 0 && !hasManuallyDeselected) {
-      const allCollaborators = colaboradoresDisponibles.map(c => c.id);
-
-      // Verificar si todos los colaboradores actuales son del departamento actual
-      const allCurrentAreValid = selectedCollaborators.every(id =>
-        allCollaborators.includes(id)
-      );
-
-      // Solo actualizar si la lista está vacía o tiene colaboradores de otro departamento
-      if (selectedCollaborators.length === 0 || !allCurrentAreValid) {
-        setSelectedCollaborators(allCollaborators);
-      }
-    }
-  }, [formData.teamName, colaboradoresDisponibles, hasManuallyDeselected]);
+  // Función para deseleccionar todos los colaboradores
+  const handleDeselectAll = () => {
+    setSelectedCollaborators([]);
+  };
 
   // Cargar departamentos disponibles al montar el componente
   useEffect(() => {
@@ -1203,7 +1191,6 @@ export function Reservations() {
       setSelectedCollaborators([]);
       setShowForm(false);
       setEditingReservation(null);
-      setHasManuallyDeselected(false);
 
     } catch (error: any) {
       console.error('Error guardando reservación:', error);
@@ -1311,7 +1298,6 @@ export function Reservations() {
     setShowForm(false);
     setEditingReservation(null);
     setSelectedCollaborators([]);
-    setHasManuallyDeselected(false);
     setFormData({
       area: '',
       date: (() => {
@@ -2045,41 +2031,35 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
             </div>
                     ) : (
                       <div className="border border-gray-200 rounded-md">
-                        {/* Selector "Seleccionar todos" - FIJO */}
+                        {/* Botones de Selección Masiva */}
                         {colaboradoresDisponibles.length > 1 && (
                           <div className="bg-gray-50 border-b border-gray-200 p-3 sticky top-0 z-10">
-                            <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded">
-                <input
-                                type="checkbox"
-                                checked={colaboradoresDisponibles.length > 0 &&
-                                         colaboradoresDisponibles.every(c => selectedCollaborators.includes(c.id))}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    // Seleccionar TODOS los colaboradores del departamento
-                                    const allCollaborators = colaboradoresDisponibles.map(c => c.id);
-                                    setSelectedCollaborators(allCollaborators);
-                                    setHasManuallyDeselected(false);
-                                  } else {
-                                    // Deseleccionar todos
-                                    setSelectedCollaborators([]);
-                                    setHasManuallyDeselected(true);
-                                  }
-                                }}
-                                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                              />
+                            <div className="flex items-center justify-between gap-3">
                               <div className="flex-1">
-                                <div className="text-sm font-medium text-primary-600">
-                                  {colaboradoresDisponibles.length > 0 && 
-                                   colaboradoresDisponibles.every(c => selectedCollaborators.includes(c.id)) ? 
-                                    'Deseleccionar todos' : 
-                                    `Seleccionar todos (${colaboradoresDisponibles.length})`
-                                  }
-              </div>
+                                <div className="text-sm font-medium text-gray-700">
+                                  Selección masiva
+                                </div>
                                 <div className="text-xs text-gray-500">
-                                  Selecciona todos los colaboradores del departamento
+                                  {colaboradoresDisponibles.length} colaboradores disponibles
                                 </div>
                               </div>
-                </label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleSelectAll}
+                                  className="px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md border border-primary-200 transition-colors"
+                                >
+                                  Seleccionar todos
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleDeselectAll}
+                                  className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-md border border-gray-300 transition-colors"
+                                >
+                                  Limpiar selección
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                         
