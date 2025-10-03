@@ -57,6 +57,7 @@ export function Reservations() {
   console.log('🔍 Cantidad de departamentos:', departments.length);
   console.log('🔍 ¿Array vacío?', departments.length === 0);
   const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
+  const [hasManuallyDeselected, setHasManuallyDeselected] = useState(false);
 
   const [formData, setFormData] = useState<ReservationFormData>({
     area: '',
@@ -137,21 +138,32 @@ export function Reservations() {
   // Función para limpiar colaboradores seleccionados cuando cambia el departamento
   const handleDepartmentChange = (departmentName: string) => {
     setFormData({...formData, teamName: departmentName});
-    setSelectedCollaborators([]); // Limpiar selección al cambiar departamento
+    // Al cambiar departamento, limpiar selección y marcar que debe auto-seleccionar
+    setSelectedCollaborators([]);
+    setHasManuallyDeselected(false);
   };
 
 
-  // Seleccionar automáticamente todos los colaboradores por defecto
+  // Seleccionar automáticamente todos los colaboradores cuando cambia el departamento
   useEffect(() => {
-    if (colaboradoresDisponibles.length > 0) {
+    // Solo auto-seleccionar si:
+    // 1. Hay colaboradores disponibles
+    // 2. No se ha deseleccionado manualmente
+    // 3. Hay un departamento seleccionado
+    if (formData.teamName && colaboradoresDisponibles.length > 0 && !hasManuallyDeselected) {
       const allCollaborators = colaboradoresDisponibles.map(c => c.id);
-      
-      // Solo actualizar si no hay colaboradores seleccionados
-      if (selectedCollaborators.length === 0) {
+
+      // Verificar si todos los colaboradores actuales son del departamento actual
+      const allCurrentAreValid = selectedCollaborators.every(id =>
+        allCollaborators.includes(id)
+      );
+
+      // Solo actualizar si la lista está vacía o tiene colaboradores de otro departamento
+      if (selectedCollaborators.length === 0 || !allCurrentAreValid) {
         setSelectedCollaborators(allCollaborators);
       }
     }
-  }, [colaboradoresDisponibles]);
+  }, [formData.teamName, colaboradoresDisponibles, hasManuallyDeselected]);
 
   // Cargar departamentos disponibles al montar el componente
   useEffect(() => {
@@ -1191,6 +1203,7 @@ export function Reservations() {
       setSelectedCollaborators([]);
       setShowForm(false);
       setEditingReservation(null);
+      setHasManuallyDeselected(false);
 
     } catch (error: any) {
       console.error('Error guardando reservación:', error);
@@ -1298,6 +1311,7 @@ export function Reservations() {
     setShowForm(false);
     setEditingReservation(null);
     setSelectedCollaborators([]);
+    setHasManuallyDeselected(false);
     setFormData({
       area: '',
       date: (() => {
@@ -2037,16 +2051,18 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                             <label className="flex items-center space-x-3 cursor-pointer hover:bg-gray-100 p-2 rounded">
                 <input
                                 type="checkbox"
-                                checked={colaboradoresDisponibles.length > 0 && 
+                                checked={colaboradoresDisponibles.length > 0 &&
                                          colaboradoresDisponibles.every(c => selectedCollaborators.includes(c.id))}
                                 onChange={(e) => {
                                   if (e.target.checked) {
                                     // Seleccionar TODOS los colaboradores del departamento
                                     const allCollaborators = colaboradoresDisponibles.map(c => c.id);
                                     setSelectedCollaborators(allCollaborators);
+                                    setHasManuallyDeselected(false);
                                   } else {
                                     // Deseleccionar todos
                                     setSelectedCollaborators([]);
+                                    setHasManuallyDeselected(true);
                                   }
                                 }}
                                 className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
