@@ -45,23 +45,25 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// HTTP Request Logging Middleware
+// HTTP Request Logging Middleware (solo en desarrollo)
 app.use((req, res, next) => {
   const start = Date.now();
-  const timestamp = new Date().toISOString();
-  
-  console.log(`🌐 [${timestamp}] ${req.method} ${req.url}`);
-  console.log(`📋 Headers:`, JSON.stringify(req.headers, null, 2));
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`📦 Body:`, JSON.stringify(req.body, null, 2));
-  }
-  
+
+  // Solo loguear en desarrollo o para errores
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
   // Log response
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`✅ [${timestamp}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+
+    // Solo loguear errores (4xx, 5xx) o en modo desarrollo
+    if (isDevelopment || res.statusCode >= 400) {
+      const timestamp = new Date().toISOString();
+      const statusEmoji = res.statusCode >= 500 ? '❌' : res.statusCode >= 400 ? '⚠️' : '✅';
+      console.log(`${statusEmoji} [${timestamp}] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    }
   });
-  
+
   next();
 });
 
@@ -73,8 +75,8 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.static(path.join(__dirname, 'build')));
 }
 
-// MongoDB Query Logging
-mongoose.set('debug', true);
+// MongoDB Query Logging (solo en desarrollo)
+mongoose.set('debug', process.env.NODE_ENV !== 'production');
 
 // Conexión a MongoDB Atlas
 mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
@@ -82,8 +84,6 @@ mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
   console.log('✅ Conectado exitosamente a MongoDB Atlas');
   console.log(`🗄️  Base de datos: ${MONGODB_CONFIG.database.name}`);
   console.log(`🌐 Cluster: ${MONGODB_CONFIG.database.cluster}`);
-  console.log(`☁️  Proveedor: ${MONGODB_CONFIG.database.provider}`);
-  console.log('🔍 MongoDB Query Logging: ENABLED');
 })
 .catch(err => {
   console.error('❌ Error conectando a MongoDB Atlas:', err.message);
@@ -689,12 +689,6 @@ app.post('/api/users/login', async (req, res) => {
 app.get('/api/users', async (req, res) => {
   try {
     const users = await User.find().select('-password');
-    console.log('📋 Usuarios obtenidos:', users.map(u => ({
-      id: u._id,
-      name: u.name,
-      cedula: u.cedula,
-      cedulaType: typeof u.cedula
-    })));
     res.json(users);
   } catch (error) {
     console.error('Error obteniendo usuarios:', error);
@@ -724,46 +718,30 @@ app.put('/api/users/:id', async (req, res) => {
       id: req.params.id,
       receivedData: { name, email, username, cedula, employeeId, role, department, isActive }
     });
-    console.log('🔍 Cédula recibida en backend:', {
-      cedula: cedula,
-      cedulaType: typeof cedula,
-      cedulaLength: cedula ? cedula.length : 0,
-      cedulaTrimmed: cedula ? cedula.trim() : null
-    });
-    console.log('🔍 EmployeeId recibido en backend:', {
-      employeeId: employeeId,
-      employeeIdType: typeof employeeId,
-      employeeIdLength: employeeId ? employeeId.length : 0,
-      employeeIdTrimmed: employeeId ? employeeId.trim() : null
-    });
-    
+
     const updateData = { name, email, username, cedula, employeeId, role, department, isActive };
-    
+
     // Convertir rol 'user' a 'lider' para compatibilidad
     if (updateData.role === 'user') {
       updateData.role = 'lider';
-      console.log('🔄 Rol convertido de "user" a "lider" para compatibilidad');
     }
-    
-    console.log('📝 Datos a actualizar:', updateData);
 
     // Validar que la cédula sea obligatoria
     if (!cedula || cedula.trim() === '') {
       return res.status(400).json({ error: 'La cédula es obligatoria' });
     }
-    
+
     // Verificar si la cédula ya existe en otro usuario
-    const existingUser = await User.findOne({ 
-      cedula: cedula.trim(), 
-      _id: { $ne: req.params.id } 
+    const existingUser = await User.findOne({
+      cedula: cedula.trim(),
+      _id: { $ne: req.params.id }
     });
     if (existingUser) {
       return res.status(409).json({ error: 'Ya existe un usuario con esa cédula' });
     }
-    
+
     // Establecer la cédula
     updateData.cedula = cedula.trim();
-    console.log('🔍 Cédula válida detectada:', cedula.trim());
 
     // Solo incluir password si se proporciona
     if (password) {
@@ -776,15 +754,6 @@ app.put('/api/users/:id', async (req, res) => {
       updateData,
       { new: true, runValidators: true }
     ).select('-password');
-
-    console.log('✅ Usuario actualizado en BD:', {
-      id: user?._id,
-      name: user?.name,
-      cedula: user?.cedula,
-      cedulaType: typeof user?.cedula,
-      cedulaIsNull: user?.cedula === null,
-      cedulaIsUndefined: user?.cedula === undefined
-    });
 
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -1127,53 +1096,16 @@ app.post('/api/reservations', async (req, res) => {
     // Validar colaboradores si se proporcionan
     let validColaboradores = [];
     if (colaboradores && Array.isArray(colaboradores) && colaboradores.length > 0) {
-      console.log('🔍 [DEBUG] Validando colaboradores:', {
-        colaboradores,
-        colaboradoresLength: colaboradores.length
-      });
-      
       // Verificar que todos los colaboradores existen y tienen rol 'admin', 'lider' o 'colaborador'
-      const colaboradorUsers = await User.find({ 
+      const colaboradorUsers = await User.find({
         _id: { $in: colaboradores },
         role: { $in: ['admin', 'lider', 'colaborador'] },
         isActive: true
       });
 
-      // Debug adicional: buscar todos los usuarios con esos IDs sin filtros
-      const allUsersWithIds = await User.find({ 
-        _id: { $in: colaboradores }
-      });
-      
-      console.log('🔍 [DEBUG] Todos los usuarios con esos IDs:', {
-        allUsersWithIds: allUsersWithIds.map(u => ({
-          _id: u._id,
-          name: u.name,
-          role: u.role,
-          isActive: u.isActive
-        }))
-      });
-      
-      console.log('🔍 [DEBUG] Usuarios encontrados:', {
-        colaboradorUsers: colaboradorUsers.map(u => ({
-          _id: u._id,
-          name: u.name,
-          role: u.role,
-          isActive: u.isActive
-        })),
-        foundLength: colaboradorUsers.length,
-        expectedLength: colaboradores.length
-      });
-      
       if (colaboradorUsers.length !== colaboradores.length) {
-        console.log('❌ [ERROR] Colaboradores no válidos:', {
-          expected: colaboradores.length,
-          found: colaboradorUsers.length,
-          missing: colaboradores.filter(id => 
-            !colaboradorUsers.some(u => u._id.toString() === id.toString())
-          )
-        });
-        return res.status(400).json({ 
-          error: 'Algunos colaboradores no existen o no tienen el rol correcto' 
+        return res.status(400).json({
+          error: 'Algunos colaboradores no existen o no tienen el rol correcto'
         });
       }
       
@@ -1247,20 +1179,10 @@ app.post('/api/reservations', async (req, res) => {
           ]
         }
       });
-      
-      console.log('🔍 Resultado de búsqueda de conflictos:', conflictingReservation ? {
-        id: conflictingReservation.reservationId,
-        area: conflictingReservation.area,
-        date: conflictingReservation.date.toISOString(),
-        startTime: conflictingReservation.startTime,
-        endTime: conflictingReservation.endTime,
-        status: conflictingReservation.status
-      } : 'No se encontraron conflictos');
-      
+
       if (conflictingReservation) {
-        console.log('❌ CONFLICTO DETECTADO - Bloqueando reserva duplicada');
-        return res.status(409).json({ 
-          error: 'Ya existe una reservación para este horario en esta sala' 
+        return res.status(409).json({
+          error: 'Ya existe una reservación para este horario en esta sala'
         });
       }
       
