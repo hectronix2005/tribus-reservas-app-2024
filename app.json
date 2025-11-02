@@ -1,6 +1,6 @@
 {
-  "name": "Sistema de Reservas",
-  "description": "Sistema de reservas de puestos de trabajo y salas de juntas",
+  "name": "TRIBUS",
+  "description": "TRIBUS - Sistema de reservas de puestos de trabajo y salas de juntas",
   "repository": "https://github.com/tu-usuario/sistema-reservas",
   "logo": "https://node-js-sample.herokuapp.com/node.png",
   "keywords": ["react", "typescript", "reservas"],
