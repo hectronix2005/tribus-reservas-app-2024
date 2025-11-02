@@ -146,7 +146,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       setError(null);
 
       const reservations = state.reservations;
-      const areas = state.areas;
+      const areas = state.areas.filter(area => area.isActive !== false);
 
       console.log('🔍 [Availability] Estado global de reservaciones:', {
         totalReservations: reservations.length,

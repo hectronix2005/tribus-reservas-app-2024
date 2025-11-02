@@ -12,6 +12,7 @@ export interface Area {
     start: string;
     end: string;
   };
+  isActive: boolean; // Si el área está activa o no
   // Campos legacy para compatibilidad
   isMeetingRoom?: boolean;
   isFullDayReservation?: boolean;

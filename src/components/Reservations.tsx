@@ -105,8 +105,8 @@ export function Reservations() {
   };
 
 
-  // Obtener áreas del contexto
-  const areas = state.areas;
+  // Obtener áreas del contexto - solo áreas activas
+  const areas = state.areas.filter(area => area.isActive !== false);
   
   // Obtener usuarios colaboradores disponibles filtrados por departamento
   const getCollaboratorsByDepartment = (departmentName: string) => {
@@ -811,32 +811,6 @@ export function Reservations() {
     setFilteredReservations(sorted);
   };
 
-  // useEffect temporal para probar la normalización de fechas
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🧪 Ejecutando pruebas de normalización de fechas...');
-      testDateNormalization();
-      
-      // Pruebas específicas para verificar consistencia
-      const testDate = '2025-08-30T00:00:00.000Z';
-      const normalized1 = normalizeDateConsistent(testDate);
-      const normalized2 = normalizeDateConsistent('2025-08-30');
-      const normalized3 = normalizeDateConsistent('30-08-25');
-      
-      console.log('🔍 Pruebas de consistencia (YYYY-MM-DD):', {
-        testDate,
-        normalized1,
-        normalized2,
-        normalized3,
-        allEqual: normalized1 === normalized2 && normalized2 === normalized3,
-        expectedFormat: '2025-08-30'
-      });
-      
-      // Debug específico del problema
-      console.log('🔍 DEBUG: Análisis del problema de normalización...');
-      debugDateNormalization();
-    }
-  }, []);
 
   // Escuchar evento de clic en horario desde la vista de disponibilidad
   useEffect(() => {

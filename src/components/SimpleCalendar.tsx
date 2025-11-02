@@ -112,7 +112,7 @@ export function SimpleCalendar({ onHourClick, onNewReservation }: SimpleCalendar
       setError(null);
 
       const reservations = state.reservations;
-      const areas = state.areas;
+      const areas = state.areas.filter(area => area.isActive !== false);
 
       console.log('🔍 [SimpleCalendar] Estado global de reservaciones:', {
         totalReservations: reservations.length,
