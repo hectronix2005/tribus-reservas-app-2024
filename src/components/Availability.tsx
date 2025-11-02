@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Users, Clock, User } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { isOfficeDay, createLocalDate, formatDateToString, getDayName } from '../utils/unifiedDateUtils';
+import { isOfficeDay, formatDateToString, getDayName, normalizeUTCDateToLocal, formatDateStringForDisplay } from '../utils/unifiedDateUtils';
 
 interface DayAvailability {
   date: string;
@@ -81,10 +81,11 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
   };
 
   // Función para manejar el clic en reservas activas
-  const handleReservationsClick = (area: string, date: string, reservations: Reservation[]) => {
+  const handleReservationsClick = (area: string, dateString: string, reservations: Reservation[]) => {
+    // dateString ya viene en formato local (YYYY-MM-DD)
     setSelectedAreaReservations({
       area,
-      date,
+      date: dateString,
       reservations
     });
     setShowReservationsModal(true);
@@ -174,13 +175,8 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       const availabilityData: DayAvailability[] = days.map(date => {
         const dateString = formatDate(date);
         const dayReservations = reservations.filter(reservation => {
-          // Normalizar la fecha de la reservación para comparación
-          let reservationDate: string;
-          if (reservation.date.includes('T')) {
-            reservationDate = reservation.date.split('T')[0];
-          } else {
-            reservationDate = reservation.date;
-          }
+          // Normalizar la fecha de la reservación del backend (UTC) a formato local
+          const reservationDate = normalizeUTCDateToLocal(reservation.date);
           return reservationDate === dateString && reservation.status === 'confirmed';
         });
 
@@ -600,7 +596,7 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                   Reservas Activas - {selectedAreaReservations.area}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  {new Date(selectedAreaReservations.date).toLocaleDateString('es-ES', {
+                  {formatDateStringForDisplay(selectedAreaReservations.date, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',

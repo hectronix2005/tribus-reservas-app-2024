@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { normalizeUTCDateToLocal } from '../utils/unifiedDateUtils';
 
 interface DayAvailability {
   date: string;
@@ -117,13 +118,7 @@ export function SimpleCalendar({ onHourClick, onNewReservation }: SimpleCalendar
         totalReservations: reservations.length,
         hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
         reservationsFor09_10: reservations.filter(r => {
-          // Normalizar fecha de reservación
-          let reservationDate: string;
-          if (r.date.includes('T')) {
-            reservationDate = r.date.split('T')[0];
-          } else {
-            reservationDate = r.date;
-          }
+          const reservationDate = normalizeUTCDateToLocal(r.date);
           return reservationDate === '2025-09-10';
         }),
         allReservations: reservations.map(r => ({
@@ -140,13 +135,8 @@ export function SimpleCalendar({ onHourClick, onNewReservation }: SimpleCalendar
       const availabilityData: DayAvailability[] = days.map(date => {
         const dateString = formatDate(date);
         const dayReservations = reservations.filter(reservation => {
-          // Normalizar la fecha de la reservación para comparación
-          let reservationDate: string;
-          if (reservation.date.includes('T')) {
-            reservationDate = reservation.date.split('T')[0];
-          } else {
-            reservationDate = reservation.date;
-          }
+          // Normalizar la fecha de la reservación del backend (UTC) a formato local
+          const reservationDate = normalizeUTCDateToLocal(reservation.date);
           return reservationDate === dateString && reservation.status === 'confirmed';
         });
 

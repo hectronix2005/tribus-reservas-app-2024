@@ -276,6 +276,23 @@ export const isTomorrow = (date: Date): boolean => {
 };
 
 /**
+ * Normaliza una fecha UTC string del backend a formato local string
+ * Esto resuelve el problema de desfase de timezone entre backend (UTC) y frontend (local)
+ * @param utcDateString - Fecha en formato UTC ISO string (ej: "2025-11-04T00:00:00.000Z")
+ * @returns String en formato YYYY-MM-DD usando la fecha UTC tal como está (sin conversión de timezone)
+ */
+export const normalizeUTCDateToLocal = (utcDateString: string): string => {
+  // Si la fecha incluye 'T', es una fecha UTC ISO string
+  if (utcDateString.includes('T')) {
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) sin conversión de timezone
+    // Esto mantiene la fecha tal como está almacenada en UTC
+    return utcDateString.split('T')[0];
+  }
+  // Si ya es un string simple, retornarlo tal cual
+  return utcDateString;
+};
+
+/**
  * Genera las próximas N días a partir de hoy usando fechas locales
  * @param days - Número de días a generar
  * @returns Array de fechas locales
@@ -321,8 +338,112 @@ export const formatDateForDisplay = (date: Date, options?: {
     month: 'long' as const,
     day: 'numeric' as const
   };
-  
+
   return date.toLocaleDateString('es-ES', { ...defaultOptions, ...options });
+};
+
+/**
+ * Formatea una fecha desde un string YYYY-MM-DD directamente sin crear Date object
+ * Esto evita problemas de timezone al mostrar fechas
+ * @param dateString - String en formato YYYY-MM-DD
+ * @param options - Opciones de formateo
+ * @returns String formateado en español
+ */
+export const formatDateStringForDisplay = (dateString: string, options?: {
+  weekday?: 'short' | 'long';
+  year?: 'numeric';
+  month?: 'long' | 'short';
+  day?: 'numeric';
+}): string => {
+  // Normalizar la fecha primero (por si viene en formato UTC)
+  const normalizedDate = normalizeUTCDateToLocal(dateString);
+
+  // Extraer año, mes y día del string YYYY-MM-DD
+  const [year, month, day] = normalizedDate.split('-').map(Number);
+
+  // Nombres de días y meses en español
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  // Calcular el día de la semana usando el algoritmo de Zeller (modificado para Gregoriano)
+  // Este algoritmo calcula el día de la semana sin crear un Date object
+  let m = month;
+  let y = year;
+
+  // Ajustar para enero y febrero
+  if (m <= 2) {
+    m += 12;
+    y -= 1;
+  }
+
+  const q = day;
+  const K = y % 100;
+  const J = Math.floor(y / 100);
+
+  const h = (q + Math.floor(13 * (m + 1) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) - 2 * J) % 7;
+
+  // Convertir el resultado de Zeller (0=sábado) a nuestro formato (0=domingo)
+  const dayOfWeek = (h + 6) % 7;
+
+  // Construir el string de salida
+  const parts: string[] = [];
+
+  if (options?.weekday) {
+    parts.push(dayNames[dayOfWeek]);
+  }
+
+  parts.push(day.toString());
+
+  if (options?.month) {
+    parts.push('de');
+    parts.push(monthNames[month - 1]);
+  }
+
+  if (options?.year) {
+    parts.push('de');
+    parts.push(year.toString());
+  }
+
+  return parts.join(' ');
+};
+
+/**
+ * Formatea una fecha en formato DD/MM/YYYY - Día de la semana
+ * Sin usar Date objects para evitar problemas de timezone
+ * @param dateString - String en formato YYYY-MM-DD o ISO
+ * @returns String formateado como "04/11/2025 - martes"
+ */
+export const formatDateWithDayName = (dateString: string): string => {
+  // Normalizar la fecha primero
+  const normalizedDate = normalizeUTCDateToLocal(dateString);
+
+  // Extraer año, mes y día
+  const [year, month, day] = normalizedDate.split('-').map(Number);
+
+  // Nombres de días en español
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+  // Calcular día de la semana usando algoritmo de Zeller
+  let m = month;
+  let y = year;
+
+  if (m <= 2) {
+    m += 12;
+    y -= 1;
+  }
+
+  const q = day;
+  const K = y % 100;
+  const J = Math.floor(y / 100);
+  const h = (q + Math.floor(13 * (m + 1) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) - 2 * J) % 7;
+  const dayOfWeek = (h + 6) % 7;
+
+  // Formatear DD/MM/YYYY
+  const formattedDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+
+  // Retornar con día de la semana
+  return `${formattedDate} - ${dayNames[dayOfWeek]}`;
 };
 
 /**

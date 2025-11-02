@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService, departmentService } from '../services/api';
-import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour, createLocalDate, formatDateToString } from '../utils/unifiedDateUtils';
-import { normalizeDateConsistent, testDateNormalization, debugDateNormalization } from '../utils/dateConversionUtils';
+import { isWithinOfficeHours, isValidReservationDate, isOfficeDay, isOfficeHour, createLocalDate, formatDateToString, normalizeUTCDateToLocal, formatDateWithDayName } from '../utils/unifiedDateUtils';
 import { ReservationFilters } from './ReservationFilters';
 import { DatePicker } from './DatePicker';
 import { Department, Reservation } from '../types';
@@ -252,21 +251,12 @@ export function Reservations() {
 
   // Función para normalizar fechas a formato YYYY-MM-DD (para comparaciones internas)
   const normalizeDate = useCallback((date: string | Date): string => {
-    const normalizedDate = normalizeDateConsistent(date);
-    
-    // Solo mostrar logs en desarrollo para evitar spam
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📅 Normalización de fecha:', {
-        original: date,
-        normalized: normalizedDate,
-        type: typeof date,
-        isISO: typeof date === 'string' && date.includes('T'),
-        isYYYYMMDD: typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date),
-        isDDMMYY: typeof date === 'string' && /^\d{2}-\d{2}-\d{2}$/.test(date)
-      });
+    // Si es un string, usar la función del sistema unificado
+    if (typeof date === 'string') {
+      return normalizeUTCDateToLocal(date);
     }
-    
-    return normalizedDate;
+    // Si es un Date object, convertir a string YYYY-MM-DD
+    return formatDateToString(date);
   }, []);
 
   // Función para formatear fecha para visualización (Día, Mes y Año)
@@ -2145,13 +2135,13 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                   {formData.area && formData.date && (
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reservaciones existentes para {formData.area} el {formatDateWithDay(formData.date)}:
+                        Reservaciones existentes para {formData.area} el {formatDateWithDayName(formData.date)}:
                       </label>
                       {(() => {
                         // Debug: Mostrar información de fechas
                         console.log('🔍 Debug - Fechas en reservaciones existentes:', {
                           formDataDate: formData.date,
-                          formDataDateFormatted: formatDateWithDay(formData.date),
+                          formDataDateFormatted: formatDateWithDayName(formData.date),
                           totalReservations: reservations.length,
                           matchingReservations: reservations.filter(r => {
                             const reservationDate = normalizeDate(r.date);
@@ -2162,7 +2152,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                             area: r.area,
                             originalDate: r.date,
                             normalizedDate: normalizeDate(r.date),
-                            formattedDate: formatDateWithDay(r.date),
+                            formattedDate: formatDateWithDayName(r.date),
                             startTime: r.startTime,
                             endTime: r.endTime
                           }))
@@ -2484,7 +2474,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                       
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        <span>{formatDateWithDay(reservation.date)}</span>
+                        <span>{formatDateWithDayName(reservation.date)}</span>
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -2652,7 +2642,7 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                       
                       <div className="flex justify-between">
                         <span className="text-gray-600">Fecha:</span>
-                        <span className="font-medium">{formatDateWithDay(viewingReservation.date)}</span>
+                        <span className="font-medium">{formatDateWithDayName(viewingReservation.date)}</span>
                       </div>
                       
                       <div className="flex justify-between">

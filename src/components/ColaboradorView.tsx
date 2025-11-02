@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, User, FileText, Users } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService } from '../services/api';
+import { formatDateWithDayName } from '../utils/unifiedDateUtils';
 
 interface Reservation {
   _id: string;
@@ -190,7 +191,7 @@ export function ColaboradorView() {
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium">{formatDateWithDay(reservation.date)}</span>
+                      <span className="font-medium">{formatDateWithDayName(reservation.date)}</span>
                     </div>
                     
                     <div className="flex items-center gap-2">

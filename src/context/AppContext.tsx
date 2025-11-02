@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
+import { normalizeUTCDateToLocal } from '../utils/unifiedDateUtils';
 import { userService, areaService, reservationService } from '../services/api';
 
 interface AppState {
@@ -101,12 +102,7 @@ const loadReservationsFromMongoDB = async () => {
       totalReservations: reservations.length,
       hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
       reservationsFor09_10: reservations.filter(r => {
-        let reservationDate;
-        if (r.date.includes('T')) {
-          reservationDate = r.date.split('T')[0];
-        } else {
-          reservationDate = r.date;
-        }
+        const reservationDate = normalizeUTCDateToLocal(r.date);
         return reservationDate === '2025-09-10';
       })
     });
@@ -401,12 +397,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           totalReservations: reservations.length,
           hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
           reservationsFor09_10: reservations.filter(r => {
-            let reservationDate;
-            if (r.date.includes('T')) {
-              reservationDate = r.date.split('T')[0];
-            } else {
-              reservationDate = r.date;
-            }
+            const reservationDate = normalizeUTCDateToLocal(r.date);
             return reservationDate === '2025-09-10';
           })
         });
@@ -438,19 +429,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getDailyCapacity = (date: string): DailyCapacity[] => {
     // Normalizar la fecha para comparación usando el sistema unificado
-    const normalizedDate = date.includes('T') ? date.split('T')[0] : date;
-    
+    const normalizedDate = normalizeUTCDateToLocal(date);
+
     const reservationsForDate = state.reservations.filter(
       reservation => {
-        // Normalizar la fecha de la reservación para comparación
-        // Todas las fechas se almacenan en UTC, extraer solo la parte de la fecha
-        let reservationDate: string;
-        if (reservation.date.includes('T')) {
-          // Fecha UTC: 2025-09-09T05:00:00.000Z -> 2025-09-09
-          reservationDate = reservation.date.split('T')[0];
-        } else {
-          reservationDate = reservation.date;
-        }
+        // Normalizar la fecha de la reservación del backend (UTC) a formato local
+        const reservationDate = normalizeUTCDateToLocal(reservation.date);
         return reservationDate === normalizedDate && reservation.status === 'confirmed';
       }
     );
