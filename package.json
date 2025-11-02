@@ -1,7 +1,7 @@
 {
-  "name": "sistema-reservas",
+  "name": "tribus",
   "version": "1.0.0",
-  "description": "Sistema de reservas de puestos de trabajo",
+  "description": "TRIBUS - Sistema de reservas de puestos de trabajo",
   "private": true,
   "homepage": "https://tribus-reservas-2024-6b783eae459c.herokuapp.com",
   "engines": {
