@@ -183,16 +183,23 @@ export function DatePicker({
             </span>
           </div>
           {value && (
-            <button
-              type="button"
+            <span
               onClick={(e) => {
                 e.stopPropagation();
                 onChange('');
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  onChange('');
+                }
+              }}
             >
               <X className="w-4 h-4" />
-            </button>
+            </span>
           )}
         </div>
       </button>

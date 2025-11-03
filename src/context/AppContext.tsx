@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, User, AuthState } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 import { normalizeUTCDateToLocal } from '../utils/unifiedDateUtils';
@@ -427,7 +427,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const getDailyCapacity = (date: string): DailyCapacity[] => {
+  const getDailyCapacity = useCallback((date: string): DailyCapacity[] => {
     // Normalizar la fecha para comparación usando el sistema unificado
     const normalizedDate = normalizeUTCDateToLocal(date);
 
@@ -512,18 +512,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
       }
     });
-  };
+  }, [state.reservations, state.areas]);
 
-  const getAreaById = (id: string): Area | undefined => {
+  const getAreaById = useCallback((id: string): Area | undefined => {
     return state.areas.find(area => area.id === id);
-  };
+  }, [state.areas]);
 
-  const getReservationsByDate = (date: string): Reservation[] => {
+  const getReservationsByDate = useCallback((date: string): Reservation[] => {
     return state.reservations.filter(reservation => reservation.date === date);
-  };
+  }, [state.reservations]);
 
 
-  const isTimeSlotAvailable = (areaId: string, date: string, time: string, duration: number): boolean => {
+  const isTimeSlotAvailable = useCallback((areaId: string, date: string, time: string, duration: number): boolean => {
     // Debug temporal para verificar el problema
     console.log(`🔍 Verificando: ${time} por ${duration}min en área ${areaId} para fecha ${date}`);
     const reservationsForDate = state.reservations.filter(
@@ -568,9 +568,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     console.log(`✅ DISPONIBLE: ${time}`);
     return true; // No hay conflictos
-  };
+  }, [state.reservations]);
 
-  const refreshReservations = async () => {
+  const refreshReservations = useCallback(async () => {
     try {
       const reservations = await reservationService.getAllReservations();
       dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
@@ -578,24 +578,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error actualizando reservaciones:', error);
     }
-  };
+  }, [dispatch]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     console.log('🚪 Iniciando logout...');
-    
+
     // Limpiar sessionStorage
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('tribus-auth');
       sessionStorage.removeItem('authToken');
       console.log('🗑️ Datos de sesión removidos de sessionStorage');
     }
-    
+
     // Resetear estado de autenticación
     dispatch({ type: 'LOGOUT' });
     console.log('✅ Logout completado');
-  };
+  }, [dispatch]);
 
-  const value: AppContextType = {
+  const value: AppContextType = useMemo(() => ({
     state,
     dispatch,
     getDailyCapacity,
@@ -604,7 +604,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isTimeSlotAvailable,
     refreshReservations,
     logout
-  };
+  }), [state, dispatch, getDailyCapacity, getAreaById, getReservationsByDate, isTimeSlotAvailable, refreshReservations, logout]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

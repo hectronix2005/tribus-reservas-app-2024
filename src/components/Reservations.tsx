@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Plus, Trash2, Edit, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { reservationService, departmentService } from '../services/api';
@@ -45,15 +45,9 @@ export function Reservations() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(false);
-  
-  // Debounce para evitar peticiones excesivas
-  const [loadReservationsTimeout, setLoadReservationsTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // FIXED: Removed infinite loop caused by console.logs and useEffect dependencies - v2.0.1
   const [departments, setDepartments] = useState<Department[]>([]);
-  
-  // Debug: Log del estado de departamentos
-  console.log('🔍 Estado actual de departments:', departments);
-  console.log('🔍 Cantidad de departamentos:', departments.length);
-  console.log('🔍 ¿Array vacío?', departments.length === 0);
   const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
 
   const [formData, setFormData] = useState<ReservationFormData>({
@@ -81,6 +75,10 @@ export function Reservations() {
     recurrenceDays: ['monday']
   });
 
+  // Estado para el modal de confirmación
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
+
   // Función para manejar el cambio de área
   const handleAreaChange = (areaName: string) => {
     const selectedArea = areas.find(area => area.name === areaName);
@@ -106,19 +104,22 @@ export function Reservations() {
 
 
   // Obtener áreas del contexto - solo áreas activas
-  const areas = state.areas.filter(area => area.isActive !== false);
+  // Usar useMemo para evitar recalcular en cada render
+  const areas = useMemo(() => state.areas.filter(area => area.isActive !== false), [state.areas]);
   
   // Obtener usuarios colaboradores disponibles filtrados por departamento
-  const getCollaboratorsByDepartment = (departmentName: string) => {
-    return state.users.filter(user => 
-      user.isActive && 
+  const getCollaboratorsByDepartment = useCallback((departmentName: string) => {
+    return state.users.filter(user =>
+      user.isActive &&
       user.department === departmentName
     );
-  };
+  }, [state.users]);
 
-  const colaboradoresDisponibles = formData.teamName ? 
-    getCollaboratorsByDepartment(formData.teamName) : 
-    state.users.filter(user => user.isActive);
+  const colaboradoresDisponibles = useMemo(() => {
+    return formData.teamName ?
+      getCollaboratorsByDepartment(formData.teamName) :
+      state.users.filter(user => user.isActive);
+  }, [formData.teamName, getCollaboratorsByDepartment, state.users]);
 
   // Función para manejar la selección de colaboradores
   const handleCollaboratorSelection = (collaboratorId: string, isSelected: boolean) => {
@@ -206,18 +207,29 @@ export function Reservations() {
   }, [currentUser?.role]);
 
   // Validar y ajustar duración para usuarios con rol "lider"
+  // Usar useRef para evitar bucles infinitos
+  const lastDurationAdjustmentRef = useRef<{duration: string, startTime: string} | null>(null);
+
   useEffect(() => {
     if (currentUser?.role === 'lider' && !isFullDayReservation) {
       const currentDuration = parseInt(formData.duration || '60');
-      if (currentDuration > 180) {
+
+      // Verificar si ya hicimos este ajuste para evitar bucles
+      const alreadyAdjusted = lastDurationAdjustmentRef.current &&
+        lastDurationAdjustmentRef.current.duration === formData.duration &&
+        lastDurationAdjustmentRef.current.startTime === formData.startTime;
+
+      if (!alreadyAdjusted && currentDuration > 180) {
         // Ajustar a 3 horas máximo
         const newEndTime = addMinutesToTime(formData.startTime, 180);
+        lastDurationAdjustmentRef.current = { duration: '180', startTime: formData.startTime };
+
         setFormData(prev => ({
           ...prev,
           duration: '180',
           endTime: newEndTime
         }));
-        
+
         // Mostrar mensaje informativo
         if (process.env.NODE_ENV === 'development') {
           console.log('⚠️ Duración ajustada para usuario con rol "user":', {
@@ -232,12 +244,21 @@ export function Reservations() {
   }, [currentUser?.role, formData.duration, formData.startTime, isFullDayReservation]);
 
   // Asegurar que HOT DESK use el horario de oficina completo
+  // Usar useRef para evitar bucles infinitos
+  const lastOfficeHoursRef = useRef<{start: string, end: string} | null>(null);
+
   useEffect(() => {
     if (isFullDayReservation && formData.area) {
       const officeHours = state.adminSettings?.officeHours || { start: '08:00', end: '18:00' };
-      
-      // Si el horario actual no coincide con el horario de oficina, actualizarlo
-      if (formData.startTime !== officeHours.start || formData.endTime !== officeHours.end) {
+
+      // Solo actualizar si los valores de officeHours cambiaron o si es la primera vez
+      const officeHoursChanged = !lastOfficeHoursRef.current ||
+        lastOfficeHoursRef.current.start !== officeHours.start ||
+        lastOfficeHoursRef.current.end !== officeHours.end;
+
+      // Si el horario actual no coincide con el horario de oficina Y los officeHours cambiaron
+      if (officeHoursChanged && (formData.startTime !== officeHours.start || formData.endTime !== officeHours.end)) {
+        lastOfficeHoursRef.current = officeHours;
         setFormData(prev => ({
           ...prev,
           startTime: officeHours.start,
@@ -696,13 +717,6 @@ export function Reservations() {
 
   // Función para cargar reservaciones con debounce
   const loadReservations = useCallback(async () => {
-    // Cancelar petición anterior si existe
-    if (loadReservationsTimeout) {
-      clearTimeout(loadReservationsTimeout);
-    }
-
-    // Crear nuevo timeout
-    const timeout = setTimeout(async () => {
     try {
       setIsLoading(true);
       const data = await reservationService.getAllReservations();
@@ -710,13 +724,13 @@ export function Reservations() {
         // Actualizar también el estado global para que otros componentes vean los cambios
         dispatch({ type: 'SET_RESERVATIONS', payload: data });
       setError(null);
-        
+
         // Log para debug
         console.log('🔄 [Reservations] Estado global actualizado:', {
           totalReservations: data.length,
           hotDeskReservations: data.filter(r => r.area === 'Hot Desk').length
         });
-        
+
         // Disparar evento personalizado para notificar a otros componentes
         window.dispatchEvent(new CustomEvent('reservationsUpdated', {
           detail: { reservations: data }
@@ -727,22 +741,12 @@ export function Reservations() {
     } finally {
       setIsLoading(false);
     }
-    }, 300); // Debounce de 300ms
-
-    setLoadReservationsTimeout(timeout);
-  }, [loadReservationsTimeout, dispatch]);
+  }, [dispatch]);
 
   // Cargar reservaciones al montar el componente
   useEffect(() => {
     loadReservations();
-    
-    // Cleanup del timeout al desmontar
-    return () => {
-      if (loadReservationsTimeout) {
-        clearTimeout(loadReservationsTimeout);
-      }
-    };
-  }, [loadReservations, loadReservationsTimeout]);
+  }, [loadReservations]);
 
   // Función para obtener las fechas de los próximos 5 días
   // const getNext5Days = useCallback(() => {
@@ -1093,6 +1097,10 @@ export function Reservations() {
         }
 
         console.log(`✅ Se crearon ${recurringDates.length} reservaciones recurrentes`);
+
+        // Para reservas recurrentes, recargar lista y limpiar formulario
+        await loadReservations();
+
       } else {
         // Reservación única
         const reservationData = {
@@ -1111,19 +1119,26 @@ export function Reservations() {
 
         console.log('🔍 Datos de reservación a enviar:', reservationData);
 
-      if (editingReservation) {
-        // Actualizar reservación existente
-        await reservationService.updateReservation(editingReservation._id, reservationData);
-      } else {
-        // Crear nueva reservación
-        await reservationService.createReservation(reservationData);
+        let response;
+        if (editingReservation) {
+          // Actualizar reservación existente
+          response = await reservationService.updateReservation(editingReservation._id, reservationData);
+        } else {
+          // Crear nueva reservación
+          response = await reservationService.createReservation(reservationData);
+        }
+
+        // Recargar reservaciones y actualizar estado global
+        await loadReservations();
+
+        // Si es una nueva reserva (no es edición), mostrar modal de confirmación
+        if (!editingReservation && response?.reservation) {
+          setConfirmedReservation(response.reservation);
+          setShowConfirmationModal(true);
         }
       }
 
-      // Recargar reservaciones y actualizar estado global
-      await loadReservations();
-      
-      // Limpiar formulario
+      // Limpiar formulario (aplica tanto para recurrentes como para únicas)
       setFormData({
         area: '',
         date: (() => {
@@ -1624,11 +1639,16 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
   // Función para generar fechas recurrentes
   const generateRecurringDates = (startDate: string, recurrenceType: string, recurrenceInterval: number, recurrenceEndDate: string, recurrenceDays: string[] = []): string[] => {
     const dates: string[] = [];
-    const start = new Date(startDate);
-    const end = new Date(recurrenceEndDate);
-    
+
+    // Crear fechas en zona horaria local para evitar desplazamiento de día
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+
+    const [endYear, endMonth, endDay] = recurrenceEndDate.split('-').map(Number);
+    const end = new Date(endYear, endMonth - 1, endDay);
+
     if (start > end) return dates;
-    
+
     let currentDate = new Date(start);
     
     while (currentDate <= end) {
@@ -2816,6 +2836,115 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                     Eliminar
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Reserva */}
+      {showConfirmationModal && confirmedReservation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                Reserva Confirmada
+              </h2>
+              <p className="text-center text-gray-600 mb-6">
+                Tu reserva ha sido registrada exitosamente
+              </p>
+
+              <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">ID de Reserva</p>
+                    <p className="text-lg font-semibold text-gray-900">{confirmedReservation.reservationId}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Área</p>
+                    <p className="text-lg font-semibold text-gray-900">{confirmedReservation.area}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Fecha</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {confirmedReservation.date ? formatDateWithDayName(confirmedReservation.date) : 'Fecha no disponible'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Horario</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {confirmedReservation.startTime} - {confirmedReservation.endTime}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Equipo</p>
+                    <p className="text-lg font-semibold text-gray-900">{confirmedReservation.teamName}</p>
+                  </div>
+                  {confirmedReservation.requestedSeats && !areas.find(a => a.name === confirmedReservation.area)?.isMeetingRoom && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Puestos</p>
+                      <p className="text-lg font-semibold text-gray-900">{confirmedReservation.requestedSeats}</p>
+                    </div>
+                  )}
+                </div>
+
+                {confirmedReservation.colaboradores && confirmedReservation.colaboradores.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500 mb-2">Colaboradores</p>
+                    <div className="flex flex-wrap gap-2">
+                      {confirmedReservation.colaboradores.map((colaborador: any) => (
+                        <span
+                          key={colaborador._id}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          {colaborador.name || colaborador.username}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {confirmedReservation.notes && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Notas</p>
+                    <p className="text-gray-900">{confirmedReservation.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800 flex items-start">
+                  <svg className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  Se ha enviado un correo de confirmación con los detalles de tu reserva a tu email y al de todos los colaboradores.
+                </p>
+              </div>
+
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => {
+                    setShowConfirmationModal(false);
+                    setConfirmedReservation(null);
+                  }}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Entendido
+                </button>
               </div>
             </div>
           </div>

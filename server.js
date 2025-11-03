@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,6 +9,7 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const MONGODB_CONFIG = require('./mongodb-config');
+const emailService = require('./services/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -70,6 +73,44 @@ app.use((req, res, next) => {
 // Middleware
 app.use(express.json());
 
+// 🔐 Middleware de Seguridad de Aplicación
+// Valida que todas las peticiones incluyan el token de seguridad correcto
+const appSecurityMiddleware = (req, res, next) => {
+  // Obtener el token del header X-App-Token
+  const clientToken = req.headers['x-app-token'];
+  const expectedToken = process.env.APP_SECURITY_TOKEN;
+
+  // Si no hay token configurado, permitir acceso (para desarrollo inicial)
+  if (!expectedToken) {
+    console.warn('⚠️  APP_SECURITY_TOKEN no configurado. Sistema de seguridad deshabilitado.');
+    return next();
+  }
+
+  // Validar que el cliente envió un token
+  if (!clientToken) {
+    console.log(`🚫 Petición bloqueada: ${req.method} ${req.url} - Token faltante`);
+    return res.status(403).json({
+      error: 'Acceso denegado',
+      message: 'Token de seguridad requerido'
+    });
+  }
+
+  // Validar que el token sea correcto
+  if (clientToken !== expectedToken) {
+    console.log(`🚫 Petición bloqueada: ${req.method} ${req.url} - Token inválido`);
+    return res.status(403).json({
+      error: 'Acceso denegado',
+      message: 'Token de seguridad inválido'
+    });
+  }
+
+  // Token válido, continuar con la petición
+  next();
+};
+
+// Aplicar middleware de seguridad a todas las rutas de la API
+app.use('/api', appSecurityMiddleware);
+
 // Solo servir archivos estáticos en producción
 if (process.env.NODE_ENV === 'production') {
 app.use(express.static(path.join(__dirname, 'build')));
@@ -80,10 +121,13 @@ mongoose.set('debug', process.env.NODE_ENV !== 'production');
 
 // Conexión a MongoDB Atlas
 mongoose.connect(MONGODB_CONFIG.uri, MONGODB_CONFIG.options)
-.then(() => {
+.then(async () => {
   console.log('✅ Conectado exitosamente a MongoDB Atlas');
   console.log(`🗄️  Base de datos: ${MONGODB_CONFIG.database.name}`);
   console.log(`🌐 Cluster: ${MONGODB_CONFIG.database.cluster}`);
+
+  // Inicializar servicio de email
+  await emailService.initialize();
 })
 .catch(err => {
   console.error('❌ Error conectando a MongoDB Atlas:', err.message);
@@ -1048,8 +1092,17 @@ app.post('/api/reservations', async (req, res) => {
     } = req.body;
 
     // Validar campos requeridos básicos
-    if (!userId || !userName || !area || !date || !startTime || !endTime || 
+    if (!userId || !userName || !area || !date || !startTime || !endTime ||
         !teamName) {
+      console.error('❌ Campos faltantes:', {
+        userId: userId ? '✓' : '✗',
+        userName: userName ? '✓' : '✗',
+        area: area ? '✓' : '✗',
+        date: date ? '✓' : '✗',
+        startTime: startTime ? '✓' : '✗',
+        endTime: endTime ? '✓' : '✗',
+        teamName: teamName ? '✓' : '✗'
+      });
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
 
@@ -1414,7 +1467,43 @@ app.post('/api/reservations', async (req, res) => {
 
     // Retornar la reservación con datos del usuario
     const populatedReservation = await Reservation.findById(reservation._id)
-      .populate('userId', 'name username');
+      .populate('userId', 'name username')
+      .populate('colaboradores', 'name email');
+
+    // Enviar notificación por email
+    try {
+      console.log('📧 Iniciando envío de notificación por email...');
+      console.log('   Colaboradores:', validColaboradores.length);
+
+      const colaboradoresData = validColaboradores.length > 0
+        ? await User.find({ _id: { $in: validColaboradores } }).select('name email')
+        : [];
+
+      console.log('   Datos de colaboradores obtenidos:', colaboradoresData.length);
+      console.log('   Usuario creador:', user.email);
+
+      // Agregar información del área para el email
+      const reservationWithAreaInfo = {
+        ...populatedReservation.toObject(),
+        isMeetingRoom: areaInfo.isMeetingRoom
+      };
+
+      console.log('   Área:', reservationWithAreaInfo.area);
+      console.log('   Es sala de reuniones:', areaInfo.isMeetingRoom);
+      console.log('   Fecha:', reservationWithAreaInfo.date);
+
+      await emailService.sendReservationConfirmation(
+        reservationWithAreaInfo,
+        user,
+        colaboradoresData
+      );
+
+      console.log('✅ Notificación por email enviada exitosamente');
+    } catch (emailError) {
+      // Log error pero no fallar la creación de la reserva
+      console.error('⚠️  Error enviando email de confirmación:', emailError.message);
+      console.error('   Stack trace:', emailError.stack);
+    }
 
     res.status(201).json({
       message: 'Reservación creada exitosamente',
@@ -1538,15 +1627,21 @@ app.delete('/api/reservations/:id', async (req, res) => {
       return res.status(404).json({ error: 'Reservación no encontrada' });
     }
 
-    // Verificar permisos: solo administradores pueden eliminar
+    // Verificar permisos: solo administradores o el creador pueden eliminar
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    if (user.role !== 'admin') {
-      return res.status(403).json({ 
-        error: 'Solo los administradores pueden eliminar reservaciones' 
+    // Permitir eliminación si:
+    // 1. El usuario es administrador O
+    // 2. El usuario es el creador de la reservación
+    const isAdmin = user.role === 'admin';
+    const isCreator = reservation.userId && reservation.userId.toString() === userId.toString();
+
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({
+        error: 'Solo los administradores o el creador pueden eliminar esta reservación'
       });
     }
 
@@ -1577,7 +1672,27 @@ app.delete('/api/reservations/:id', async (req, res) => {
       }
     });
 
+    // Obtener datos del creador y colaboradores antes de eliminar
+    const reservationOwner = await User.findById(reservation.userId);
+    const colaboradoresData = reservation.colaboradores && reservation.colaboradores.length > 0
+      ? await User.find({ _id: { $in: reservation.colaboradores } }).select('name email')
+      : [];
+
     await Reservation.findByIdAndDelete(req.params.id);
+
+    // Enviar notificación de cancelación por email
+    try {
+      if (reservationOwner) {
+        await emailService.sendCancellationNotification(
+          reservation,
+          reservationOwner,
+          colaboradoresData
+        );
+      }
+    } catch (emailError) {
+      // Log error pero no fallar la eliminación
+      console.error('⚠️  Error enviando email de cancelación:', emailError.message);
+    }
 
     // Log de confirmación
     console.log('✅ [BACKEND] RESERVACIÓN ELIMINADA EXITOSAMENTE:', {
