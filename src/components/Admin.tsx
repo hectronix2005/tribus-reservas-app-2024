@@ -934,6 +934,25 @@ export function Admin() {
 
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reportes y Análisis</h3>
+
+              {/* Debug info */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+                <div className="font-medium text-blue-900 mb-1">Información de depuración:</div>
+                <div className="text-blue-700">
+                  • Total de reservas en sistema: {state.reservations.length}
+                  <br />
+                  • Reservas confirmadas: {state.reservations.filter(r => r.status === 'confirmed').length}
+                  <br />
+                  • Rango seleccionado: {reportStartDate} a {reportEndDate}
+                  <br />
+                  • Reservas en rango: {state.reservations.filter(r => {
+                    if (r.status !== 'confirmed') return false;
+                    const reservationDateStr = r.date.split('T')[0];
+                    return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
+                  }).length}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Utilización por Área</h4>
@@ -944,10 +963,27 @@ export function Admin() {
                     // Filtrar reservas del rango de fechas seleccionado
                     const areaReservations = state.reservations.filter(r => {
                       if (r.area !== area.name || r.status !== 'confirmed') return false;
-                      const reservationDate = new Date(r.date);
-                      const start = new Date(reportStartDate);
-                      const end = new Date(reportEndDate);
-                      return reservationDate >= start && reservationDate <= end;
+
+                      // Normalizar fechas para comparación (solo comparar YYYY-MM-DD)
+                      const reservationDateStr = r.date.split('T')[0]; // Asegurar formato YYYY-MM-DD
+                      const startDateStr = reportStartDate;
+                      const endDateStr = reportEndDate;
+
+                      const isInRange = reservationDateStr >= startDateStr && reservationDateStr <= endDateStr;
+
+                      // Debug log (remover después)
+                      if (area.name === 'Hot Desk / Zona Abierta' && isInRange) {
+                        console.log('📊 Reserva encontrada:', {
+                          area: r.area,
+                          date: r.date,
+                          reservationDateStr,
+                          startDateStr,
+                          endDateStr,
+                          isInRange
+                        });
+                      }
+
+                      return isInRange;
                     });
 
                     // Calcular días laborables en el rango
