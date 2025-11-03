@@ -943,20 +943,20 @@ export function Admin() {
                 <div className="text-blue-700">
                   • Total de reservas en sistema: {state.reservations.length}
                   <br />
-                  • Reservas confirmadas: {state.reservations.filter(r => r.status === 'confirmed').length}
+                  • Reservas completadas: {state.reservations.filter(r => r.status === 'completed').length}
                   <br />
                   • Rango seleccionado: {reportStartDate} a {reportEndDate}
                   <br />
                   • Reservas en rango: {state.reservations.filter(r => {
-                    if (r.status !== 'confirmed') return false;
+                    if (r.status !== 'completed') return false;
                     const reservationDateStr = r.date.split('T')[0];
                     return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
                   }).length}
                   <br />
-                  • Muestra de fechas de reservas confirmadas:
+                  • Muestra de fechas de reservas completadas:
                   <br />
                   {state.reservations
-                    .filter(r => r.status === 'confirmed')
+                    .filter(r => r.status === 'completed')
                     .slice(0, 5)
                     .map((r, i) => (
                       <div key={i} className="ml-4 text-xs">
@@ -976,7 +976,7 @@ export function Admin() {
                   {state.areas.map((area) => {
                     // Filtrar reservas del rango de fechas seleccionado
                     const areaReservations = state.reservations.filter(r => {
-                      if (r.area !== area.name || r.status !== 'confirmed') return false;
+                      if (r.area !== area.name || r.status !== 'completed') return false;
 
                       // Normalizar fechas para comparación (solo comparar YYYY-MM-DD)
                       const reservationDateStr = r.date.split('T')[0]; // Asegurar formato YYYY-MM-DD
@@ -1077,9 +1077,9 @@ export function Admin() {
                   <h4 className="font-medium text-gray-900">Reservas por Estado</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Confirmadas</span>
+                      <span className="text-sm text-gray-600">Completadas</span>
                       <span className="font-medium text-success-600">
-                        {state.reservations.filter(r => r.status === 'confirmed').length}
+                        {state.reservations.filter(r => r.status === 'completed').length}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
