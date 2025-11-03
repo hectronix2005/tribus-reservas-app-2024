@@ -172,6 +172,7 @@ export function Admin() {
         'Hora Fin',
         'Duración (min)',
         'Usuario',
+        'ID de Empleado',
         'Email Usuario',
         'Departamento',
         'Creado Por',
@@ -189,6 +190,7 @@ export function Admin() {
         const userId = typeof r.userId === 'string' ? r.userId : r.userId._id;
         const user = state.users.find(u => u._id === userId || u.id === userId);
         const userName = user?.name || r.userName || 'N/A';
+        const employeeId = user?.employeeId || 'N/A';
         const userEmail = user?.email || 'N/A';
         const department = user?.department || 'N/A';
 
@@ -208,6 +210,7 @@ export function Admin() {
           r.endTime,
           durationMinutes.toString(),
           userName,
+          employeeId,
           userEmail,
           department,
           createdBy,
