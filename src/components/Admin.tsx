@@ -949,6 +949,18 @@ export function Admin() {
                     const reservationDateStr = r.date.split('T')[0];
                     return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
                   }).length}
+                  <br />
+                  • Muestra de fechas de reservas confirmadas:
+                  <br />
+                  {state.reservations
+                    .filter(r => r.status === 'confirmed')
+                    .slice(0, 5)
+                    .map((r, i) => (
+                      <div key={i} className="ml-4 text-xs">
+                        - {r.area}: {r.date} (formato: {r.date.split('T')[0]})
+                      </div>
+                    ))
+                  }
                 </div>
               </div>
 
