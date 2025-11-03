@@ -1119,6 +1119,51 @@ export function Admin() {
                   </div>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 gap-6 mt-6">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">Reservas por Departamento</h4>
+                  <p className="text-xs text-gray-500">
+                    Reservas completadas en el rango de fechas seleccionado
+                  </p>
+                  <div className="space-y-3">
+                    {(() => {
+                      // Filtrar reservas completadas en el rango de fechas
+                      const completedReservations = state.reservations.filter(r => {
+                        if (r.status !== 'completed') return false;
+                        const reservationDateStr = r.date.split('T')[0];
+                        return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
+                      });
+
+                      // Agrupar por departamento
+                      const byDepartment: { [key: string]: number } = {};
+                      completedReservations.forEach(r => {
+                        const dept = r.department || 'Sin departamento';
+                        byDepartment[dept] = (byDepartment[dept] || 0) + 1;
+                      });
+
+                      // Ordenar por cantidad de reservas (descendente)
+                      const sortedDepartments = Object.entries(byDepartment)
+                        .sort(([, a], [, b]) => b - a);
+
+                      if (sortedDepartments.length === 0) {
+                        return (
+                          <div className="text-sm text-gray-500 text-center py-4">
+                            No hay reservas completadas en el rango seleccionado
+                          </div>
+                        );
+                      }
+
+                      return sortedDepartments.map(([department, count]) => (
+                        <div key={department} className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">{department}</span>
+                          <span className="font-medium text-primary-600">{count}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="card">
