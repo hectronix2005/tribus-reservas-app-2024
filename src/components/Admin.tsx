@@ -1135,10 +1135,13 @@ export function Admin() {
                         return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
                       });
 
-                      // Agrupar por departamento
+                      // Agrupar por departamento (usando el usuario que creó la reserva)
                       const byDepartment: { [key: string]: number } = {};
                       completedReservations.forEach(r => {
-                        const dept = r.department || 'Sin departamento';
+                        // Buscar el departamento del usuario que creó la reserva
+                        const userId = typeof r.userId === 'string' ? r.userId : r.userId._id;
+                        const user = state.users.find(u => u._id === userId || u.id === userId);
+                        const dept = user?.department || 'Sin departamento';
                         byDepartment[dept] = (byDepartment[dept] || 0) + 1;
                       });
 
