@@ -971,7 +971,8 @@ export function Admin() {
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Utilización por Área</h4>
                   <p className="text-xs text-gray-500">
-                    Porcentaje de ocupación: Total reservas / Total espacios disponibles en el rango de fechas
+                    Áreas de trabajo: Asientos reservados / Asientos totales disponibles<br />
+                    Salas de reuniones: Horas reservadas / Horas totales disponibles
                   </p>
                   {state.areas.map((area) => {
                     // Filtrar reservas del rango de fechas seleccionado
@@ -1013,41 +1014,53 @@ export function Admin() {
                     }
 
                     // Calcular utilización basada en el tipo de área
-                    const totalBusinessMinutes = 660; // 11 horas por día (7 AM - 6 PM)
-                    const totalAvailableMinutes = totalBusinessMinutes * workDays;
+                    const totalBusinessHours = 11; // 11 horas por día (7 AM - 6 PM)
+                    const totalAvailableHours = totalBusinessHours * workDays;
 
                     let utilization = 0;
                     let totalReserved = 0;
                     let totalAvailable = 0;
 
                     if (area.isMeetingRoom) {
-                      // Para salas de juntas: tiempo reservado / tiempo total disponible
-                      totalAvailable = totalAvailableMinutes;
+                      // Para salas de juntas: horas reservadas / horas disponibles
+                      totalAvailable = totalAvailableHours;
 
                       if (areaReservations.length > 0 && workDays > 0) {
                         totalReserved = areaReservations.reduce((total, reservation) => {
                           const start = new Date(`2000-01-01T${reservation.startTime}`);
                           const end = new Date(`2000-01-01T${reservation.endTime}`);
-                          return total + (end.getTime() - start.getTime()) / (1000 * 60);
+                          const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                          return total + durationHours;
                         }, 0);
 
                         utilization = Math.min((totalReserved / totalAvailable) * 100, 100);
                       }
                     } else {
-                      // Para áreas de trabajo: asientos reservados / capacidad total disponible
-                      const totalCapacityMinutes = area.capacity * totalAvailableMinutes;
-                      totalAvailable = totalCapacityMinutes;
+                      // Para áreas de trabajo (Hot Desk): asientos reservados / asientos totales
+                      // No considerar tiempo, solo cantidad de asientos en uso
+                      totalAvailable = area.capacity * workDays;
 
                       if (areaReservations.length > 0 && workDays > 0) {
-                        // Calcular asientos-minutos reservados
-                        totalReserved = areaReservations.reduce((total, reservation) => {
-                          const start = new Date(`2000-01-01T${reservation.startTime}`);
-                          const end = new Date(`2000-01-01T${reservation.endTime}`);
-                          const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-                          return total + (reservation.requestedSeats * durationMinutes);
+                        // Contar asientos únicos reservados por día
+                        const seatsByDay: { [key: string]: Set<number> } = {};
+
+                        areaReservations.forEach(reservation => {
+                          const dateKey = reservation.date.split('T')[0];
+                          if (!seatsByDay[dateKey]) {
+                            seatsByDay[dateKey] = new Set();
+                          }
+                          // Agregar todos los asientos solicitados
+                          for (let i = 0; i < reservation.requestedSeats; i++) {
+                            seatsByDay[dateKey].add(i);
+                          }
+                        });
+
+                        // Sumar total de asientos únicos por día
+                        totalReserved = Object.values(seatsByDay).reduce((total, seats) => {
+                          return total + seats.size;
                         }, 0);
 
-                        utilization = Math.min((totalReserved / totalCapacityMinutes) * 100, 100);
+                        utilization = Math.min((totalReserved / totalAvailable) * 100, 100);
                       }
                     }
 
@@ -1059,8 +1072,8 @@ export function Admin() {
                             <span className="font-medium">{utilization.toFixed(1)}%</span>
                             <div className="text-xs text-gray-500">
                               {area.isMeetingRoom
-                                ? `${Math.round(totalReserved)} / ${Math.round(totalAvailable)} min`
-                                : `${Math.round(totalReserved)} / ${Math.round(totalAvailable)} asientos-min`
+                                ? `${totalReserved.toFixed(1)} / ${totalAvailable} hrs`
+                                : `${Math.round(totalReserved)} / ${Math.round(totalAvailable)} asientos`
                               }
                             </div>
                             <div className="text-xs text-gray-400">
