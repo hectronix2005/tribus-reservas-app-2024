@@ -19,6 +19,15 @@ export function Admin() {
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(1); // Primer día del mes actual
+    return date.toISOString().split('T')[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => {
+    const date = new Date();
+    return date.toISOString().split('T')[0];
+  });
 
   // Cargar configuración al inicializar el componente
   useEffect(() => {
@@ -886,59 +895,119 @@ export function Admin() {
         {/* Reports Tab */}
         {activeTab === 'reports' && (
           <div className="space-y-6">
+            {/* Filtros de fecha para reportes */}
+            <div className="card">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Filtros de Reporte</h3>
+              <div className="flex gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha inicial
+                  </label>
+                  <input
+                    type="date"
+                    value={reportStartDate}
+                    onChange={(e) => setReportStartDate(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha final
+                  </label>
+                  <input
+                    type="date"
+                    value={reportEndDate}
+                    onChange={(e) => setReportEndDate(e.target.value)}
+                    className="input-field"
+                  />
+                </div>
+                <div className="text-sm text-gray-600">
+                  {(() => {
+                    const start = new Date(reportStartDate);
+                    const end = new Date(reportEndDate);
+                    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    return `${days} día${days !== 1 ? 's' : ''} seleccionado${days !== 1 ? 's' : ''}`;
+                  })()}
+                </div>
+              </div>
+            </div>
+
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reportes y Análisis</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Utilización por Área</h4>
+                  <p className="text-xs text-gray-500">
+                    Porcentaje de ocupación: Total reservas / Total espacios disponibles en el rango de fechas
+                  </p>
                   {state.areas.map((area) => {
-                    // Filtrar solo reservas de hoy para evitar acumulación histórica
-                    const today = new Date().toISOString().split('T')[0];
-                    const areaReservations = state.reservations.filter(
-                      r => r.area === area.name && r.status === 'confirmed' && r.date === today
-                    );
+                    // Filtrar reservas del rango de fechas seleccionado
+                    const areaReservations = state.reservations.filter(r => {
+                      if (r.area !== area.name || r.status !== 'confirmed') return false;
+                      const reservationDate = new Date(r.date);
+                      const start = new Date(reportStartDate);
+                      const end = new Date(reportEndDate);
+                      return reservationDate >= start && reservationDate <= end;
+                    });
 
-                    // Para salas de juntas, calculamos utilización basada en tiempo reservado del día
-                    // Para áreas de trabajo, calculamos por asientos reservados vs capacidad
+                    // Calcular días laborables en el rango
+                    const start = new Date(reportStartDate);
+                    const end = new Date(reportEndDate);
+                    let workDays = 0;
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                      const dayOfWeek = d.getDay();
+                      // Contar solo días de lunes (1) a viernes (5)
+                      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                        workDays++;
+                      }
+                    }
+
+                    // Calcular utilización basada en el tipo de área
                     const utilization = area.isMeetingRoom
                       ? (() => {
-                          if (areaReservations.length === 0) return 0;
+                          if (areaReservations.length === 0 || workDays === 0) return 0;
 
-                          // Horario de oficina: 7 AM (420 min) a 6 PM (1080 min) = 660 minutos totales
-                          const totalBusinessMinutes = 660;
+                          // Para salas de juntas: tiempo reservado / tiempo total disponible
+                          const totalBusinessMinutes = 660; // 11 horas por día (7 AM - 6 PM)
+                          const totalAvailableMinutes = totalBusinessMinutes * workDays;
+
                           const totalReservedMinutes = areaReservations.reduce((total, reservation) => {
-                            // Calcular duración en minutos desde startTime y endTime
                             const start = new Date(`2000-01-01T${reservation.startTime}`);
                             const end = new Date(`2000-01-01T${reservation.endTime}`);
                             return total + (end.getTime() - start.getTime()) / (1000 * 60);
                           }, 0);
 
-                          return Math.min((totalReservedMinutes / totalBusinessMinutes) * 100, 100);
+                          return Math.min((totalReservedMinutes / totalAvailableMinutes) * 100, 100);
                         })()
                       : (() => {
-                          if (areaReservations.length === 0) return 0;
+                          if (areaReservations.length === 0 || workDays === 0) return 0;
 
-                          // Para áreas de trabajo, calculamos el promedio de ocupación del día
-                          // Consideramos cada reserva como un bloque de tiempo con ciertos asientos ocupados
-                          const totalBusinessMinutes = 660; // 11 horas de oficina
+                          // Para áreas de trabajo: asientos reservados / capacidad total disponible
+                          const totalBusinessMinutes = 660; // 11 horas por día
+                          const totalAvailableMinutes = totalBusinessMinutes * workDays;
+                          const totalCapacityMinutes = area.capacity * totalAvailableMinutes;
 
-                          // Calcular ocupación ponderada por tiempo
-                          const totalOccupancyMinutes = areaReservations.reduce((total, reservation) => {
+                          // Calcular asientos-minutos reservados
+                          const totalReservedSeatMinutes = areaReservations.reduce((total, reservation) => {
                             const start = new Date(`2000-01-01T${reservation.startTime}`);
                             const end = new Date(`2000-01-01T${reservation.endTime}`);
                             const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-                            const occupancyRatio = reservation.requestedSeats / area.capacity;
-                            return total + (durationMinutes * occupancyRatio);
+                            return total + (reservation.requestedSeats * durationMinutes);
                           }, 0);
 
-                          return Math.min((totalOccupancyMinutes / totalBusinessMinutes) * 100, 100);
+                          return Math.min((totalReservedSeatMinutes / totalCapacityMinutes) * 100, 100);
                         })();
 
                     return (
                       <div key={area.id} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">{area.name}</span>
-                          <span className="font-medium">{utilization.toFixed(1)}%</span>
+                          <div className="text-right">
+                            <span className="font-medium">{utilization.toFixed(1)}%</span>
+                            <div className="text-xs text-gray-500">
+                              {areaReservations.length} reserva{areaReservations.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
