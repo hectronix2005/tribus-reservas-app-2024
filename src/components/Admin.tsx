@@ -1013,40 +1013,43 @@ export function Admin() {
                     }
 
                     // Calcular utilización basada en el tipo de área
-                    const utilization = area.isMeetingRoom
-                      ? (() => {
-                          if (areaReservations.length === 0 || workDays === 0) return 0;
+                    const totalBusinessMinutes = 660; // 11 horas por día (7 AM - 6 PM)
+                    const totalAvailableMinutes = totalBusinessMinutes * workDays;
 
-                          // Para salas de juntas: tiempo reservado / tiempo total disponible
-                          const totalBusinessMinutes = 660; // 11 horas por día (7 AM - 6 PM)
-                          const totalAvailableMinutes = totalBusinessMinutes * workDays;
+                    let utilization = 0;
+                    let totalReserved = 0;
+                    let totalAvailable = 0;
 
-                          const totalReservedMinutes = areaReservations.reduce((total, reservation) => {
-                            const start = new Date(`2000-01-01T${reservation.startTime}`);
-                            const end = new Date(`2000-01-01T${reservation.endTime}`);
-                            return total + (end.getTime() - start.getTime()) / (1000 * 60);
-                          }, 0);
+                    if (area.isMeetingRoom) {
+                      // Para salas de juntas: tiempo reservado / tiempo total disponible
+                      totalAvailable = totalAvailableMinutes;
 
-                          return Math.min((totalReservedMinutes / totalAvailableMinutes) * 100, 100);
-                        })()
-                      : (() => {
-                          if (areaReservations.length === 0 || workDays === 0) return 0;
+                      if (areaReservations.length > 0 && workDays > 0) {
+                        totalReserved = areaReservations.reduce((total, reservation) => {
+                          const start = new Date(`2000-01-01T${reservation.startTime}`);
+                          const end = new Date(`2000-01-01T${reservation.endTime}`);
+                          return total + (end.getTime() - start.getTime()) / (1000 * 60);
+                        }, 0);
 
-                          // Para áreas de trabajo: asientos reservados / capacidad total disponible
-                          const totalBusinessMinutes = 660; // 11 horas por día
-                          const totalAvailableMinutes = totalBusinessMinutes * workDays;
-                          const totalCapacityMinutes = area.capacity * totalAvailableMinutes;
+                        utilization = Math.min((totalReserved / totalAvailable) * 100, 100);
+                      }
+                    } else {
+                      // Para áreas de trabajo: asientos reservados / capacidad total disponible
+                      const totalCapacityMinutes = area.capacity * totalAvailableMinutes;
+                      totalAvailable = totalCapacityMinutes;
 
-                          // Calcular asientos-minutos reservados
-                          const totalReservedSeatMinutes = areaReservations.reduce((total, reservation) => {
-                            const start = new Date(`2000-01-01T${reservation.startTime}`);
-                            const end = new Date(`2000-01-01T${reservation.endTime}`);
-                            const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-                            return total + (reservation.requestedSeats * durationMinutes);
-                          }, 0);
+                      if (areaReservations.length > 0 && workDays > 0) {
+                        // Calcular asientos-minutos reservados
+                        totalReserved = areaReservations.reduce((total, reservation) => {
+                          const start = new Date(`2000-01-01T${reservation.startTime}`);
+                          const end = new Date(`2000-01-01T${reservation.endTime}`);
+                          const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                          return total + (reservation.requestedSeats * durationMinutes);
+                        }, 0);
 
-                          return Math.min((totalReservedSeatMinutes / totalCapacityMinutes) * 100, 100);
-                        })();
+                        utilization = Math.min((totalReserved / totalCapacityMinutes) * 100, 100);
+                      }
+                    }
 
                     return (
                       <div key={area.id} className="space-y-2">
@@ -1055,6 +1058,12 @@ export function Admin() {
                           <div className="text-right">
                             <span className="font-medium">{utilization.toFixed(1)}%</span>
                             <div className="text-xs text-gray-500">
+                              {area.isMeetingRoom
+                                ? `${Math.round(totalReserved)} / ${Math.round(totalAvailable)} min`
+                                : `${Math.round(totalReserved)} / ${Math.round(totalAvailable)} asientos-min`
+                              }
+                            </div>
+                            <div className="text-xs text-gray-400">
                               {areaReservations.length} reserva{areaReservations.length !== 1 ? 's' : ''}
                             </div>
                           </div>
