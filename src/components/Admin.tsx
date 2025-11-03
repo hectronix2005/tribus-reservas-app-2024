@@ -153,28 +153,76 @@ export function Admin() {
   };
 
   const exportReservations = () => {
-    const filteredReservations = getReservationsByDateRange(startDate, endDate);
-    
-    const csvContent = [
-      ['ID', 'Área', 'Grupo', 'Puestos', 'Fecha', 'Hora', 'Contacto', 'Email', 'Teléfono', 'Estado', 'Registrado', 'Notas'],
-      ...filteredReservations.map(r => [
-        r._id,
-        r.area,
-        r.teamName,
-        r.requestedSeats.toString(),
-        r.date,
-        `${r.startTime} - ${r.endTime}`,
-        r.status,
-        r.createdAt ? new Date(r.createdAt).toLocaleString('es-ES') : 'N/A',
-        r.notes || ''
-      ])
-    ].map(row => row.join(',')).join('\n');
+    // Usar las fechas del reporte superior
+    const filteredReservations = state.reservations.filter(r => {
+      const reservationDateStr = r.date.split('T')[0];
+      return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
+    });
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // Encabezados detallados
+    const csvContent = [
+      [
+        'ID Reserva',
+        'Estado',
+        'Área',
+        'Nombre de Equipo',
+        'Puestos Solicitados',
+        'Fecha',
+        'Hora Inicio',
+        'Hora Fin',
+        'Duración (min)',
+        'Usuario',
+        'Email Usuario',
+        'Departamento',
+        'Creado Por',
+        'Fecha Creación',
+        'Fecha Actualización',
+        'Notas'
+      ],
+      ...filteredReservations.map(r => {
+        // Calcular duración
+        const start = new Date(`2000-01-01T${r.startTime}`);
+        const end = new Date(`2000-01-01T${r.endTime}`);
+        const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+
+        // Obtener información del usuario
+        const userId = typeof r.userId === 'string' ? r.userId : r.userId._id;
+        const user = state.users.find(u => u._id === userId || u.id === userId);
+        const userName = user?.name || r.userName || 'N/A';
+        const userEmail = user?.email || 'N/A';
+        const department = user?.department || 'N/A';
+
+        // Información de creación
+        const createdBy = r.createdBy?.userName || userName;
+        const createdAt = r.createdAt ? new Date(r.createdAt).toLocaleString('es-ES') : 'N/A';
+        const updatedAt = r.updatedAt ? new Date(r.updatedAt).toLocaleString('es-ES') : 'N/A';
+
+        return [
+          r._id || r.reservationId || '',
+          r.status,
+          r.area,
+          r.teamName,
+          r.requestedSeats.toString(),
+          r.date.split('T')[0],
+          r.startTime,
+          r.endTime,
+          durationMinutes.toString(),
+          userName,
+          userEmail,
+          department,
+          createdBy,
+          createdAt,
+          updatedAt,
+          r.notes || ''
+        ];
+      })
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `reservas_${startDate}_${endDate}.csv`;
+    a.download = `reservas_${reportStartDate}_${reportEndDate}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -1179,7 +1227,7 @@ export function Admin() {
                   <FileText className="w-6 h-6 text-primary-600" />
                   <div className="text-left">
                     <div className="font-medium text-gray-900">Exportar Reservas</div>
-                    <div className="text-sm text-gray-500">Descargar todas las reservas en CSV</div>
+                    <div className="text-sm text-gray-500">Descargar reservas del rango seleccionado en CSV detallado</div>
                   </div>
                 </button>
               </div>
