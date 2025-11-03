@@ -892,16 +892,18 @@ export function Admin() {
                 <div className="space-y-4">
                   <h4 className="font-medium text-gray-900">Utilización por Área</h4>
                   {state.areas.map((area) => {
+                    // Filtrar solo reservas de hoy para evitar acumulación histórica
+                    const today = new Date().toISOString().split('T')[0];
                     const areaReservations = state.reservations.filter(
-                      r => r.area === area.name && r.status === 'confirmed'
+                      r => r.area === area.name && r.status === 'confirmed' && r.date === today
                     );
-                    
+
                     // Para salas de juntas, calculamos utilización basada en tiempo reservado del día
-                    // Para áreas de trabajo, calculamos por asientos reservados
-                    const utilization = area.isMeetingRoom 
+                    // Para áreas de trabajo, calculamos por asientos reservados vs capacidad
+                    const utilization = area.isMeetingRoom
                       ? (() => {
                           if (areaReservations.length === 0) return 0;
-                          
+
                           // Horario de oficina: 7 AM (420 min) a 6 PM (1080 min) = 660 minutos totales
                           const totalBusinessMinutes = 660;
                           const totalReservedMinutes = areaReservations.reduce((total, reservation) => {
@@ -910,14 +912,26 @@ export function Admin() {
                             const end = new Date(`2000-01-01T${reservation.endTime}`);
                             return total + (end.getTime() - start.getTime()) / (1000 * 60);
                           }, 0);
-                          
+
                           return Math.min((totalReservedMinutes / totalBusinessMinutes) * 100, 100);
                         })()
                       : (() => {
-                          const totalReserved = areaReservations.reduce(
-                            (sum, r) => sum + r.requestedSeats, 0
-                          );
-                          return (totalReserved / area.capacity) * 100;
+                          if (areaReservations.length === 0) return 0;
+
+                          // Para áreas de trabajo, calculamos el promedio de ocupación del día
+                          // Consideramos cada reserva como un bloque de tiempo con ciertos asientos ocupados
+                          const totalBusinessMinutes = 660; // 11 horas de oficina
+
+                          // Calcular ocupación ponderada por tiempo
+                          const totalOccupancyMinutes = areaReservations.reduce((total, reservation) => {
+                            const start = new Date(`2000-01-01T${reservation.startTime}`);
+                            const end = new Date(`2000-01-01T${reservation.endTime}`);
+                            const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+                            const occupancyRatio = reservation.requestedSeats / area.capacity;
+                            return total + (durationMinutes * occupancyRatio);
+                          }, 0);
+
+                          return Math.min((totalOccupancyMinutes / totalBusinessMinutes) * 100, 100);
                         })();
 
                     return (
@@ -932,7 +946,7 @@ export function Admin() {
                               utilization >= 90 ? 'bg-danger-500' :
                               utilization >= 70 ? 'bg-warning-500' : 'bg-success-500'
                             }`}
-                            style={{ width: `${utilization}%` }}
+                            style={{ width: `${Math.min(utilization, 100)}%` }}
                           />
                         </div>
                       </div>
