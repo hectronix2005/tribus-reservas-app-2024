@@ -20,13 +20,12 @@ export function Admin() {
   const [isFiltering, setIsFiltering] = useState(false);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   const [reportStartDate, setReportStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(1); // Primer día del mes actual
-    return date.toISOString().split('T')[0];
+    // Usar octubre 2024 por defecto (mes anterior si estamos en 2025)
+    return '2024-10-01';
   });
   const [reportEndDate, setReportEndDate] = useState(() => {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
+    // Último día de octubre 2024
+    return '2024-10-31';
   });
 
   // Cargar configuración al inicializar el componente
