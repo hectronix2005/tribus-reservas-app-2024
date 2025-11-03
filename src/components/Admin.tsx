@@ -414,7 +414,7 @@ export function Admin() {
                       </label>
                       <input
                         type="time"
-                        value={state.adminSettings.officeHours.start}
+                        value={state.adminSettings.officeHours.start || ''}
                         onChange={(e) => handleSettingsUpdate({
                           ...state.adminSettings,
                           officeHours: {
@@ -434,7 +434,7 @@ export function Admin() {
                       </label>
                       <input
                         type="time"
-                        value={state.adminSettings.officeHours.end}
+                        value={state.adminSettings.officeHours.end || ''}
                         onChange={(e) => handleSettingsUpdate({
                           ...state.adminSettings,
                           officeHours: {
@@ -460,7 +460,7 @@ export function Admin() {
                      </label>
                      <input
                        type="time"
-                       value={state.adminSettings.businessHours.start}
+                       value={state.adminSettings.businessHours.start || ''}
                        onChange={(e) => handleSettingsUpdate({
                          ...state.adminSettings,
                          businessHours: {
@@ -480,7 +480,7 @@ export function Admin() {
                      </label>
                      <input
                        type="time"
-                       value={state.adminSettings.businessHours.end}
+                       value={state.adminSettings.businessHours.end || ''}
                        onChange={(e) => handleSettingsUpdate({
                          ...state.adminSettings,
                          businessHours: {
@@ -620,7 +620,7 @@ export function Admin() {
                     </label>
                     <input
                       type="date"
-                      value={startDate}
+                      value={startDate || ''}
                       onChange={(e) => handleStartDateChange(e.target.value)}
                       className="input-field"
                     />
@@ -631,7 +631,7 @@ export function Admin() {
                 </label>
                 <input
                   type="date"
-                      value={endDate}
+                      value={endDate || ''}
                       onChange={(e) => handleEndDateChange(e.target.value)}
                       className="input-field"
                     />
@@ -907,7 +907,7 @@ export function Admin() {
                   </label>
                   <input
                     type="date"
-                    value={reportStartDate}
+                    value={reportStartDate || ''}
                     onChange={(e) => setReportStartDate(e.target.value)}
                     className="input-field"
                   />
@@ -918,7 +918,7 @@ export function Admin() {
                   </label>
                   <input
                     type="date"
-                    value={reportEndDate}
+                    value={reportEndDate || ''}
                     onChange={(e) => setReportEndDate(e.target.value)}
                     className="input-field"
                   />
