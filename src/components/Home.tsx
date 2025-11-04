@@ -18,10 +18,38 @@ interface Space {
   image: string;
 }
 
+interface Feature {
+  icon: any;
+  title: string;
+  description: string;
+}
+
 export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
   const [activeFeature, setActiveFeature] = useState(0);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [features, setFeatures] = useState<Feature[]>([
+    {
+      icon: Building2,
+      title: "Espacios Flexibles",
+      description: "Salas de reuniones, hot desks y espacios colaborativos adaptados a tus necesidades"
+    },
+    {
+      icon: Calendar,
+      title: "Reserva Inteligente",
+      description: "Sistema de reservas en tiempo real con disponibilidad instantánea"
+    },
+    {
+      icon: Users,
+      title: "Colaboración",
+      description: "Gestiona equipos y colaboradores fácilmente en cada reserva"
+    },
+    {
+      icon: Clock,
+      title: "Horario de Oficina",
+      description: "Acceso flexible cuando lo necesites, adaptado a tu horario"
+    }
+  ]);
   const [spaces, setSpaces] = useState<Space[]>([
     {
       name: "Salas de Reuniones",
@@ -50,27 +78,62 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
   useEffect(() => {
     const loadCoworkingSettings = async () => {
       try {
+        console.log('🔄 Cargando configuración de coworking desde el backend...');
         const response = await fetch('/api/coworking-settings');
-        if (response.ok) {
-          const settings = await response.json();
 
-          // Verificar si hay espacios configurados en el backend
-          if (settings.homeContent?.spaces && settings.homeContent.spaces.length > 0) {
-            // Usar los espacios configurados desde el backend
-            const updatedSpaces: Space[] = settings.homeContent.spaces.map((space: any) => ({
-              name: space.name || "Espacio",
-              capacity: space.capacity || "1-10 personas",
-              priceFrom: space.priceFrom || "$50,000/mes",
-              features: space.features || [],
-              image: space.image || "🏢"
-            }));
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-            setSpaces(updatedSpaces);
-            console.log('✅ Espacios cargados desde configuración:', updatedSpaces);
-          }
+        const settings = await response.json();
+        console.log('📦 Configuración recibida del backend:', settings);
+
+        // IMPORTANTE: Mapeo de iconos de string a componentes Lucide
+        const iconMap: { [key: string]: any } = {
+          'Building2': Building2,
+          'Calendar': Calendar,
+          'Users': Users,
+          'Clock': Clock,
+          'MapPin': MapPin,
+          'Star': Star,
+          'Check': Check,
+          'Mail': Mail,
+          'FileText': FileText,
+          'ArrowRight': ArrowRight
+        };
+
+        // Cargar FEATURES desde el backend
+        if (settings.homeContent?.features && Array.isArray(settings.homeContent.features) && settings.homeContent.features.length > 0) {
+          const updatedFeatures: Feature[] = settings.homeContent.features.map((feature: any) => ({
+            icon: iconMap[feature.icon] || Clock, // Fallback a Clock si el icono no existe
+            title: feature.title || "Característica",
+            description: feature.description || "Descripción"
+          }));
+
+          setFeatures(updatedFeatures);
+          console.log('✅ Features cargadas desde configuración:', updatedFeatures.map(f => f.title));
+        } else {
+          console.warn('⚠️ No se encontraron features en la configuración del backend, usando valores por defecto');
+        }
+
+        // Cargar ESPACIOS desde el backend
+        if (settings.homeContent?.spaces && Array.isArray(settings.homeContent.spaces) && settings.homeContent.spaces.length > 0) {
+          const updatedSpaces: Space[] = settings.homeContent.spaces.map((space: any) => ({
+            name: space.name || "Espacio",
+            capacity: space.capacity || "1-10 personas",
+            priceFrom: space.priceFrom || "$50,000/mes",
+            features: space.features || [],
+            image: space.image || "🏢"
+          }));
+
+          setSpaces(updatedSpaces);
+          console.log('✅ Espacios cargados desde configuración:', updatedSpaces.map(s => s.name));
+        } else {
+          console.warn('⚠️ No se encontraron espacios en la configuración del backend, usando valores por defecto');
         }
       } catch (error) {
-        console.error('Error cargando configuración de coworking:', error);
+        console.error('❌ Error cargando configuración de coworking:', error);
+        console.error('Detalles del error:', error instanceof Error ? error.message : 'Error desconocido');
         // Mantener valores por defecto en caso de error
       }
     };
@@ -93,29 +156,6 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
 
     loadBlogPosts();
   }, []);
-
-  const features = [
-    {
-      icon: Building2,
-      title: "Espacios Flexibles",
-      description: "Salas de reuniones, hot desks y espacios colaborativos adaptados a tus necesidades"
-    },
-    {
-      icon: Calendar,
-      title: "Reserva Inteligente",
-      description: "Sistema de reservas en tiempo real con disponibilidad instantánea"
-    },
-    {
-      icon: Users,
-      title: "Colaboración",
-      description: "Gestiona equipos y colaboradores fácilmente en cada reserva"
-    },
-    {
-      icon: Clock,
-      title: "24/7 Disponible",
-      description: "Acceso flexible cuando lo necesites, adaptado a tu horario"
-    }
-  ];
 
   const benefits = [
     "Sin compromisos a largo plazo",
