@@ -1885,9 +1885,9 @@ app.delete('/api/reservations/:id', async (req, res) => {
     }
 
     // Permitir eliminación si:
-    // 1. El usuario es administrador O
+    // 1. El usuario es superadmin o admin O
     // 2. El usuario es el creador de la reservación
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
     const isCreator = reservation.userId && reservation.userId.toString() === userId.toString();
 
     if (!isAdmin && !isCreator) {
@@ -1969,15 +1969,15 @@ app.delete('/api/reservations', async (req, res) => {
   try {
     const { userId } = req.body;
 
-    // Verificar permisos: solo administradores pueden eliminar todas las reservaciones
+    // Verificar permisos: solo superadmin o admin pueden eliminar todas las reservaciones
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    if (user.role !== 'admin') {
-      return res.status(403).json({ 
-        error: 'Solo los administradores pueden eliminar todas las reservaciones' 
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        error: 'Solo los administradores pueden eliminar todas las reservaciones'
       });
     }
 
