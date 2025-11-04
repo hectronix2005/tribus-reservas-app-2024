@@ -1299,8 +1299,12 @@ export function Reservations() {
 
   const canDeleteReservation = (reservation: Reservation) => {
     if (!currentUser) return false;
-    // Solo administradores pueden eliminar reservas
-    return currentUser.role === 'admin';
+    // Superadmin y admin pueden eliminar cualquier reserva, usuarios regulares solo las suyas
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      return true;
+    }
+    // Usuario regular solo puede eliminar sus propias reservas
+    return reservation.userId === currentUser.id;
   };
 
 
