@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail } from 'lucide-react';
+import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail, FileText } from 'lucide-react';
+import { blogService } from '../services/api';
+import { BlogPost } from '../types';
 
 interface HomeProps {
   onLoginClick: () => void;
@@ -17,6 +19,7 @@ interface Space {
 
 export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [spaces, setSpaces] = useState<Space[]>([
     {
       name: "Salas de Reuniones",
@@ -71,6 +74,22 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
     };
 
     loadCoworkingSettings();
+  }, []);
+
+  // Cargar posts del blog publicados
+  useEffect(() => {
+    const loadBlogPosts = async () => {
+      try {
+        const posts = await blogService.getPublished();
+        // Mostrar solo los últimos 3 posts
+        setBlogPosts(posts.slice(0, 3));
+      } catch (error) {
+        console.error('Error cargando posts del blog:', error);
+        // No mostrar error al usuario, simplemente no mostrar blog
+      }
+    };
+
+    loadBlogPosts();
   }, []);
 
   const features = [
@@ -216,6 +235,9 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
               <a href="#features" className="text-gray-700 hover:text-indigo-600 transition">Características</a>
               <a href="#spaces" className="text-gray-700 hover:text-indigo-600 transition">Espacios</a>
               <a href="#benefits" className="text-gray-700 hover:text-indigo-600 transition">Beneficios</a>
+              {blogPosts.length > 0 && (
+                <a href="#blog" className="text-gray-700 hover:text-indigo-600 transition">Blog</a>
+              )}
               {onContactClick && (
                 <button
                   onClick={onContactClick}
@@ -410,6 +432,69 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
           </div>
         </div>
       </section>
+
+      {/* Blog Section */}
+      {blogPosts.length > 0 && (
+        <section id="blog" className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                Blog y Recursos
+              </h2>
+              <p className="text-xl text-gray-600">
+                Consejos, tendencias y mejores prácticas para tu espacio de trabajo
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-8">
+              {blogPosts.map((post) => (
+                <article key={post._id} className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
+                  <div className="p-8">
+                    <div className="text-6xl mb-4">{post.image}</div>
+
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xs font-semibold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full">
+                        {post.category}
+                      </span>
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {post.readTime}
+                      </span>
+                    </div>
+
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3 line-clamp-2">
+                      {post.title}
+                    </h3>
+
+                    <p className="text-gray-600 mb-6 line-clamp-3">
+                      {post.excerpt}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">
+                        Por {post.author}
+                      </span>
+                      <button className="text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1 group">
+                        Leer más
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {blogPosts.length >= 3 && (
+              <div className="text-center mt-12">
+                <button className="px-8 py-3 border-2 border-indigo-600 text-indigo-600 rounded-full hover:bg-indigo-600 hover:text-white transition-all duration-300 font-semibold flex items-center gap-2 mx-auto">
+                  <FileText className="w-5 h-5" />
+                  Ver todos los artículos
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* FAQ Section for SEO */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
