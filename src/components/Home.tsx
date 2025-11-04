@@ -106,6 +106,81 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Structured Data for SEO */}
+      <script type="application/ld+json">
+        {JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "LocalBusiness",
+          "@id": "https://tribus-76fa5345672e.herokuapp.com/#organization",
+          "name": "Tribus Coworking",
+          "description": "Alquiler de oficinas por horas y días. Espacios de coworking, salas de reuniones y hot desks en Colombia. Flexibilidad total para tu equipo con reservas online fáciles y rápidas.",
+          "url": "https://tribus-76fa5345672e.herokuapp.com/",
+          "logo": "https://tribus-76fa5345672e.herokuapp.com/logo192.png",
+          "image": "https://tribus-76fa5345672e.herokuapp.com/og-image.jpg",
+          "priceRange": "$$",
+          "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "CO",
+            "addressLocality": "Colombia"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "addressCountry": "CO"
+          },
+          "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+              "opens": "08:00",
+              "closes": "18:00"
+            }
+          ],
+          "areaServed": {
+            "@type": "Country",
+            "name": "Colombia"
+          },
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "Servicios de Espacios de Trabajo",
+            "itemListElement": [
+              {
+                "@type": "Offer",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Alquiler de Oficinas",
+                  "description": "Oficinas privadas por horas o días completos, equipadas y listas para usar"
+                }
+              },
+              {
+                "@type": "Offer",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Espacios de Coworking",
+                  "description": "Espacios compartidos flexibles para trabajar y colaborar con otros profesionales"
+                }
+              },
+              {
+                "@type": "Offer",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Salas de Reuniones",
+                  "description": "Salas equipadas para reuniones profesionales, disponibles por horas"
+                }
+              },
+              {
+                "@type": "Offer",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Hot Desk",
+                  "description": "Puestos de trabajo flexibles sin asignación fija, ideales para trabajadores remotos"
+                }
+              }
+            ]
+          },
+          "sameAs": []
+        })}
+      </script>
+
       {/* Header/Navbar */}
       <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -145,11 +220,10 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
-              Tu espacio de trabajo,
-              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> cuando lo necesites</span>
+              Alquiler de Oficinas y Espacios de Coworking en Colombia
             </h1>
             <p className="text-xl text-gray-600 mb-8">
-              Reserva salas de reuniones, hot desks y espacios colaborativos de forma rápida y sencilla. Flexibilidad total para tu equipo.
+              Alquiler de oficinas por horas y días. Reserva salas de reuniones, hot desks y espacios de coworking compartidos. Sistema de reservas online fácil y rápido con flexibilidad total para tu equipo.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
@@ -186,10 +260,10 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Todo lo que necesitas para trabajar mejor
+              Características de Nuestros Espacios de Coworking y Oficinas
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Herramientas diseñadas para facilitar la colaboración y maximizar la productividad
+              Espacios de trabajo flexibles equipados con todo lo necesario para tu equipo. Alquiler de oficinas por horas con sistema de reservas online, salas de reuniones profesionales y hot desks compartidos.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -222,10 +296,10 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Espacios diseñados para ti
+              Alquiler de Oficinas Privadas, Salas de Reuniones y Hot Desks
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Encuentra el espacio perfecto para cada ocasión
+              Espacios de coworking flexibles para alquilar por horas o días. Oficinas compartidas, salas de reuniones equipadas y puestos de trabajo hot desk con todas las comodidades.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">

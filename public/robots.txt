@@ -1,0 +1,45 @@
+# robots.txt para Tribus Coworking
+# Optimizado para SEO y rastreo de buscadores
+
+# Permitir acceso a todos los bots
+User-agent: *
+Allow: /
+
+# Páginas principales que queremos que Google indexe
+Allow: /home
+Allow: /login
+
+# Archivos estáticos que ayudan al SEO
+Allow: /static/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.svg$
+Allow: /*.webp$
+
+# Bloquear áreas administrativas y privadas
+Disallow: /api/
+Disallow: /admin
+Disallow: /reservaciones
+Disallow: /usuarios
+Disallow: /coworking-management
+Disallow: /contact-forms
+
+# Archivos de sistema
+Disallow: /*.json$
+Disallow: /manifest.json
+
+# Configuración específica para Googlebot
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Configuración para Googlebot de imágenes
+User-agent: Googlebot-Image
+Allow: /
+
+# Ubicación del sitemap
+Sitemap: https://tribus-76fa5345672e.herokuapp.com/sitemap.xml
