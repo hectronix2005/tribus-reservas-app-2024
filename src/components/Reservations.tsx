@@ -1135,38 +1135,12 @@ export function Reservations() {
         }
       }
 
-      // Limpiar formulario (aplica tanto para recurrentes como para únicas)
-      setFormData({
-        area: '',
-        date: (() => {
-          const today = new Date();
-          const year = today.getFullYear();
-          const month = (today.getMonth() + 1).toString().padStart(2, '0');
-          const day = today.getDate().toString().padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        })(),
-        startTime: '09:00',
-        endTime: '10:00',
-        duration: '60',
-        teamName: '',
-        requestedSeats: 1,
-        notes: '',
-        colaboradores: [],
-        // Campos para reservaciones recurrentes (solo para admins)
-        isRecurring: false,
-        recurrenceType: 'weekly',
-        recurrenceInterval: 1,
-        recurrenceEndDate: '',
-        recurrenceDays: ['monday']
-      });
-      setSelectedCollaborators([]);
-      setShowForm(false);
-      setEditingReservation(null);
+      // Hacer hard refresh de la página para mostrar cambios inmediatamente
+      window.location.reload();
 
     } catch (error: any) {
       console.error('Error guardando reservación:', error);
       setError(error.message || 'Error al guardar la reservación');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -1267,22 +1241,12 @@ export function Reservations() {
         date: reservation.date
       });
 
-      // Recargar las reservaciones para actualizar la lista
-      await loadReservations();
-
-      // Mostrar mensaje de éxito temporal
-      setError(null);
-
-      // Scroll suave al inicio para que el usuario vea el cambio
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
-      // Mensaje de éxito en consola para el usuario
-      alert('Reservación eliminada exitosamente');
+      // Hacer hard refresh de la página para mostrar cambios inmediatamente
+      window.location.reload();
 
     } catch (error: any) {
       console.error('❌ Error eliminando reservación:', error);
       setError(error.message || 'Error al eliminar la reservación');
-    } finally {
       setIsLoading(false);
     }
   };
