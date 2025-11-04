@@ -1095,9 +1095,6 @@ export function Reservations() {
 
         console.log(`✅ Se crearon ${recurringDates.length} reservaciones recurrentes`);
 
-        // Para reservas recurrentes, recargar lista y limpiar formulario
-        await loadReservations();
-
       } else {
         // Reservación única
         const reservationData = {
@@ -1125,15 +1122,11 @@ export function Reservations() {
           response = await reservationService.createReservation(reservationData);
         }
 
-        // Recargar reservaciones y actualizar estado global
-        await loadReservations();
-
-        // Si es una nueva reserva (no es edición), mostrar modal de confirmación
-        if (!editingReservation && response?.reservation) {
-          setConfirmedReservation(response.reservation);
-          setShowConfirmationModal(true);
-        }
+        // No es necesario recargar estado ya que haremos reload completo
       }
+
+      // Log antes de reload
+      console.log('✅ Reservación guardada, recargando página...');
 
       // Hacer hard refresh de la página para mostrar cambios inmediatamente
       window.location.reload();
