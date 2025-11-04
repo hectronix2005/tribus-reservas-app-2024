@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, User, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 
@@ -18,7 +18,10 @@ interface Message {
     email: string;
   };
   content: string;
+  delivered: boolean;
+  deliveredAt?: string;
   read: boolean;
+  readAt?: string;
   createdAt: string;
 }
 
@@ -104,6 +107,12 @@ export function Messages() {
       setIsLoading(true);
       const data = await api.get<Message[]>(`/messages/${userId}`);
       setMessages(data);
+
+      // Recargar conversaciones para actualizar contadores de no leídos
+      // (el backend automáticamente marca los mensajes como leídos al cargarlos)
+      setTimeout(() => {
+        loadConversations();
+      }, 500);
     } catch (error) {
       console.error('Error cargando mensajes:', error);
     } finally {
@@ -332,9 +341,26 @@ export function Messages() {
                           }`}
                       >
                         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                        <p className={`text-xs mt-1 ${isSentByMe ? 'text-primary-100' : 'text-gray-500'}`}>
-                          {formatTime(message.createdAt)}
-                        </p>
+                        <div className={`flex items-center justify-end space-x-1 mt-1 ${isSentByMe ? 'text-primary-100' : 'text-gray-500'}`}>
+                          <p className="text-xs">
+                            {formatTime(message.createdAt)}
+                          </p>
+                          {/* Checks de WhatsApp - solo para mensajes enviados */}
+                          {isSentByMe && (
+                            <div className="flex items-center ml-1">
+                              {message.read ? (
+                                // Doble check azul - mensaje leído
+                                <CheckCheck className={`w-4 h-4 ${isSentByMe ? 'text-blue-300' : 'text-blue-500'}`} />
+                              ) : message.delivered ? (
+                                // Doble check gris - mensaje entregado
+                                <CheckCheck className="w-4 h-4" />
+                              ) : (
+                                // Un solo check gris - mensaje enviado
+                                <Check className="w-4 h-4" />
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

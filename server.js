@@ -714,6 +714,14 @@ const messageSchema = new mongoose.Schema({
     trim: true,
     maxlength: 5000
   },
+  delivered: {
+    type: Boolean,
+    default: true // Se marca como entregado inmediatamente al crear el mensaje
+  },
+  deliveredAt: {
+    type: Date,
+    default: Date.now
+  },
   read: {
     type: Boolean,
     default: false
@@ -3799,6 +3807,44 @@ app.get('/api/messages/users/search', async (req, res) => {
   } catch (error) {
     console.error('Error buscando usuarios:', error);
     res.status(500).json({ error: 'Error al buscar usuarios' });
+  }
+});
+
+// PATCH - Marcar mensajes como leídos
+app.patch('/api/messages/:userId/mark-read', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const currentUserId = decoded.userId;
+    const { userId } = req.params;
+
+    // Marcar como leídos todos los mensajes no leídos de este usuario
+    const result = await Message.updateMany(
+      {
+        sender: userId,
+        receiver: currentUserId,
+        read: false
+      },
+      {
+        read: true,
+        readAt: new Date()
+      }
+    );
+
+    console.log(`✓✓ ${result.modifiedCount} mensajes marcados como leídos`);
+
+    res.json({
+      message: 'Mensajes marcados como leídos',
+      count: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Error marcando mensajes como leídos:', error);
+    res.status(500).json({ error: 'Error al marcar mensajes como leídos' });
   }
 });
 
