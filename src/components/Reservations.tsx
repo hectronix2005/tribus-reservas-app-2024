@@ -1179,7 +1179,10 @@ export function Reservations() {
 
     // Verificar permisos: superadmin/admin pueden eliminar cualquier reserva, usuarios regulares solo las suyas
     const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
-    const isCreator = reservation.userId === currentUser.id;
+    const isCreator = reservation.createdBy?.userId === currentUser.id ||
+                     reservation.createdBy?.userId === currentUser._id ||
+                     reservation.userId === currentUser.id ||
+                     reservation.userId === currentUser._id;
 
     if (!isAdmin && !isCreator) {
       setError('No tienes permisos para eliminar esta reservación. Solo administradores y el creador pueden eliminarla.');
