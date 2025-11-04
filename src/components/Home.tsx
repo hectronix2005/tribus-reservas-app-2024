@@ -48,32 +48,20 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
         if (response.ok) {
           const settings = await response.json();
 
-          // Actualizar espacios con datos del backend
-          const updatedSpaces: Space[] = [
-            {
-              name: settings.meetingRoomName || "Salas de Reuniones",
-              capacity: `${settings.meetingRoomMinCapacity || 4}-${settings.meetingRoomMaxCapacity || 12} personas`,
-              priceFrom: `$${settings.meetingRoomPrice?.toLocaleString('es-CO') || '80,000'}/mes`,
-              features: ["Pantalla 4K", "Videoconferencia", "Video Beam"],
-              image: "🏢"
-            },
-            {
-              name: settings.hotDeskName || "Hot Desk",
-              capacity: `${settings.hotDeskMinSeats || 1}-${settings.hotDeskMaxSeats || 8} puestos`,
-              priceFrom: `$${settings.hotDeskPrice?.toLocaleString('es-CO') || '50,000'}/mes`,
-              features: ["Escritorio Ergonómico", "WiFi Alta Velocidad", "Zonas Abiertas"],
-              image: "💼"
-            },
-            {
-              name: settings.collaborativeSpaceName || "Espacios Colaborativos",
-              capacity: `${settings.collaborativeSpaceMinCapacity || 6}-${settings.collaborativeSpaceMaxCapacity || 20} personas`,
-              priceFrom: `$${settings.collaborativeSpacePrice?.toLocaleString('es-CO') || '120,000'}/mes`,
-              features: ["Mobiliario Flexible", "Zonas de Descanso", "Cafetería"],
-              image: "👥"
-            }
-          ];
+          // Verificar si hay espacios configurados en el backend
+          if (settings.homeContent?.spaces && settings.homeContent.spaces.length > 0) {
+            // Usar los espacios configurados desde el backend
+            const updatedSpaces: Space[] = settings.homeContent.spaces.map((space: any) => ({
+              name: space.name || "Espacio",
+              capacity: space.capacity || "1-10 personas",
+              priceFrom: space.priceFrom || "$50,000/mes",
+              features: space.features || [],
+              image: space.image || "🏢"
+            }));
 
-          setSpaces(updatedSpaces);
+            setSpaces(updatedSpaces);
+            console.log('✅ Espacios cargados desde configuración:', updatedSpaces);
+          }
         }
       } catch (error) {
         console.error('Error cargando configuración de coworking:', error);
