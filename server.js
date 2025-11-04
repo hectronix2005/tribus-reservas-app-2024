@@ -2020,6 +2020,13 @@ app.delete('/api/reservations/:id', async (req, res) => {
       return res.status(404).json({ error: 'Reservación no encontrada' });
     }
 
+    // Verificar que solo se puedan eliminar reservas confirmadas
+    if (reservation.status !== 'confirmed') {
+      return res.status(400).json({
+        error: 'Solo se pueden eliminar reservas con estado "confirmado". Estado actual: ' + reservation.status
+      });
+    }
+
     // Verificar permisos: solo administradores o el creador pueden eliminar
     const user = await User.findById(userId);
     if (!user) {
