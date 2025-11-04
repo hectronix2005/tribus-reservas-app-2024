@@ -2882,8 +2882,28 @@ app.put('/api/coworking-settings', async (req, res) => {
 // ==================== BLOG POSTS ENDPOINTS ====================
 
 // GET all blog posts (Super Admin only)
-app.get('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.get('/api/blog-posts', async (req, res) => {
   try {
+    // Validar token de seguridad
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo super administradores' });
+    }
+
     const posts = await BlogPost.find()
       .sort({ createdAt: -1 })
       .populate('createdBy.userId', 'name email')
@@ -2953,8 +2973,28 @@ app.get('/api/blog-posts/:slug', async (req, res) => {
 });
 
 // POST - Crear nuevo blog post (solo Super Admin)
-app.post('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.post('/api/blog-posts', async (req, res) => {
   try {
+    // Validar token de seguridad
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo super administradores' });
+    }
+
     const { title, slug, excerpt, content, author, category, image, keywords, readTime } = req.body;
 
     // Validar campos requeridos
@@ -2983,8 +3023,8 @@ app.post('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, re
       keywords: keywords || [],
       readTime: readTime || '5 min',
       createdBy: {
-        userId: req.user.userId,
-        userName: req.user.name
+        userId: user._id,
+        userName: user.name
       }
     });
 
@@ -3001,8 +3041,28 @@ app.post('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, re
 });
 
 // PUT - Actualizar blog post (solo Super Admin)
-app.put('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.put('/api/blog-posts/:id', async (req, res) => {
   try {
+    // Validar token de seguridad
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo super administradores' });
+    }
+
     const { id } = req.params;
     const { title, slug, excerpt, content, author, category, image, keywords, readTime } = req.body;
 
@@ -3032,8 +3092,8 @@ app.put('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req,
 
     // Registrar última modificación
     post.lastModifiedBy = {
-      userId: req.user.userId,
-      userName: req.user.name,
+      userId: user._id,
+      userName: user.name,
       modifiedAt: new Date()
     };
 
@@ -3050,8 +3110,28 @@ app.put('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req,
 });
 
 // DELETE - Eliminar blog post (solo Super Admin)
-app.delete('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.delete('/api/blog-posts/:id', async (req, res) => {
   try {
+    // Validar token de seguridad
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo super administradores' });
+    }
+
     const { id } = req.params;
 
     const post = await BlogPost.findById(id);
@@ -3076,8 +3156,28 @@ app.delete('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (r
 });
 
 // PATCH - Publicar/Despublicar blog post (solo Super Admin)
-app.patch('/api/blog-posts/:id/publish', authenticateToken, requireSuperAdmin, async (req, res) => {
+app.patch('/api/blog-posts/:id/publish', async (req, res) => {
   try {
+    // Validar token de seguridad
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo super administradores' });
+    }
+
     const { id } = req.params;
     const { published } = req.body;
 
@@ -3099,8 +3199,8 @@ app.patch('/api/blog-posts/:id/publish', authenticateToken, requireSuperAdmin, a
 
     // Registrar última modificación
     post.lastModifiedBy = {
-      userId: req.user.userId,
-      userName: req.user.name,
+      userId: user._id,
+      userName: user.name,
       modifiedAt: new Date()
     };
 
