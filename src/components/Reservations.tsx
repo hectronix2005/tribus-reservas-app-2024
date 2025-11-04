@@ -798,12 +798,13 @@ export function Reservations() {
     });
   }, [sortBy, sortOrder]);
 
-  // Actualizar reservaciones filtradas cuando cambien las reservaciones o el ordenamiento
+  // Reordenar reservas filtradas cuando cambie el criterio de ordenamiento
   useEffect(() => {
-    // Por defecto, mostrar todas las reservaciones (sin filtro)
-    const sorted = sortReservations(reservations);
-    setFilteredReservations(sorted);
-  }, [reservations, sortReservations]);
+    if (filteredReservations.length > 0) {
+      const sorted = sortReservations(filteredReservations);
+      setFilteredReservations(sorted);
+    }
+  }, [sortBy, sortOrder]); // Removí sortReservations y filteredReservations de las dependencias para evitar loop
 
   // Función para manejar el cambio de filtros
   const handleFilterChange = (filtered: Reservation[]) => {
