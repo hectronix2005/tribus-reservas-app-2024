@@ -19,7 +19,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('active'); // FILTRAR SOLO ACTIVAS POR DEFECTO
+  const [selectedStatus, setSelectedStatus] = useState(''); // SIN FILTRO DE ESTADO POR DEFECTO
   const [showMyReservationsOnly, setShowMyReservationsOnly] = useState(true); // ACTIVADO POR DEFECTO
   const [showFilters, setShowFilters] = useState(false);
   const [filtersApplied, setFiltersApplied] = useState(false);
@@ -93,14 +93,14 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     setStartDate('');
     setEndDate('');
     setSelectedArea('');
-    setSelectedStatus('active'); // Regresar a solo activas por defecto
+    setSelectedStatus(''); // Sin filtro de estado por defecto
     setShowMyReservationsOnly(true); // Regresar al filtro de mis reservas por defecto
     setFiltersApplied(false);
     try {
       onLoadingChange(true);
       const allReservations = await reservationService.getAllReservations();
 
-      // Aplicar filtros por defecto: "Mis Reservas" + "Estado Activo"
+      // Aplicar filtro por defecto: "Mis Reservas" (todas las reservas del usuario)
       let filtered = allReservations;
 
       if (currentUser) {
@@ -111,11 +111,6 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
                  reservation.userId === currentUser._id;
         });
       }
-
-      // Filtrar por estado activo
-      filtered = filtered.filter((reservation: Reservation) => {
-        return reservation.status === 'active';
-      });
 
       onFilterChange(filtered);
     } catch (error) {
