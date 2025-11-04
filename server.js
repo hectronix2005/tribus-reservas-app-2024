@@ -1131,13 +1131,13 @@ app.delete('/api/users/:id', async (req, res) => {
       return res.status(400).json({ error: 'ID del administrador requerido' });
     }
 
-    // Verificar si el usuario que intenta eliminar es admin
+    // Verificar si el usuario que intenta eliminar es admin o superadmin
     const adminUser = await User.findById(adminUserId);
     if (!adminUser) {
       return res.status(404).json({ error: 'Usuario administrador no encontrado' });
     }
 
-    if (adminUser.role !== 'admin') {
+    if (adminUser.role !== 'admin' && adminUser.role !== 'superadmin') {
       return res.status(403).json({ error: 'Acceso denegado. Se requieren permisos de administrador' });
     }
 
@@ -1938,9 +1938,9 @@ app.put('/api/reservations/:id', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    if (reservation.userId.toString() !== userId && user.role !== 'admin') {
-      return res.status(403).json({ 
-        error: 'Solo el creador de la reservación o un administrador puede modificarla' 
+    if (reservation.userId.toString() !== userId && user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        error: 'Solo el creador de la reservación o un administrador puede modificarla'
       });
     }
 
@@ -2417,9 +2417,9 @@ app.post('/api/reservations/update-ids', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    if (user.role !== 'admin') {
-      return res.status(403).json({ 
-        error: 'Solo los administradores pueden actualizar reservaciones' 
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        error: 'Solo los administradores pueden actualizar reservaciones'
       });
     }
 
