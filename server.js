@@ -357,6 +357,59 @@ const contactFormSchema = new mongoose.Schema({
 
 const ContactForm = mongoose.model('ContactForm', contactFormSchema);
 
+// Modelo de Log de Eliminaciones
+const deletionLogSchema = new mongoose.Schema({
+  // Información de la reserva eliminada
+  reservationId: {
+    type: String,
+    required: true
+  },
+  reservationData: {
+    area: String,
+    date: Date,
+    startTime: String,
+    endTime: String,
+    teamName: String,
+    requestedSeats: Number,
+    status: String,
+    createdBy: String,
+    createdAt: Date,
+    colaboradores: [String],
+    attendees: [String]
+  },
+  // Información de quién eliminó
+  deletedBy: {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    username: String,
+    name: String,
+    email: String,
+    role: String
+  },
+  // Timestamp de eliminación
+  deletedAt: {
+    type: Date,
+    default: Date.now,
+    required: true
+  },
+  // Tipo de eliminación
+  deletionType: {
+    type: String,
+    enum: ['single', 'bulk'],
+    default: 'single'
+  },
+  // Razón (si admin/superadmin elimina reserva de otro)
+  reason: {
+    type: String,
+    default: ''
+  }
+});
+
+const DeletionLog = mongoose.model('DeletionLog', deletionLogSchema);
+
 // Modelo de Reservación
 const reservationSchema = new mongoose.Schema({
   // ID único legible para identificación fácil
@@ -1928,6 +1981,41 @@ app.delete('/api/reservations/:id', async (req, res) => {
     const colaboradoresData = reservation.colaboradores && reservation.colaboradores.length > 0
       ? await User.find({ _id: { $in: reservation.colaboradores } }).select('name email')
       : [];
+
+    // Guardar log de eliminación en la base de datos
+    try {
+      const deletionLog = new DeletionLog({
+        reservationId: reservation.reservationId || reservation._id.toString(),
+        reservationData: {
+          area: reservation.area,
+          date: reservation.date,
+          startTime: reservation.startTime,
+          endTime: reservation.endTime,
+          teamName: reservation.teamName,
+          requestedSeats: reservation.requestedSeats,
+          status: reservation.status,
+          createdBy: reservation.createdBy,
+          createdAt: reservation.createdAt,
+          colaboradores: reservation.colaboradores,
+          attendees: reservation.attendees
+        },
+        deletedBy: {
+          userId: user._id,
+          username: user.username,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        },
+        deletedAt: new Date(),
+        deletionType: 'single',
+        reason: isAdmin && !isCreator ? `Eliminada por ${user.role}` : 'Eliminada por el creador'
+      });
+
+      await deletionLog.save();
+      console.log('✅ Log de eliminación guardado en BD:', deletionLog._id);
+    } catch (logError) {
+      console.error('⚠️ Error guardando log de eliminación (pero continuamos con la eliminación):', logError.message);
+    }
 
     await Reservation.findByIdAndDelete(req.params.id);
 
