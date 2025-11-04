@@ -2121,7 +2121,8 @@ app.delete('/api/reservations/:id', async (req, res) => {
         await emailService.sendCancellationNotification(
           reservation,
           reservationOwner,
-          colaboradoresData
+          colaboradoresData,
+          user // Usuario que está cancelando la reserva
         );
       }
     } catch (emailError) {

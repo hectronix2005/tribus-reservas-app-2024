@@ -92,7 +92,7 @@ class EmailService {
   /**
    * Envía notificación de cancelación
    */
-  async sendCancellationNotification(reservation, user, collaborators = []) {
+  async sendCancellationNotification(reservation, user, collaborators = [], canceledBy = null) {
     if (!this.transporter) {
       console.log('⚠️  Servicio de email no configurado. Saltando notificación.');
       return { success: false, reason: 'Email service not configured' };
@@ -108,7 +108,7 @@ class EmailService {
         recipients.push(...collaboratorEmails);
       }
 
-      const emailHtml = this.getCancellationTemplate(reservation, user);
+      const emailHtml = this.getCancellationTemplate(reservation, user, canceledBy);
 
       const mailOptions = {
         from: this.from,
@@ -631,7 +631,7 @@ Tribus - Sistema de Reservas
   /**
    * Plantilla HTML para cancelación
    */
-  getCancellationTemplate(reservation, user) {
+  getCancellationTemplate(reservation, user, canceledBy = null) {
     return `
 <!DOCTYPE html>
 <html lang="es">
@@ -697,11 +697,21 @@ Tribus - Sistema de Reservas
                 </tr>
                 ${!reservation.area.toLowerCase().includes('hot desk') ? `
                 <tr>
-                  <td style="padding: 15px; background-color: #f8f9fa;">
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
                     <strong>Horario:</strong>
                   </td>
-                  <td style="padding: 15px; background-color: #ffffff;">
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
                     ${reservation.startTime} - ${reservation.endTime}
+                  </td>
+                </tr>
+                ` : ''}
+                ${canceledBy ? `
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa;">
+                    <strong>Cancelado por:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff;">
+                    ${canceledBy.name}${canceledBy.username ? ` (@${canceledBy.username})` : ''}${canceledBy.role ? ` - ${canceledBy.role}` : ''}
                   </td>
                 </tr>
                 ` : ''}
