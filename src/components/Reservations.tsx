@@ -44,6 +44,7 @@ export function Reservations() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showMyReservationsOnly, setShowMyReservationsOnly] = useState(true); // Filtro de "Mis Reservas"
   // const [isDefaultFilterApplied, setIsDefaultFilterApplied] = useState(false);
 
   // FIXED: Removed infinite loop caused by console.logs and useEffect dependencies - v2.0.1
@@ -1701,14 +1702,31 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
           <h1 className="text-3xl font-bold text-gray-900">Reservaciones</h1>
           <p className="text-gray-600 mt-2">Gestiona las reservaciones de espacios de trabajo</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center gap-2"
-          disabled={isLoading}
-        >
-          <Plus className="w-5 h-5" />
-          Nueva Reservación
-        </button>
+        <div className="flex gap-3">
+          {/* Botón para filtrar solo mis reservas */}
+          <button
+            onClick={() => setShowMyReservationsOnly(!showMyReservationsOnly)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+              showMyReservationsOnly
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+            disabled={isLoading}
+          >
+            <User className="w-5 h-5" />
+            Mis Reservas
+          </button>
+
+          {/* Botón Nueva Reservación */}
+          <button
+            onClick={() => setShowForm(true)}
+            className="btn-primary flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <Plus className="w-5 h-5" />
+            Nueva Reservación
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -2424,6 +2442,8 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
         onFilterChange={handleFilterChange}
         onLoadingChange={setIsLoading}
         areas={areas}
+        showMyReservationsOnly={showMyReservationsOnly}
+        onMyReservationsChange={setShowMyReservationsOnly}
       />
 
       {/* Lista de Reservaciones */}

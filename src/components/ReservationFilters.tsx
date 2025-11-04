@@ -10,9 +10,18 @@ interface ReservationFiltersProps {
   onFilterChange: (filteredReservations: Reservation[]) => void;
   onLoadingChange: (loading: boolean) => void;
   areas: Array<{ id: string; name: string; capacity: number; isMeetingRoom?: boolean; isFullDayReservation?: boolean }>;
+  showMyReservationsOnly?: boolean;
+  onMyReservationsChange?: (value: boolean) => void;
 }
 
-export function ReservationFilters({ reservations, onFilterChange, onLoadingChange, areas }: ReservationFiltersProps) {
+export function ReservationFilters({
+  reservations,
+  onFilterChange,
+  onLoadingChange,
+  areas,
+  showMyReservationsOnly: externalShowMyReservations,
+  onMyReservationsChange
+}: ReservationFiltersProps) {
   const { state } = useApp();
   const currentUser = state.auth.currentUser;
 
@@ -20,9 +29,13 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   const [endDate, setEndDate] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(''); // SIN FILTRO DE ESTADO POR DEFECTO
-  const [showMyReservationsOnly, setShowMyReservationsOnly] = useState(true); // ACTIVADO POR DEFECTO
+  const [internalShowMyReservations, setInternalShowMyReservations] = useState(true); // ACTIVADO POR DEFECTO
   const [showFilters, setShowFilters] = useState(false);
   const [filtersApplied, setFiltersApplied] = useState(false);
+
+  // Usar el estado externo si está disponible, de lo contrario usar el interno
+  const showMyReservationsOnly = externalShowMyReservations !== undefined ? externalShowMyReservations : internalShowMyReservations;
+  const setShowMyReservationsOnly = onMyReservationsChange || setInternalShowMyReservations;
 
   // Cargar todas las reservaciones al inicio y aplicar filtros por defecto
   useEffect(() => {
