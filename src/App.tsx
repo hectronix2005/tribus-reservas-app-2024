@@ -195,8 +195,8 @@ function App() {
     <BrowserRouter>
       <AppProvider>
         <Routes>
-          {/* Ruta raíz redirige a /home */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          {/* Ruta raíz redirige a /login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* Ruta pública para Home */}
           <Route path="/home" element={<HomePage />} />
