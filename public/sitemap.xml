@@ -28,4 +28,26 @@
     <priority>0.5</priority>
   </url>
 
+  <!-- Blog Posts - SEO Content -->
+  <url>
+    <loc>https://tribus-76fa5345672e.herokuapp.com/blog/importancia-espacios-networking-coworking-colombia</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://tribus-76fa5345672e.herokuapp.com/blog/ahorro-emprendedores-oficinas-compartidas-colombia</loc>
+    <lastmod>2025-01-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://tribus-76fa5345672e.herokuapp.com/blog/tecnologia-oficinas-compartidas-trabajo-futuro</loc>
+    <lastmod>2025-01-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
 </urlset>
