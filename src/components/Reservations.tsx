@@ -1179,10 +1179,44 @@ export function Reservations() {
 
     // Verificar permisos: superadmin/admin pueden eliminar cualquier reserva, usuarios regulares solo las suyas
     const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
-    const isCreator = reservation.createdBy?.userId === currentUser.id ||
-                     reservation.createdBy?.userId === currentUser._id ||
-                     reservation.userId === currentUser.id ||
-                     reservation.userId === currentUser._id;
+
+    // Obtener el userId de la reserva (puede ser string u objeto)
+    const reservationUserId = typeof reservation.userId === 'string'
+      ? reservation.userId
+      : reservation.userId?._id;
+
+    // Obtener el ID del usuario actual (puede ser id o _id)
+    const currentUserId = currentUser.id || currentUser._id;
+
+    // Verificar si el usuario actual es el creador de la reserva
+    // Chequear múltiples fuentes: userId directo, createdBy.userId, y username
+    const isCreator =
+      // Comparar userId directo
+      reservationUserId === currentUserId ||
+      reservationUserId === currentUser.id ||
+      reservationUserId === currentUser._id ||
+      // Comparar createdBy.userId
+      reservation.createdBy?.userId === currentUserId ||
+      reservation.createdBy?.userId === currentUser.id ||
+      reservation.createdBy?.userId === currentUser._id ||
+      // Comparar por username como fallback
+      (typeof reservation.userId === 'object' &&
+       reservation.userId?.username === currentUser.username);
+
+    console.log('🔍 DEBUG - Verificación de permisos para eliminar:', {
+      currentUser: {
+        id: currentUser.id,
+        _id: currentUser._id,
+        username: currentUser.username,
+        role: currentUser.role
+      },
+      reservation: {
+        userId: reservation.userId,
+        reservationUserId: reservationUserId,
+        'createdBy.userId': reservation.createdBy?.userId
+      },
+      resultado: { isAdmin, isCreator }
+    });
 
     if (!isAdmin && !isCreator) {
       setError('No tienes permisos para eliminar esta reservación. Solo administradores y el creador pueden eliminarla.');
