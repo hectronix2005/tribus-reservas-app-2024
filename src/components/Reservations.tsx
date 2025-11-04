@@ -2641,16 +2641,19 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                         <span className="font-medium">{formatDateWithDayName(viewingReservation.date)}</span>
                       </div>
                       
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Horario:</span>
-                        <span className="font-medium">
-                          {(() => {
-                            const area = areas.find(a => a.name === viewingReservation.area);
-                            const isFullDay = area?.isFullDayReservation || false;
-                            return isFullDay ? 'Día completo' : `${viewingReservation.startTime} - ${viewingReservation.endTime}`;
-                          })()}
-                        </span>
-                      </div>
+                      {/* Ocultar horario solo para Hot Desk */}
+                      {!viewingReservation.area.toLowerCase().includes('hot desk') && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Horario:</span>
+                          <span className="font-medium">
+                            {(() => {
+                              const area = areas.find(a => a.name === viewingReservation.area);
+                              const isFullDay = area?.isFullDayReservation || false;
+                              return isFullDay ? 'Día completo' : `${viewingReservation.startTime} - ${viewingReservation.endTime}`;
+                            })()}
+                          </span>
+                        </div>
+                      )}
                       
                       <div className="flex justify-between">
                         <span className="text-gray-600">Equipo:</span>

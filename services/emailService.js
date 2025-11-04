@@ -243,6 +243,7 @@ class EmailService {
                     ${formatDate(reservation.date)}
                   </td>
                 </tr>
+                ${!reservation.area.toLowerCase().includes('hot desk') ? `
                 <tr>
                   <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
                     <strong>Horario:</strong>
@@ -251,6 +252,7 @@ class EmailService {
                     ${reservation.startTime} - ${reservation.endTime}
                   </td>
                 </tr>
+                ` : ''}
                 <tr>
                   <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
                     <strong>Equipo:</strong>
@@ -330,7 +332,7 @@ DETALLES DE LA RESERVA:
 ID: ${reservation.reservationId}
 Área: ${reservation.area}
 Fecha: ${reservation.date}
-Horario: ${reservation.startTime} - ${reservation.endTime}
+${!reservation.area.toLowerCase().includes('hot desk') ? `Horario: ${reservation.startTime} - ${reservation.endTime}` : ''}
 Equipo: ${reservation.teamName}
 Puestos: ${reservation.requestedSeats}
 ${reservation.notes ? `Notas: ${reservation.notes}` : ''}
@@ -684,6 +686,7 @@ Tribus - Sistema de Reservas
                     ${reservation.date}
                   </td>
                 </tr>
+                ${!reservation.area.toLowerCase().includes('hot desk') ? `
                 <tr>
                   <td style="padding: 15px; background-color: #f8f9fa;">
                     <strong>Horario:</strong>
@@ -692,6 +695,7 @@ Tribus - Sistema de Reservas
                     ${reservation.startTime} - ${reservation.endTime}
                   </td>
                 </tr>
+                ` : ''}
               </table>
 
               <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.6;">
