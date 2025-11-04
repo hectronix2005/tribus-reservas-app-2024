@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Eye, EyeOff, Shield, User } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Users, Plus, Edit, Trash2, Eye, EyeOff, Shield, User, Search, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User as UserType, Department } from '../types';
 import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
@@ -27,6 +27,10 @@ export function UserManagement() {
   });
   const [showValidation, setShowValidation] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterDepartment, setFilterDepartment] = useState<string>('all');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -83,6 +87,31 @@ export function UserManagement() {
       console.error('Error cargando departamentos:', error);
     }
   };
+
+  // Filtrar usuarios basado en los filtros activos
+  const filteredUsers = useMemo(() => {
+    return state.users.filter(user => {
+      // Filtro de búsqueda (nombre, email, username, cédula)
+      const matchesSearch = searchTerm === '' ||
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.cedula && user.cedula.includes(searchTerm));
+
+      // Filtro de rol
+      const matchesRole = filterRole === 'all' || user.role === filterRole;
+
+      // Filtro de estado
+      const matchesStatus = filterStatus === 'all' ||
+        (filterStatus === 'active' && user.isActive) ||
+        (filterStatus === 'inactive' && !user.isActive);
+
+      // Filtro de departamento
+      const matchesDepartment = filterDepartment === 'all' || user.department === filterDepartment;
+
+      return matchesSearch && matchesRole && matchesStatus && matchesDepartment;
+    });
+  }, [state.users, searchTerm, filterRole, filterStatus, filterDepartment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     console.log('🚀 INICIO: handleSubmit ejecutándose');
@@ -528,97 +557,192 @@ export function UserManagement() {
         </button>
       </div>
 
-      {/* Users Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {state.users.map((user) => (
-          <div key={user.id} className="card">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  user.role === 'superadmin' ? 'bg-purple-100' : user.role === 'admin' ? 'bg-warning-100' : 'bg-primary-100'
-                }`}>
-                  {user.role === 'superadmin' || user.role === 'admin' ? (
-                    <Shield className={`w-4 h-4 ${user.role === 'superadmin' ? 'text-purple-600' : 'text-warning-600'}`} />
-                  ) : (
-                    <User className="w-4 h-4 text-primary-600" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{user.name}</h3>
-                  <p className="text-sm text-gray-500">@{user.username}</p>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleToggleActive(user)}
-                  className={`p-1 rounded transition-colors ${
-                    user.isActive 
-                      ? 'text-success-600 hover:text-success-700' 
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleEdit(user)}
-                  className="p-1 text-gray-400 hover:text-primary-600 transition-colors"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(user.id)}
-                  className="p-1 text-gray-400 hover:text-danger-600 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Email:</span>
-                <span className="font-medium text-primary-600">{user.email}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Cédula:</span>
-                <span className="font-medium text-gray-900">{user.cedula || 'No especificada'}</span>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Rol:</span>
-                <span className={`badge ${
-                  user.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : user.role === 'admin' ? 'badge-warning' : 'badge-info'
-                }`}>
-                  {user.role === 'superadmin' ? 'Super Admin' : user.role === 'admin' ? 'Administrador' : user.role === 'lider' ? 'Lider' : 'Colaborador'}
-                </span>
-              </div>
-
-              {user.department && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Departamento:</span>
-                  <span className="font-medium">{user.department}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Estado:</span>
-                <span className={`badge ${user.isActive ? 'badge-success' : 'badge-secondary'}`}>
-                  {user.isActive ? 'Activo' : 'Inactivo'}
-                </span>
-              </div>
-
-              {user.lastLogin && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Último acceso:</span>
-                  <span className="font-medium text-xs">
-                    {formatDateInBogota(user.lastLogin, 'dd/MM/yyyy')}
-                  </span>
-                </div>
-              )}
-            </div>
+      {/* Search and Filters */}
+      <div className="card mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email, usuario o cédula..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
           </div>
-        ))}
+
+          {/* Role Filter */}
+          <select
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="all">Todos los roles</option>
+            <option value="superadmin">Super Admin</option>
+            <option value="admin">Administrador</option>
+            <option value="lider">Líder</option>
+            <option value="colaborador">Colaborador</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </select>
+
+          {/* Department Filter */}
+          <select
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="all">Todos los departamentos</option>
+            {departments.map(dept => (
+              <option key={dept._id} value={dept.name}>{dept.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Results Counter */}
+        <div className="mt-4 text-sm text-gray-600">
+          Mostrando {filteredUsers.length} de {state.users.length} usuarios
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Usuario
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cédula
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Rol
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Departamento
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Estado
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Último acceso
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    No se encontraron usuarios con los filtros seleccionados
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          user.role === 'superadmin' ? 'bg-purple-100' : user.role === 'admin' ? 'bg-warning-100' : 'bg-primary-100'
+                        }`}>
+                          {user.role === 'superadmin' || user.role === 'admin' ? (
+                            <Shield className={`w-4 h-4 ${user.role === 'superadmin' ? 'text-purple-600' : 'text-warning-600'}`} />
+                          ) : (
+                            <User className="w-4 h-4 text-primary-600" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm text-gray-500">@{user.username}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-primary-600">{user.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{user.cedula || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        user.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
+                        user.role === 'admin' ? 'bg-yellow-100 text-yellow-700' :
+                        user.role === 'lider' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {user.role === 'superadmin' ? 'Super Admin' :
+                         user.role === 'admin' ? 'Admin' :
+                         user.role === 'lider' ? 'Líder' :
+                         'Colaborador'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{user.department || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                      }`}>
+                        {user.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">
+                        {user.lastLogin ? formatDateInBogota(user.lastLogin, 'dd/MM/yyyy') : '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            user.isActive
+                              ? 'text-success-600 hover:bg-success-50'
+                              : 'text-gray-400 hover:bg-gray-100'
+                          }`}
+                          title={user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
+                        >
+                          <Users className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Editar usuario"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="p-2 text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Form Modal */}
