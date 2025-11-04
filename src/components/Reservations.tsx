@@ -1257,7 +1257,6 @@ export function Reservations() {
       });
 
       await reservationService.deleteReservation(reservation._id, currentUser.id);
-      await loadReservations();
 
       // Log de confirmación
       console.log('✅ RESERVACIÓN ELIMINADA EXITOSAMENTE:', {
@@ -1267,6 +1266,18 @@ export function Reservations() {
         area: reservation.area,
         date: reservation.date
       });
+
+      // Recargar las reservaciones para actualizar la lista
+      await loadReservations();
+
+      // Mostrar mensaje de éxito temporal
+      setError(null);
+
+      // Scroll suave al inicio para que el usuario vea el cambio
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Mensaje de éxito en consola para el usuario
+      alert('Reservación eliminada exitosamente');
 
     } catch (error: any) {
       console.error('❌ Error eliminando reservación:', error);
