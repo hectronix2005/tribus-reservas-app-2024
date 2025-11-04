@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail, FileText } from 'lucide-react';
+import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail, FileText, X } from 'lucide-react';
 import { blogService } from '../services/api';
 import { BlogPost } from '../types';
+import ReactMarkdown from 'react-markdown';
 
 interface HomeProps {
   onLoginClick: () => void;
@@ -20,6 +21,7 @@ interface Space {
 export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
   const [activeFeature, setActiveFeature] = useState(0);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [spaces, setSpaces] = useState<Space[]>([
     {
       name: "Salas de Reuniones",
@@ -474,7 +476,10 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                       <span className="text-sm text-gray-500">
                         Por {post.author}
                       </span>
-                      <button className="text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1 group">
+                      <button
+                        onClick={() => setSelectedPost(post)}
+                        className="text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1 group"
+                      >
                         Leer más
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </button>
@@ -633,6 +638,60 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
           </div>
         </div>
       </footer>
+
+      {/* Modal del artículo del blog */}
+      {selectedPost && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">{selectedPost.image}</span>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedPost.title}</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs font-semibold px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full">
+                      {selectedPost.category}
+                    </span>
+                    <span className="text-sm text-gray-500">Por {selectedPost.author}</span>
+                    <span className="text-sm text-gray-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {selectedPost.readTime}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedPost(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="px-6 py-8">
+              <div className="prose prose-lg max-w-none">
+                <ReactMarkdown>{selectedPost.content}</ReactMarkdown>
+              </div>
+
+              {selectedPost.keywords && selectedPost.keywords.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Palabras clave</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedPost.keywords.map((keyword, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
