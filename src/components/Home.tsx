@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail } from 'lucide-react';
 
 interface HomeProps {
@@ -6,8 +6,83 @@ interface HomeProps {
   onContactClick?: () => void;
 }
 
+interface Space {
+  name: string;
+  capacity: string;
+  priceFrom: string;
+  features: string[];
+  image: string;
+}
+
 export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
   const [activeFeature, setActiveFeature] = useState(0);
+  const [spaces, setSpaces] = useState<Space[]>([
+    {
+      name: "Salas de Reuniones",
+      capacity: "4-12 personas",
+      priceFrom: "$80,000/mes",
+      features: ["Pantalla 4K", "Videoconferencia", "Video Beam"],
+      image: "🏢"
+    },
+    {
+      name: "Hot Desk",
+      capacity: "1-8 puestos",
+      priceFrom: "$50,000/mes",
+      features: ["Escritorio Ergonómico", "WiFi Alta Velocidad", "Zonas Abiertas"],
+      image: "💼"
+    },
+    {
+      name: "Espacios Colaborativos",
+      capacity: "6-20 personas",
+      priceFrom: "$120,000/mes",
+      features: ["Mobiliario Flexible", "Zonas de Descanso", "Cafetería"],
+      image: "👥"
+    }
+  ]);
+
+  // Cargar configuración dinámica desde el backend
+  useEffect(() => {
+    const loadCoworkingSettings = async () => {
+      try {
+        const response = await fetch('/api/coworking-settings');
+        if (response.ok) {
+          const settings = await response.json();
+
+          // Actualizar espacios con datos del backend
+          const updatedSpaces: Space[] = [
+            {
+              name: settings.meetingRoomName || "Salas de Reuniones",
+              capacity: `${settings.meetingRoomMinCapacity || 4}-${settings.meetingRoomMaxCapacity || 12} personas`,
+              priceFrom: `$${settings.meetingRoomPrice?.toLocaleString('es-CO') || '80,000'}/mes`,
+              features: ["Pantalla 4K", "Videoconferencia", "Video Beam"],
+              image: "🏢"
+            },
+            {
+              name: settings.hotDeskName || "Hot Desk",
+              capacity: `${settings.hotDeskMinSeats || 1}-${settings.hotDeskMaxSeats || 8} puestos`,
+              priceFrom: `$${settings.hotDeskPrice?.toLocaleString('es-CO') || '50,000'}/mes`,
+              features: ["Escritorio Ergonómico", "WiFi Alta Velocidad", "Zonas Abiertas"],
+              image: "💼"
+            },
+            {
+              name: settings.collaborativeSpaceName || "Espacios Colaborativos",
+              capacity: `${settings.collaborativeSpaceMinCapacity || 6}-${settings.collaborativeSpaceMaxCapacity || 20} personas`,
+              priceFrom: `$${settings.collaborativeSpacePrice?.toLocaleString('es-CO') || '120,000'}/mes`,
+              features: ["Mobiliario Flexible", "Zonas de Descanso", "Cafetería"],
+              image: "👥"
+            }
+          ];
+
+          setSpaces(updatedSpaces);
+        }
+      } catch (error) {
+        console.error('Error cargando configuración de coworking:', error);
+        // Mantener valores por defecto en caso de error
+      }
+    };
+
+    loadCoworkingSettings();
+  }, []);
 
   const features = [
     {
@@ -29,30 +104,6 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       icon: Clock,
       title: "24/7 Disponible",
       description: "Acceso flexible cuando lo necesites, adaptado a tu horario"
-    }
-  ];
-
-  const spaces = [
-    {
-      name: "Salas de Reuniones",
-      capacity: "4-12 personas",
-      priceFrom: "$80,000/mes",
-      features: ["Pantalla 4K", "Videoconferencia", "Video Beam"],
-      image: "🏢"
-    },
-    {
-      name: "Hot Desk",
-      capacity: "1-8 puestos",
-      priceFrom: "$50,000/mes",
-      features: ["Escritorio Ergonómico", "WiFi Alta Velocidad", "Zonas Abiertas"],
-      image: "💼"
-    },
-    {
-      name: "Espacios Colaborativos",
-      capacity: "6-20 personas",
-      priceFrom: "$120,000/mes",
-      features: ["Mobiliario Flexible", "Zonas de Descanso", "Cafetería"],
-      image: "👥"
     }
   ];
 
