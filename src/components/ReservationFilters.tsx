@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Download, Filter, X } from 'lucide-react';
+import { Calendar, Download, Filter, X, User as UserIcon } from 'lucide-react';
 import { reservationService } from '../services/api';
 import { Reservation } from '../types';
 import { createLocalDate, formatDateToString } from '../utils/unifiedDateUtils';
+import { useApp } from '../context/AppContext';
 
 interface ReservationFiltersProps {
   reservations: Reservation[];
@@ -12,20 +13,37 @@ interface ReservationFiltersProps {
 }
 
 export function ReservationFilters({ reservations, onFilterChange, onLoadingChange, areas }: ReservationFiltersProps) {
+  const { state } = useApp();
+  const currentUser = state.auth.currentUser;
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [showMyReservationsOnly, setShowMyReservationsOnly] = useState(true); // ACTIVADO POR DEFECTO
   const [showFilters, setShowFilters] = useState(false);
   const [filtersApplied, setFiltersApplied] = useState(false);
 
-  // Cargar todas las reservaciones al inicio
+  // Cargar todas las reservaciones al inicio y aplicar filtro por defecto
   useEffect(() => {
     const loadAllReservations = async () => {
       try {
         onLoadingChange(true);
         const allReservations = await reservationService.getAllReservations();
-        onFilterChange(allReservations);
+
+        // Aplicar filtro "Mis Reservas" por defecto si está activo
+        if (showMyReservationsOnly && currentUser) {
+          const myReservations = allReservations.filter((reservation: Reservation) => {
+            // Verificar si el usuario actual es el creador de la reserva
+            return reservation.createdBy?.userId === currentUser.id ||
+                   reservation.createdBy?.userId === currentUser._id ||
+                   reservation.userId === currentUser.id ||
+                   reservation.userId === currentUser._id;
+          });
+          onFilterChange(myReservations);
+        } else {
+          onFilterChange(allReservations);
+        }
       } catch (error) {
         console.error('Error cargando todas las reservaciones:', error);
         onFilterChange(reservations);
@@ -35,7 +53,7 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     };
 
     loadAllReservations();
-  }, []);
+  }, [showMyReservationsOnly, currentUser]);
 
   // Función para filtrar reservaciones
   const applyFilters = async () => {
@@ -68,11 +86,24 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
     setEndDate('');
     setSelectedArea('');
     setSelectedStatus('');
+    setShowMyReservationsOnly(true); // Regresar al filtro por defecto
     setFiltersApplied(false);
     try {
       onLoadingChange(true);
       const allReservations = await reservationService.getAllReservations();
-      onFilterChange(allReservations);
+
+      // Aplicar filtro "Mis Reservas" por defecto
+      if (currentUser) {
+        const myReservations = allReservations.filter((reservation: Reservation) => {
+          return reservation.createdBy?.userId === currentUser.id ||
+                 reservation.createdBy?.userId === currentUser._id ||
+                 reservation.userId === currentUser.id ||
+                 reservation.userId === currentUser._id;
+        });
+        onFilterChange(myReservations);
+      } else {
+        onFilterChange(allReservations);
+      }
     } catch (error) {
       console.error('Error limpiando filtros:', error);
       onFilterChange(reservations);
@@ -141,6 +172,16 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
   // Función para obtener reservaciones filtradas
   const getFilteredReservations = () => {
     let filtered = [...reservations];
+
+    // Aplicar filtro "Mis Reservas" si está activo
+    if (showMyReservationsOnly && currentUser) {
+      filtered = filtered.filter(reservation => {
+        return reservation.createdBy?.userId === currentUser.id ||
+               reservation.createdBy?.userId === currentUser._id ||
+               reservation.userId === currentUser.id ||
+               reservation.userId === currentUser._id;
+      });
+    }
 
     if (startDate) {
       filtered = filtered.filter(reservation => {
@@ -214,6 +255,30 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
 
       {showFilters && (
         <div className="px-6 py-4 space-y-4">
+          {/* Filtro "Mis Reservas" - Prominente y activado por defecto */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={showMyReservationsOnly}
+                onChange={(e) => setShowMyReservationsOnly(e.target.checked)}
+                className="w-5 h-5 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+              />
+              <div className="flex items-center gap-2">
+                <UserIcon className="w-5 h-5 text-blue-600" />
+                <span className="text-base font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                  Mis Reservas
+                </span>
+              </div>
+              <span className="ml-auto text-sm text-gray-600 bg-white px-3 py-1 rounded-full border border-gray-200">
+                {showMyReservationsOnly ? 'Activo' : 'Inactivo'}
+              </span>
+            </label>
+            <p className="mt-2 text-sm text-gray-600 ml-8">
+              Mostrar solo las reservas que has creado
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Filtro de fecha inicial */}
             <div>
@@ -303,14 +368,15 @@ export function ReservationFilters({ reservations, onFilterChange, onLoadingChan
           </div>
 
           {/* Información del filtro activo */}
-          {(startDate || endDate || selectedArea || selectedStatus) && (
+          {(showMyReservationsOnly || startDate || endDate || selectedArea || selectedStatus) && (
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
               <p className="text-sm text-blue-800">
                 <strong>Filtros activos:</strong>
-                {startDate && ` Desde: ${new Date(startDate).toLocaleDateString('es-ES')}`}
-                {endDate && ` Hasta: ${new Date(endDate).toLocaleDateString('es-ES')}`}
-                {selectedArea && ` Área: ${selectedArea}`}
-                {selectedStatus && ` Estado: ${getStatusText(selectedStatus)}`}
+                {showMyReservationsOnly && ` Mis Reservas`}
+                {startDate && ` | Desde: ${new Date(startDate).toLocaleDateString('es-ES')}`}
+                {endDate && ` | Hasta: ${new Date(endDate).toLocaleDateString('es-ES')}`}
+                {selectedArea && ` | Área: ${selectedArea}`}
+                {selectedStatus && ` | Estado: ${getStatusText(selectedStatus)}`}
               </p>
             </div>
           )}
