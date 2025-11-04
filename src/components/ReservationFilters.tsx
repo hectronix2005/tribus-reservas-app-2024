@@ -39,12 +39,18 @@ export function ReservationFilters({
 
   // Cargar todas las reservaciones al inicio y aplicar filtros por defecto
   useEffect(() => {
+    // Solo ejecutar cuando currentUser esté disponible (si el filtro "Mis Reservas" está activo)
+    if (showMyReservationsOnly && !currentUser) {
+      console.log('⏳ Esperando a que currentUser esté disponible...');
+      return;
+    }
+
     const loadAllReservations = async () => {
       try {
         onLoadingChange(true);
         const allReservations = await reservationService.getAllReservations();
 
-        // Aplicar filtros por defecto: "Mis Reservas" + "Estado Activo"
+        // Aplicar filtros por defecto: "Mis Reservas"
         let filtered = allReservations;
 
         // Filtrar por usuario si está activo
@@ -54,6 +60,11 @@ export function ReservationFilters({
                    reservation.createdBy?.userId === currentUser._id ||
                    reservation.userId === currentUser.id ||
                    reservation.userId === currentUser._id;
+          });
+          console.log('✅ Filtro "Mis Reservas" aplicado:', {
+            total: allReservations.length,
+            filtradas: filtered.length,
+            userId: currentUser.id
           });
         }
 
