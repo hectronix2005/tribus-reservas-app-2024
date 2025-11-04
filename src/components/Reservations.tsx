@@ -1608,6 +1608,42 @@ Método: ${safeValue(debug.metadata?.requestMethod)}
 URL: ${safeValue(debug.metadata?.requestUrl)}
 Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 'N/A'}
 
+📧 NOTIFICACIONES POR EMAIL
+──────────────────────────
+👤 Creador: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    name: safeValue(debug.userInfo?.creator?.name || reservation.userName),
+    email: safeValue(debug.userInfo?.creator?.email)
+  };
+  return `${creatorInfo.email} (${creatorInfo.name})`;
+})()}
+
+${debug.userInfo?.collaborators?.length > 0 ? `👥 Colaboradores:
+${debug.userInfo.collaborators.map((c: any, i: number) => {
+  const userInfo = getUserInfo(c.id || c);
+  return `   ${i + 1}. ${userInfo.email} (${userInfo.name})`;
+}).join('\n')}` : '👥 Colaboradores: Ninguno'}
+
+📨 Total de destinatarios: ${1 + (debug.userInfo?.collaborators?.length || 0)}
+📋 Lista de emails: ${(() => {
+  const creatorId = debug.userInfo?.creator?.id;
+  const creatorInfo = creatorId ? getUserInfo(creatorId) : {
+    email: safeValue(debug.userInfo?.creator?.email)
+  };
+  const emails = [creatorInfo.email];
+  if (debug.userInfo?.collaborators?.length > 0) {
+    debug.userInfo.collaborators.forEach((c: any) => {
+      const userInfo = getUserInfo(c.id || c);
+      if (userInfo.email && userInfo.email !== creatorInfo.email) {
+        emails.push(userInfo.email);
+      }
+    });
+  }
+  return emails.join(', ');
+})()}
+🔒 BCC (copia oculta): noreply.tribus@gmail.com
+
 ═══════════════════════════════════════
 `;
 

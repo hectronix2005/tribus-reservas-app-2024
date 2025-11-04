@@ -1885,16 +1885,45 @@ app.post('/api/reservations', async (req, res) => {
       console.log('   Es sala de reuniones:', areaInfo.isMeetingRoom);
       console.log('   Fecha:', reservationWithAreaInfo.date);
 
-      await emailService.sendReservationConfirmation(
+      // Preparar lista de emails para mostrar en debug
+      const collaboratorEmails = colaboradoresData
+        .map(c => c.email)
+        .filter(email => email && email !== user.email);
+
+      const allRecipients = [user.email, ...collaboratorEmails];
+
+      console.log('📧 DESTINATARIOS DE EMAIL:');
+      console.log('   👤 Creador:', user.email, `(${user.name})`);
+      if (collaboratorEmails.length > 0) {
+        console.log('   👥 Colaboradores:');
+        colaboradoresData.forEach((collab, index) => {
+          if (collab.email && collab.email !== user.email) {
+            console.log(`      ${index + 1}. ${collab.email} (${collab.name})`);
+          }
+        });
+      } else {
+        console.log('   👥 Colaboradores: Ninguno');
+      }
+      console.log('   📨 Total de destinatarios:', allRecipients.length);
+      console.log('   📋 Lista completa:', allRecipients.join(', '));
+      console.log('   🔒 BCC (copia oculta): noreply.tribus@gmail.com');
+
+      const emailResult = await emailService.sendReservationConfirmation(
         reservationWithAreaInfo,
         user,
         colaboradoresData
       );
 
-      console.log('✅ Notificación por email enviada exitosamente');
+      if (emailResult.success) {
+        console.log('✅ Notificación por email enviada exitosamente');
+        console.log('   Message ID:', emailResult.messageId);
+        console.log('   Destinatarios confirmados:', emailResult.recipients);
+      } else {
+        console.log('⚠️  Email no enviado:', emailResult.reason);
+      }
     } catch (emailError) {
       // Log error pero no fallar la creación de la reserva
-      console.error('⚠️  Error enviando email de confirmación:', emailError.message);
+      console.error('❌ Error enviando email de confirmación:', emailError.message);
       console.error('   Stack trace:', emailError.stack);
     }
 
