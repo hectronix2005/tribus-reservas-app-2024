@@ -1892,7 +1892,7 @@ app.delete('/api/reservations/:id', async (req, res) => {
 
     if (!isAdmin && !isCreator) {
       return res.status(403).json({
-        error: 'Solo los administradores o el creador pueden eliminar esta reservación'
+        error: 'No tienes permisos para eliminar esta reservación. Solo administradores y el creador pueden eliminarla.'
       });
     }
 
@@ -1977,7 +1977,7 @@ app.delete('/api/reservations', async (req, res) => {
 
     if (user.role !== 'admin' && user.role !== 'superadmin') {
       return res.status(403).json({
-        error: 'Solo los administradores pueden eliminar todas las reservaciones'
+        error: 'No tienes permisos para eliminar todas las reservaciones. Solo administradores pueden realizar esta acción.'
       });
     }
 
