@@ -3675,7 +3675,24 @@ app.get('/api/messages/:userId', async (req, res) => {
     const currentUserId = decoded.userId;
     const { userId } = req.params;
 
-    // Obtener mensajes entre los dos usuarios
+    console.log(`📬 Usuario ${currentUserId} cargando mensajes con ${userId}`);
+
+    // Marcar como leídos los mensajes recibidos ANTES de obtenerlos
+    const updateResult = await Message.updateMany(
+      {
+        sender: userId,
+        receiver: currentUserId,
+        read: false
+      },
+      {
+        read: true,
+        readAt: new Date()
+      }
+    );
+
+    console.log(`✓✓ ${updateResult.modifiedCount} mensajes marcados como leídos`);
+
+    // DESPUÉS obtener mensajes con el estado actualizado
     const messages = await Message.find({
       $or: [
         { sender: currentUserId, receiver: userId },
@@ -3686,11 +3703,12 @@ app.get('/api/messages/:userId', async (req, res) => {
       .populate('receiver', 'name username email')
       .sort({ createdAt: 1 });
 
-    // Marcar como leídos los mensajes recibidos
-    await Message.updateMany(
-      { sender: userId, receiver: currentUserId, read: false },
-      { read: true, readAt: new Date() }
-    );
+    // Log de debug para verificar estado de mensajes
+    console.log(`📨 Enviando ${messages.length} mensajes. Estado:`);
+    messages.forEach((msg, idx) => {
+      const isSentByCurrentUser = msg.sender._id.toString() === currentUserId;
+      console.log(`  ${idx + 1}. ${isSentByCurrentUser ? '➡️ Enviado' : '⬅️ Recibido'}: delivered=${msg.delivered}, read=${msg.read}`);
+    });
 
     res.json(messages);
   } catch (error) {
@@ -3726,7 +3744,11 @@ app.post('/api/messages', async (req, res) => {
     const message = new Message({
       sender: senderId,
       receiver: receiverId,
-      content: content.trim()
+      content: content.trim(),
+      // Estos valores son explícitos para claridad (aunque tienen defaults en schema)
+      delivered: true,
+      deliveredAt: new Date(),
+      read: false
     });
 
     await message.save();
@@ -3736,6 +3758,7 @@ app.post('/api/messages', async (req, res) => {
     await message.populate('receiver', 'name username email');
 
     console.log(`📧 Mensaje enviado de ${message.sender.name} a ${message.receiver.name}`);
+    console.log(`   Estado inicial: delivered=${message.delivered}, read=${message.read}`);
 
     res.status(201).json({
       message: 'Mensaje enviado exitosamente',

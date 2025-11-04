@@ -106,6 +106,14 @@ export function Messages() {
     try {
       setIsLoading(true);
       const data = await api.get<Message[]>(`/messages/${userId}`);
+
+      // Debug: verificar estado de mensajes recibidos
+      console.log(`📬 Mensajes recibidos (${data.length} total):`);
+      data.forEach((msg, idx) => {
+        const isMine = msg.sender._id === currentUser?.id;
+        console.log(`  ${idx + 1}. ${isMine ? '➡️ Enviado' : '⬅️ Recibido'}: delivered=${msg.delivered}, read=${msg.read}`);
+      });
+
       setMessages(data);
 
       // Recargar conversaciones para actualizar contadores de no leídos
@@ -129,6 +137,12 @@ export function Messages() {
       const response = await api.post<{ message: string; data: Message }>('/messages', {
         receiverId: selectedConversation.user._id,
         content: newMessage.trim()
+      });
+
+      console.log('📤 Mensaje enviado. Estado recibido del backend:', {
+        delivered: response.data.delivered,
+        read: response.data.read,
+        content: response.data.content.substring(0, 20)
       });
 
       setMessages([...messages, response.data]);
@@ -329,8 +343,19 @@ export function Messages() {
                 </div>
               </div>
             ) : (
-              messages.map((message) => {
+              messages.map((message, index) => {
                 const isSentByMe = message.sender._id === currentUser?.id;
+
+                // Debug: Log del estado del mensaje
+                if (index === 0) {
+                  console.log(`🎨 Renderizando mensaje #${index + 1}:`, {
+                    isSentByMe,
+                    delivered: message.delivered,
+                    read: message.read,
+                    content: message.content.substring(0, 20)
+                  });
+                }
+
                 return (
                   <div key={message._id} className={`flex ${isSentByMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-xs md:max-w-md lg:max-w-lg ${isSentByMe ? 'order-2' : 'order-1'}`}>
@@ -347,16 +372,16 @@ export function Messages() {
                           </p>
                           {/* Checks de WhatsApp - solo para mensajes enviados */}
                           {isSentByMe && (
-                            <div className="flex items-center ml-1">
-                              {message.read ? (
-                                // Doble check azul - mensaje leído
-                                <CheckCheck className={`w-4 h-4 ${isSentByMe ? 'text-blue-300' : 'text-blue-500'}`} />
-                              ) : message.delivered ? (
-                                // Doble check gris - mensaje entregado
-                                <CheckCheck className="w-4 h-4" />
+                            <div className="flex items-center ml-1" title={`Delivered: ${message.delivered}, Read: ${message.read}`}>
+                              {message.read === true ? (
+                                // ✓✓ Doble check AZUL - mensaje leído
+                                <CheckCheck className="w-4 h-4 text-blue-400" />
+                              ) : message.delivered === true ? (
+                                // ✓✓ Doble check GRIS - mensaje entregado pero NO leído
+                                <CheckCheck className="w-4 h-4 text-gray-300" />
                               ) : (
-                                // Un solo check gris - mensaje enviado
-                                <Check className="w-4 h-4" />
+                                // ✓ Un solo check gris - mensaje enviado
+                                <Check className="w-4 h-4 text-gray-300" />
                               )}
                             </div>
                           )}
