@@ -574,29 +574,24 @@ export function Reservations() {
     return isInPast || !isWithinOfficeHoursCheck;
   }, [state.adminSettings]);
 
-  // Función para verificar si solo una fecha está en el pasado (sin hora) usando fechas locales
+  // Función ROBUSTA para verificar si solo una fecha está en el pasado (sin hora)
+  // Compara solo las fechas como strings YYYY-MM-DD, ignorando completamente las horas y zonas horarias
   const isDateInPast = useCallback((date: string): boolean => {
     if (!date) return false;
-    
-    // Crear fecha actual local (inicio del día)
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    
-    // Crear fecha de la reservación local usando el sistema unificado
-    const reservationDate = createLocalDate(date);
-    reservationDate.setHours(0, 0, 0, 0);
-    
-    console.log('📅 Validación fecha pasada (LOCAL UNIFICADO):', {
+
+    // Obtener fecha actual en formato YYYY-MM-DD (fecha local del usuario)
+    const today = new Date();
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    console.log('📅 Validación fecha pasada (STRING COMPARISON):', {
       inputDate: date,
-      now: now.toISOString(),
-      nowLocal: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
-      reservationDate: reservationDate.toISOString(),
-      reservationDateLocal: reservationDate.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
-      isInPast: reservationDate < now,
-      comparison: `${reservationDate.toISOString()} < ${now.toISOString()} = ${reservationDate < now}`
+      today: todayString,
+      isInPast: date < todayString,
+      comparison: `'${date}' < '${todayString}' = ${date < todayString}`
     });
-    
-    return reservationDate < now;
+
+    // Comparación simple de strings: "2025-11-04" < "2025-11-05" = true
+    return date < todayString;
   }, []);
 
   // Función para obtener la fecha mínima permitida (próximo día de oficina) en formato YYYY-MM-DD usando fechas locales

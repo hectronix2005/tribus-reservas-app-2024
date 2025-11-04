@@ -34,7 +34,7 @@ export function UserManagement() {
     password: '',
     cedula: '',
     employeeId: '',
-    role: 'lider' as 'admin' | 'lider' | 'colaborador',
+    role: 'lider' as 'superadmin' | 'admin' | 'lider' | 'colaborador',
     department: '',
     isActive: true
   });
@@ -346,7 +346,7 @@ export function UserManagement() {
       return;
     }
 
-    if (currentUser.role !== 'admin') {
+    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
       setNotification({
         show: true,
         type: 'error',
@@ -535,10 +535,10 @@ export function UserManagement() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  user.role === 'admin' ? 'bg-warning-100' : 'bg-primary-100'
+                  user.role === 'superadmin' ? 'bg-purple-100' : user.role === 'admin' ? 'bg-warning-100' : 'bg-primary-100'
                 }`}>
-                  {user.role === 'admin' ? (
-                    <Shield className="w-4 h-4 text-warning-600" />
+                  {user.role === 'superadmin' || user.role === 'admin' ? (
+                    <Shield className={`w-4 h-4 ${user.role === 'superadmin' ? 'text-purple-600' : 'text-warning-600'}`} />
                   ) : (
                     <User className="w-4 h-4 text-primary-600" />
                   )}
@@ -588,9 +588,9 @@ export function UserManagement() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Rol:</span>
                 <span className={`badge ${
-                  user.role === 'admin' ? 'badge-warning' : 'badge-info'
+                  user.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : user.role === 'admin' ? 'badge-warning' : 'badge-info'
                 }`}>
-                  {user.role === 'admin' ? 'Administrador' : user.role === 'lider' ? 'Lider' : 'Colaborador'}
+                  {user.role === 'superadmin' ? 'Super Admin' : user.role === 'admin' ? 'Administrador' : user.role === 'lider' ? 'Lider' : 'Colaborador'}
                 </span>
               </div>
 
@@ -788,13 +788,14 @@ export function UserManagement() {
                   </label>
                   <select
                     value={formData.role}
-                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'admin' | 'lider' | 'colaborador' }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'superadmin' | 'admin' | 'lider' | 'colaborador' }))}
                     className="input-field"
                     required
                   >
                     <option value="lider">Lider</option>
                     <option value="admin">Administrador</option>
                     <option value="colaborador">Colaborador</option>
+                    <option value="superadmin">Super Admin</option>
                   </select>
                 </div>
 

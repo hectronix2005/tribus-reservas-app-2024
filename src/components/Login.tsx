@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Users, Eye, EyeOff, LogIn, Mail } from 'lucide-react';
+import { Users, Eye, EyeOff, LogIn, Mail, ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
 import { getCurrentDateString } from '../utils/dateUtils';
 import { ForgotPassword } from './ForgotPassword';
 import { authService, userService, ApiError } from '../services/api';
+import { saveAuthState } from '../utils/storage';
 
-export function Login() {
+interface LoginProps {
+  onBackClick?: () => void;
+}
+
+export function Login({ onBackClick }: LoginProps = {}) {
   const { state, dispatch } = useApp();
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
@@ -21,22 +26,29 @@ export function Login() {
     setError(null);
 
     try {
-          console.log('Intentando login con backend:', credentials);
-    
-    // Intentar login con el backend
-    const response = await authService.login(credentials.username, credentials.password);
-    
-    // Guardar token en sessionStorage para persistencia
-    if (typeof window !== 'undefined' && response.token) {
-      sessionStorage.setItem('authToken', response.token);
-      console.log('💾 Token guardado en sessionStorage');
-    }
-    
-    // Establecer usuario autenticado directamente en el estado de la aplicación
-    dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
-    dispatch({ type: 'SET_AUTHENTICATED', payload: true });
-    
-    console.log('✅ Login exitoso, sesión establecida');
+      console.log('Intentando login con backend:', credentials);
+
+      // Intentar login con el backend
+      const response = await authService.login(credentials.username, credentials.password);
+
+      if (!response.token) {
+        console.error('❌ No se recibió token del backend. Response:', response);
+        setError('Error de autenticación: No se recibió token');
+        return;
+      }
+
+      // Guardar estado de autenticación usando la utilidad robusta
+      saveAuthState({
+        currentUser: response.user,
+        isAuthenticated: true,
+        token: response.token
+      });
+
+      // Establecer usuario autenticado en el estado de la aplicación
+      dispatch({ type: 'SET_CURRENT_USER', payload: response.user });
+      dispatch({ type: 'SET_AUTHENTICATED', payload: true });
+
+      console.log('✅ Login exitoso, sesión establecida');
     
     // Cargar usuarios desde MongoDB después del login exitoso
     try {
@@ -71,6 +83,17 @@ export function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {onBackClick && (
+        <div className="absolute top-4 left-4">
+          <button
+            onClick={onBackClick}
+            className="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Volver al inicio</span>
+          </button>
+        </div>
+      )}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="w-16 h-16 rounded-lg overflow-hidden">

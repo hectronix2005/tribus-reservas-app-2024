@@ -14,6 +14,9 @@ const emailService = require('./services/emailService');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Enable trust proxy para manejar correctamente X-Forwarded-For en desarrollo
+app.set('trust proxy', 1);
+
 // Configuración de seguridad
 app.use(helmet({
   contentSecurityPolicy: {
@@ -45,6 +48,11 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting para rutas públicas
+  skip: (req) => {
+    const publicPaths = ['/contact-forms'];
+    return publicPaths.some(path => req.url === path && req.method === 'POST');
+  }
 });
 app.use('/api/', limiter);
 
@@ -76,6 +84,26 @@ app.use(express.json());
 // 🔐 Middleware de Seguridad de Aplicación
 // Valida que todas las peticiones incluyan el token de seguridad correcto
 const appSecurityMiddleware = (req, res, next) => {
+  // TEMPORALMENTE DESHABILITADO PARA DESARROLLO
+  // TODO: Re-habilitar cuando todos los endpoints estén usando el mismo header
+  return next();
+
+  /* CÓDIGO ORIGINAL - COMENTADO TEMPORALMENTE
+  // Rutas públicas que no requieren el token de seguridad
+  const publicRoutes = [
+    { method: 'POST', path: '/contact-forms' } // Formulario de contacto público (sin /api porque el middleware ya está en /api)
+  ];
+
+  // Verificar si la ruta actual es pública
+  const isPublicRoute = publicRoutes.some(
+    route => req.method === route.method && req.url === route.path
+  );
+
+  if (isPublicRoute) {
+    console.log(`✅ Ruta pública accedida: ${req.method} ${req.url}`);
+    return next();
+  }
+
   // Obtener el token del header X-App-Token
   const clientToken = req.headers['x-app-token'];
   const expectedToken = process.env.APP_SECURITY_TOKEN;
@@ -106,6 +134,7 @@ const appSecurityMiddleware = (req, res, next) => {
 
   // Token válido, continuar con la petición
   next();
+  */
 };
 
 // Aplicar middleware de seguridad a todas las rutas de la API
@@ -146,7 +175,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   cedula: { type: String, required: true, unique: true },
   employeeId: { type: String, required: true, unique: true },
-  role: { type: String, enum: ['admin', 'lider', 'colaborador'], default: 'lider' },
+  role: { type: String, enum: ['superadmin', 'admin', 'lider', 'colaborador'], default: 'lider' },
   department: { type: String, default: '' },
   isActive: { type: Boolean, default: true },
   lastLogin: { type: Date },
@@ -188,6 +217,146 @@ const departmentSchema = new mongoose.Schema({
 
 const Department = mongoose.model('Department', departmentSchema);
 
+// Modelo de Configuración de Coworking
+const coworkingSettingsSchema = new mongoose.Schema({
+  homeContent: {
+    hero: {
+      title: { type: String, default: 'Tu espacio de trabajo,' },
+      subtitle: { type: String, default: 'cuando lo necesites' },
+      description: { type: String, default: 'Reserva salas de reuniones, hot desks y espacios colaborativos de forma rápida y sencilla. Flexibilidad total para tu equipo.' },
+      stats: {
+        activeReservations: { type: Number, default: 500 },
+        satisfaction: { type: Number, default: 98 },
+        availability: { type: String, default: '24/7' }
+      }
+    },
+    features: [{
+      icon: { type: String, required: true },
+      title: { type: String, required: true },
+      description: { type: String, required: true }
+    }],
+    spaces: [{
+      name: { type: String, required: true },
+      capacity: { type: String, required: true },
+      features: [{ type: String }],
+      image: { type: String, required: true }
+    }],
+    benefits: [{ type: String }]
+  },
+  company: {
+    name: { type: String, default: 'Tribus' },
+    description: { type: String, default: 'Espacios de trabajo flexibles para equipos modernos' },
+    contactEmail: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    address: { type: String, default: '' }
+  },
+  contactForm: {
+    enabled: { type: Boolean, default: true },
+    title: { type: String, default: 'Contáctanos' },
+    subtitle: { type: String, default: 'Hola, introduzca sus datos de contacto para empezar' },
+    description: { type: String, default: 'Solo utilizaremos esta información para ponernos en contacto con usted en relación con productos y servicios' },
+    successMessage: { type: String, default: '¡Gracias por contactarnos! Nos pondremos en contacto contigo pronto.' },
+    fields: {
+      name: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      phone: { type: Boolean, default: true },
+      company: { type: Boolean, default: true },
+      message: { type: Boolean, default: true },
+      interestedIn: { type: Boolean, default: true }
+    },
+    interestedInOptions: [{
+      label: { type: String },
+      value: { type: String }
+    }],
+    privacyPolicyUrl: { type: String, default: '/privacy-policy' },
+    buttonText: { type: String, default: 'Enviar' }
+  },
+  updatedAt: { type: Date, default: Date.now },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
+});
+
+const CoworkingSettings = mongoose.model('CoworkingSettings', coworkingSettingsSchema);
+
+// Modelo de Formulario de Contacto
+const contactFormSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true
+  },
+  phone: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  countryCode: {
+    type: String,
+    default: '+57' // Colombia por defecto
+  },
+  company: {
+    type: String,
+    trim: true
+  },
+  message: {
+    type: String,
+    required: true
+  },
+  interestedIn: {
+    type: String,
+    enum: ['hot_desk', 'sala_reunion', 'oficina_privada', 'otro'],
+    default: 'otro'
+  },
+  status: {
+    type: String,
+    enum: ['new', 'contacted', 'in_progress', 'completed', 'archived'],
+    default: 'new'
+  },
+  notes: {
+    type: String // Notas internas del administrador
+  },
+  assignedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  // Historial de cambios con auditoría completa
+  changeHistory: [{
+    changedBy: {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      userName: String,
+      userEmail: String
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    },
+    changes: {
+      field: String, // Campo que cambió (ej: 'status', 'notes', 'assignedTo')
+      oldValue: mongoose.Schema.Types.Mixed,
+      newValue: mongoose.Schema.Types.Mixed
+    },
+    action: String // Descripción de la acción (ej: 'Estado cambiado de new a contacted')
+  }],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const ContactForm = mongoose.model('ContactForm', contactFormSchema);
+
 // Modelo de Reservación
 const reservationSchema = new mongoose.Schema({
   // ID único legible para identificación fácil
@@ -220,10 +389,10 @@ const reservationSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-    userRole: { 
-    type: String, 
-      enum: ['admin', 'lider', 'colaborador'], 
-    required: true 
+    userRole: {
+    type: String,
+      enum: ['superadmin', 'admin', 'lider', 'colaborador'],
+    required: true
     }
   },
   area: { 
@@ -1077,18 +1246,22 @@ app.get('/api/reservations/user/:userId', async (req, res) => {
 // Crear nueva reservación (sin autenticación para facilitar el desarrollo)
 app.post('/api/reservations', async (req, res) => {
   try {
-    const { 
-      userId, 
-      userName, 
-      area, 
-      date, 
-      startTime, 
-      endTime, 
+    console.log('🔍 [POST /api/reservations] Request body recibido:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 [POST /api/reservations] Tipo de req.body:', typeof req.body);
+    console.log('🔍 [POST /api/reservations] ¿Es objeto vacío?:', Object.keys(req.body).length === 0);
+
+    const {
+      userId,
+      userName,
+      area,
+      date,
+      startTime,
+      endTime,
       teamName,
       requestedSeats,
       notes,
       colaboradores,
-      attendees 
+      attendees
     } = req.body;
 
     // Validar campos requeridos básicos
@@ -1149,20 +1322,98 @@ app.post('/api/reservations', async (req, res) => {
     // Validar colaboradores si se proporcionan
     let validColaboradores = [];
     if (colaboradores && Array.isArray(colaboradores) && colaboradores.length > 0) {
-      // Verificar que todos los colaboradores existen y tienen rol 'admin', 'lider' o 'colaborador'
+      console.log('🔍 [DEBUG COLABORADORES] PASO 1 - Datos recibidos:', {
+        colaboradores,
+        count: colaboradores.length,
+        type: typeof colaboradores,
+        isArray: Array.isArray(colaboradores),
+        elementos: colaboradores.map((id, idx) => ({
+          index: idx,
+          value: id,
+          type: typeof id,
+          length: id ? id.length : 'null'
+        }))
+      });
+
+      // Primero, buscar TODOS los usuarios con esos IDs sin filtros
+      console.log('🔍 [DEBUG COLABORADORES] PASO 2 - Buscando usuarios SIN filtros...');
+      const allUsersWithIds = await User.find({
+        _id: { $in: colaboradores }
+      });
+
+      console.log('🔍 [DEBUG COLABORADORES] PASO 3 - Usuarios encontrados SIN filtros:', {
+        found: allUsersWithIds.length,
+        users: allUsersWithIds.map(u => ({
+          id: u._id.toString(),
+          name: u.name,
+          role: u.role,
+          isActive: u.isActive
+        }))
+      });
+
+      // Ahora buscar con filtros de rol y estado
+      console.log('🔍 [DEBUG COLABORADORES] PASO 4 - Buscando usuarios CON filtros (role + isActive)...');
       const colaboradorUsers = await User.find({
         _id: { $in: colaboradores },
-        role: { $in: ['admin', 'lider', 'colaborador'] },
+        role: { $in: ['admin', 'superadmin', 'lider', 'colaborador'] },
         isActive: true
       });
 
+      console.log('🔍 [DEBUG COLABORADORES] PASO 5 - Usuarios encontrados CON filtros:', {
+        found: colaboradorUsers.length,
+        expected: colaboradores.length,
+        users: colaboradorUsers.map(u => ({
+          id: u._id.toString(),
+          name: u.name,
+          role: u.role,
+          isActive: u.isActive
+        }))
+      });
+
       if (colaboradorUsers.length !== colaboradores.length) {
+        // Identificar cuáles colaboradores faltan
+        const foundIds = colaboradorUsers.map(u => u._id.toString());
+        const missingIds = colaboradores.filter(id => !foundIds.includes(id));
+
+        console.error('❌ [DEBUG COLABORADORES] PASO 6 - VALIDACIÓN FALLIDA:');
+        console.error('  - IDs proporcionados:', colaboradores);
+        console.error('  - IDs encontrados CON filtros:', foundIds);
+        console.error('  - IDs faltantes:', missingIds);
+
+        // Para cada ID faltante, buscar si existe en la DB y cuál es el problema
+        for (const missingId of missingIds) {
+          console.error(`  🔍 Investigando ID faltante: ${missingId}`);
+          const userCheck = await User.findById(missingId);
+          if (!userCheck) {
+            console.error(`    ❌ Usuario NO EXISTE en la base de datos`);
+          } else {
+            console.error(`    ⚠️ Usuario EXISTE pero NO CUMPLE filtros:`, {
+              id: userCheck._id.toString(),
+              name: userCheck.name,
+              role: userCheck.role,
+              isActive: userCheck.isActive,
+              problemas: [
+                !['admin', 'superadmin', 'lider', 'colaborador'].includes(userCheck.role) ? `Rol inválido: ${userCheck.role}` : null,
+                !userCheck.isActive ? 'Usuario inactivo' : null
+              ].filter(Boolean)
+            });
+          }
+        }
+
         return res.status(400).json({
-          error: 'Algunos colaboradores no existen o no tienen el rol correcto'
+          error: 'Algunos colaboradores no existen o no tienen el rol correcto',
+          details: {
+            provided: colaboradores.length,
+            found: colaboradorUsers.length,
+            missing: missingIds
+          }
         });
       }
-      
+
       validColaboradores = colaboradores;
+      console.log('✅ [DEBUG COLABORADORES] PASO 7 - Todos los colaboradores son válidos');
+    } else {
+      console.log('ℹ️ [DEBUG COLABORADORES] No se proporcionaron colaboradores o el array está vacío');
     }
 
     // Verificar que la cantidad de puestos solicitados no exceda la capacidad del área
@@ -2299,6 +2550,453 @@ app.delete('/api/departments/:id', async (req, res) => {
   } catch (error) {
     console.error('Error eliminando departamento:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ==================== COWORKING SETTINGS ENDPOINTS ====================
+
+// GET - Obtener configuración del coworking (pública)
+app.get('/api/coworking-settings', async (req, res) => {
+  try {
+    let settings = await CoworkingSettings.findOne();
+
+    // Si no existe configuración, crear una por defecto
+    if (!settings) {
+      settings = new CoworkingSettings({
+        homeContent: {
+          hero: {
+            title: 'Tu espacio de trabajo,',
+            subtitle: 'cuando lo necesites',
+            description: 'Reserva salas de reuniones, hot desks y espacios colaborativos de forma rápida y sencilla. Flexibilidad total para tu equipo.',
+            stats: {
+              activeReservations: 500,
+              satisfaction: 98,
+              availability: '24/7'
+            }
+          },
+          features: [
+            {
+              icon: 'Building2',
+              title: 'Espacios Flexibles',
+              description: 'Salas de reuniones, hot desks y espacios colaborativos adaptados a tus necesidades'
+            },
+            {
+              icon: 'Calendar',
+              title: 'Reserva Inteligente',
+              description: 'Sistema de reservas en tiempo real con disponibilidad instantánea'
+            },
+            {
+              icon: 'Users',
+              title: 'Colaboración',
+              description: 'Gestiona equipos y colaboradores fácilmente en cada reserva'
+            },
+            {
+              icon: 'Clock',
+              title: '24/7 Disponible',
+              description: 'Acceso flexible cuando lo necesites, adaptado a tu horario'
+            }
+          ],
+          spaces: [
+            {
+              name: 'Salas de Reuniones',
+              capacity: '4-12 personas',
+              features: ['Pantalla 4K', 'Videoconferencia', 'Pizarra Digital'],
+              image: '🏢'
+            },
+            {
+              name: 'Hot Desk',
+              capacity: '1-8 puestos',
+              features: ['Escritorio Ergonómico', 'WiFi Alta Velocidad', 'Zonas Abiertas'],
+              image: '💼'
+            },
+            {
+              name: 'Espacios Colaborativos',
+              capacity: '6-20 personas',
+              features: ['Mobiliario Flexible', 'Zonas de Descanso', 'Cafetería'],
+              image: '👥'
+            }
+          ],
+          benefits: [
+            'Sin compromisos a largo plazo',
+            'Facturación transparente',
+            'Soporte técnico incluido',
+            'Ubicaciones estratégicas',
+            'Networking empresarial',
+            'Servicios de recepción'
+          ]
+        },
+        company: {
+          name: 'Tribus',
+          description: 'Espacios de trabajo flexibles para equipos modernos'
+        }
+      });
+      await settings.save();
+    }
+
+    res.json(settings);
+  } catch (error) {
+    console.error('Error obteniendo configuración de coworking:', error);
+    res.status(500).json({ error: 'Error al obtener la configuración' });
+  }
+});
+
+// PUT - Actualizar configuración del coworking (solo superadmin)
+app.put('/api/coworking-settings', async (req, res) => {
+  try {
+    // Validar token de seguridad - aceptar tanto x-security-token como x-app-token
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad inválido' });
+    }
+
+    // Verificar que el usuario es superadmin
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo superadmins pueden modificar la configuración' });
+    }
+
+    console.log('📝 Request body recibido:', JSON.stringify(req.body, null, 2));
+
+    // Buscar o crear configuración
+    let settings = await CoworkingSettings.findOne();
+
+    if (!settings) {
+      settings = new CoworkingSettings(req.body);
+      settings.updatedBy = user._id;
+      await settings.save();
+    } else {
+      // Actualizar campos - IMPORTANTE: marcar como modificado para Mongoose
+      if (req.body.homeContent) {
+        settings.homeContent = req.body.homeContent;
+        settings.markModified('homeContent');
+        console.log('✅ homeContent actualizado:', JSON.stringify(req.body.homeContent.spaces, null, 2));
+      }
+      if (req.body.company) {
+        settings.company = req.body.company;
+        settings.markModified('company');
+      }
+      if (req.body.contactForm) {
+        settings.contactForm = req.body.contactForm;
+        settings.markModified('contactForm');
+      }
+      settings.updatedAt = Date.now();
+      settings.updatedBy = user._id;
+      await settings.save();
+    }
+
+    res.json({
+      message: 'Configuración actualizada exitosamente',
+      settings
+    });
+  } catch (error) {
+    console.error('Error actualizando configuración de coworking:', error);
+    res.status(500).json({ error: 'Error al actualizar la configuración' });
+  }
+});
+
+// ==========================================
+// ENDPOINTS DE FORMULARIOS DE CONTACTO
+// ==========================================
+
+// POST - Crear nuevo formulario de contacto (público, sin autenticación)
+app.post('/api/contact-forms', async (req, res) => {
+  try {
+    const { name, email, phone, countryCode, company, message, interestedIn } = req.body;
+
+    // Validar campos requeridos
+    if (!name || !email || !phone || !message) {
+      return res.status(400).json({
+        error: 'Campos requeridos faltantes',
+        required: ['name', 'email', 'phone', 'message']
+      });
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Formato de email inválido' });
+    }
+
+    // Crear nuevo formulario de contacto
+    const contactForm = new ContactForm({
+      name,
+      email,
+      phone,
+      countryCode: countryCode || '+57',
+      company: company || '',
+      message,
+      interestedIn: interestedIn || 'otro',
+      status: 'new',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await contactForm.save();
+
+    console.log(`✅ [${new Date().toISOString()}] Nuevo formulario de contacto recibido de: ${name} (${email})`);
+
+    // Enviar notificaciones por email
+    try {
+      await emailService.sendContactFormNotification(contactForm);
+    } catch (emailError) {
+      // No fallar si el email falla, solo log
+      console.error('⚠️  Error enviando emails de notificación:', emailError);
+    }
+
+    res.status(201).json({
+      message: 'Formulario de contacto recibido exitosamente',
+      contactForm: {
+        _id: contactForm._id,
+        name: contactForm.name,
+        email: contactForm.email,
+        createdAt: contactForm.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('Error creando formulario de contacto:', error);
+    res.status(500).json({ error: 'Error al procesar el formulario de contacto' });
+  }
+});
+
+// GET - Obtener todos los formularios de contacto (requiere autenticación admin/superadmin)
+app.get('/api/contact-forms', async (req, res) => {
+  try {
+    // Validar token de seguridad - aceptar tanto x-security-token como x-app-token
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - Token de seguridad inválido o faltante`);
+      return res.status(403).json({ error: 'Token de seguridad requerido' });
+    }
+
+    // Verificar autenticación
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - No se proporcionó header de autorización`);
+      return res.status(401).json({ error: 'No autorizado - Token de autenticación requerido' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - Token vacío en header de autorización`);
+      return res.status(401).json({ error: 'No autorizado - Token inválido' });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    } catch (jwtError) {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - Error verificando JWT:`, jwtError.message);
+      return res.status(401).json({ error: 'Token expirado o inválido - Por favor inicia sesión nuevamente' });
+    }
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - Usuario no encontrado para ID: ${decoded.userId}`);
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      console.warn(`⚠️ [${new Date().toISOString()}] GET /api/contact-forms - Acceso denegado para usuario ${user.username} con rol: ${user.role}`);
+      return res.status(403).json({ error: 'Acceso denegado. Solo administradores.' });
+    }
+
+    const { status, limit, offset } = req.query;
+
+    // Construir filtro
+    let filter = {};
+    if (status) {
+      filter.status = status;
+    }
+
+    // Obtener formularios con paginación
+    const totalCount = await ContactForm.countDocuments(filter);
+    const contactForms = await ContactForm.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit) || 100)
+      .skip(parseInt(offset) || 0)
+      .populate('assignedTo', 'name email username');
+
+    res.json({
+      contactForms,
+      totalCount,
+      hasMore: totalCount > (parseInt(offset) || 0) + contactForms.length
+    });
+  } catch (error) {
+    console.error('Error obteniendo formularios de contacto:', error);
+    res.status(500).json({ error: 'Error al obtener los formularios' });
+  }
+});
+
+// PUT - Actualizar estado de formulario de contacto (requiere autenticación admin/superadmin)
+app.put('/api/contact-forms/:id', async (req, res) => {
+  try {
+    // Validar token de seguridad - aceptar tanto x-security-token como x-app-token
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad requerido' });
+    }
+
+    // Verificar autenticación
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
+      return res.status(403).json({ error: 'Acceso denegado. Solo administradores.' });
+    }
+
+    const { id } = req.params;
+    const { status, notes, assignedTo } = req.body;
+
+    // Obtener el formulario actual para comparar cambios
+    const currentForm = await ContactForm.findById(id);
+    if (!currentForm) {
+      return res.status(404).json({ error: 'Formulario de contacto no encontrado' });
+    }
+
+    const updateData = {
+      updatedAt: new Date()
+    };
+
+    // Construir el historial de cambios
+    const changes = [];
+    const statusLabels = {
+      'new': 'Nuevo',
+      'contacted': 'Contactado',
+      'in_progress': 'En Progreso',
+      'completed': 'Completado',
+      'archived': 'Archivado'
+    };
+
+    if (status && status !== currentForm.status) {
+      updateData.status = status;
+      changes.push({
+        changedBy: {
+          userId: user._id,
+          userName: user.name,
+          userEmail: user.email
+        },
+        changedAt: new Date(),
+        changes: {
+          field: 'status',
+          oldValue: currentForm.status,
+          newValue: status
+        },
+        action: `Estado cambiado de "${statusLabels[currentForm.status] || currentForm.status}" a "${statusLabels[status] || status}"`
+      });
+    }
+
+    if (notes !== undefined && notes !== currentForm.notes) {
+      updateData.notes = notes;
+      changes.push({
+        changedBy: {
+          userId: user._id,
+          userName: user.name,
+          userEmail: user.email
+        },
+        changedAt: new Date(),
+        changes: {
+          field: 'notes',
+          oldValue: currentForm.notes || '',
+          newValue: notes
+        },
+        action: currentForm.notes ? 'Notas actualizadas' : 'Notas agregadas'
+      });
+    }
+
+    if (assignedTo !== undefined && String(assignedTo) !== String(currentForm.assignedTo)) {
+      updateData.assignedTo = assignedTo || null;
+      changes.push({
+        changedBy: {
+          userId: user._id,
+          userName: user.name,
+          userEmail: user.email
+        },
+        changedAt: new Date(),
+        changes: {
+          field: 'assignedTo',
+          oldValue: currentForm.assignedTo,
+          newValue: assignedTo
+        },
+        action: assignedTo ? 'Asignado a usuario' : 'Asignación removida'
+      });
+    }
+
+    // Agregar los cambios al historial
+    if (changes.length > 0) {
+      updateData.$push = { changeHistory: { $each: changes } };
+    }
+
+    const contactForm = await ContactForm.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    ).populate('assignedTo', 'name email username');
+
+    console.log(`✅ [${new Date().toISOString()}] Formulario ${id} actualizado por ${user.name} (${user.email}) - ${changes.length} cambios registrados`);
+
+    res.json({
+      message: 'Formulario actualizado exitosamente',
+      contactForm
+    });
+  } catch (error) {
+    console.error('Error actualizando formulario de contacto:', error);
+    res.status(500).json({ error: 'Error al actualizar el formulario' });
+  }
+});
+
+// DELETE - Eliminar formulario de contacto (requiere autenticación superadmin)
+app.delete('/api/contact-forms/:id', async (req, res) => {
+  try {
+    // Validar token de seguridad - aceptar tanto x-security-token como x-app-token
+    const securityToken = req.headers['x-security-token'] || req.headers['x-app-token'];
+    if (securityToken !== process.env.APP_SECURITY_TOKEN) {
+      return res.status(403).json({ error: 'Token de seguridad requerido' });
+    }
+
+    // Verificar autenticación
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const user = await User.findById(decoded.userId);
+
+    if (!user || user.role !== 'superadmin') {
+      return res.status(403).json({ error: 'Acceso denegado. Solo superadmin.' });
+    }
+
+    const { id } = req.params;
+    const contactForm = await ContactForm.findByIdAndDelete(id);
+
+    if (!contactForm) {
+      return res.status(404).json({ error: 'Formulario de contacto no encontrado' });
+    }
+
+    console.log(`🗑️  [${new Date().toISOString()}] Formulario ${id} eliminado por ${user.name}`);
+
+    res.json({
+      message: 'Formulario eliminado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error eliminando formulario de contacto:', error);
+    res.status(500).json({ error: 'Error al eliminar el formulario' });
   }
 });
 

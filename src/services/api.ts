@@ -1,3 +1,5 @@
+import { getAuthToken as getStoredAuthToken } from '../utils/storage';
+
 // Use relative URL for both local development and production deployment
 const API_BASE_URL = '/api';
 
@@ -39,13 +41,9 @@ class ApiError extends Error {
   }
 }
 
-// Función para obtener el token de autenticación
+// Función para obtener el token de autenticación (usando la utilidad robusta)
 const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    // Intentar obtener token de sessionStorage primero, luego de localStorage
-    return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-  }
-  return null;
+  return getStoredAuthToken();
 };
 
 // 🔐 Token de seguridad de la aplicación (hardcoded)
@@ -58,33 +56,47 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   // Obtener token de autenticación si está disponible
   const token = getAuthToken();
-  
+
+  // Debug: Verificar si el token se obtiene correctamente
+  if (!token) {
+    console.warn('⚠️ No se encontró token de autenticación. Verificando storage...');
+    console.log('📦 sessionStorage authToken:', sessionStorage.getItem('authToken'));
+    console.log('📦 sessionStorage tribus-auth:', sessionStorage.getItem('tribus-auth'));
+  }
+
   const config: RequestInit = {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       'X-App-Token': APP_SECURITY_TOKEN, // 🔐 Token de seguridad de la aplicación
       ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers,
     },
-    ...options,
   };
+
+  console.log(`📡 API Request: ${options.method || 'GET'} ${endpoint}`, {
+    hasToken: !!token,
+    tokenPreview: token ? token.substring(0, 20) + '...' : 'NO TOKEN',
+    hasBody: !!config.body,
+    bodyPreview: config.body && typeof config.body === 'string' ? config.body.substring(0, 100) + '...' : 'HAS BODY'
+  });
 
   // El nuevo backend no requiere autenticación para crear usuarios
   // Los datos se guardan directamente en MongoDB
 
   try {
-    
+
     const response = await fetch(url, config);
-    
+
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
-      
+
       try {
         const errorData = await response.json();
-        
+
         // Extraer mensaje de error del backend
         if (errorData.error) {
           errorMessage = errorData.error;
@@ -98,7 +110,22 @@ async function apiRequest<T>(
       } catch (parseError) {
         console.error('Error parsing response:', parseError);
       }
-      
+
+      // Si el error es 401 o 403, solo emitir un evento para que la aplicación maneje el cierre de sesión
+      // NO recargar la página automáticamente, dejar que el componente decida qué hacer
+      if (response.status === 401 || response.status === 403) {
+        if (errorMessage.toLowerCase().includes('token') ||
+            errorMessage.toLowerCase().includes('autorizado') ||
+            errorMessage.toLowerCase().includes('acceso denegado')) {
+          console.warn('🔐 Token inválido o acceso denegado detectado. Lanzando error para que el componente lo maneje...');
+
+          // Emitir evento personalizado para notificar a los componentes
+          window.dispatchEvent(new CustomEvent('auth:sessionExpired', {
+            detail: { status: response.status, message: errorMessage }
+          }));
+        }
+      }
+
       throw new ApiError(response.status, errorMessage);
     }
 
@@ -408,9 +435,23 @@ export const reservationService = {
 
   async createReservation(reservationData: any) {
     try {
+      console.log('🔍 [reservationService.createReservation] Datos recibidos:', reservationData);
+      console.log('🔍 [reservationService.createReservation] Verificando campos:', {
+        userId: reservationData.userId,
+        userName: reservationData.userName,
+        area: reservationData.area,
+        date: reservationData.date,
+        startTime: reservationData.startTime,
+        endTime: reservationData.endTime,
+        teamName: reservationData.teamName
+      });
+
+      const stringifiedData = JSON.stringify(reservationData);
+      console.log('🔍 [reservationService.createReservation] Datos stringificados:', stringifiedData);
+
       const response = await apiRequest<any>('/reservations', {
         method: 'POST',
-        body: JSON.stringify(reservationData),
+        body: stringifiedData,
       });
       return response;
     } catch (error) {
@@ -593,6 +634,146 @@ export const departmentService = {
       return response;
     } catch (error) {
       console.error('Error actualizando estados de reservaciones:', error);
+      throw error;
+    }
+  }
+};
+
+// Servicio para configuración de coworking
+export const coworkingService = {
+  // Obtener configuración (pública)
+  async getSettings() {
+    try {
+      const response = await apiRequest<any>('/coworking-settings', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error obteniendo configuración de coworking:', error);
+      throw error;
+    }
+  },
+
+  // Actualizar configuración (solo superadmin)
+  async updateSettings(settings: any) {
+    try {
+      // Obtener token de autenticación explícitamente para debugging
+      const token = getAuthToken();
+      if (!token) {
+        console.error('❌ No hay token de autenticación disponible');
+        throw new ApiError(401, 'No autorizado - Por favor inicia sesión nuevamente');
+      }
+
+      console.log('🔍 FRONTEND: Enviando settings al backend:', {
+        hasHomeContent: !!settings?.homeContent,
+        hasSpaces: !!settings?.homeContent?.spaces,
+        spacesCount: settings?.homeContent?.spaces?.length,
+        firstSpace: settings?.homeContent?.spaces?.[0]
+      });
+
+      const response = await apiRequest<any>('/coworking-settings', {
+        method: 'PUT',
+        headers: {
+          'x-security-token': APP_SECURITY_TOKEN,
+          'Authorization': `Bearer ${token}`, // Asegurar que el token se incluya
+        },
+        body: JSON.stringify(settings),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error actualizando configuración de coworking:', error);
+      throw error;
+    }
+  }
+};
+
+// ==========================================
+// SERVICIO DE FORMULARIOS DE CONTACTO
+// ==========================================
+
+export const contactFormsService = {
+  // Crear nuevo formulario de contacto (público, sin autenticación)
+  async create(formData: {
+    name: string;
+    email: string;
+    phone: string;
+    countryCode?: string;
+    company?: string;
+    message: string;
+    interestedIn?: string;
+  }) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/contact-forms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new ApiError(response.status, data.error || 'Error al enviar el formulario');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error creando formulario de contacto:', error);
+      throw error;
+    }
+  },
+
+  // Obtener todos los formularios (requiere autenticación admin/superadmin)
+  async getAll(params?: { status?: string; limit?: number; offset?: number }) {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.status) queryParams.append('status', params.status);
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+      const url = `/contact-forms${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+      // El token de seguridad y autenticación se agregan automáticamente por apiRequest
+      const response = await apiRequest<any>(url, {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error obteniendo formularios de contacto:', error);
+      throw error;
+    }
+  },
+
+  // Actualizar estado de formulario (requiere autenticación admin/superadmin)
+  async update(id: string, updates: {
+    status?: 'new' | 'contacted' | 'in_progress' | 'completed' | 'archived';
+    notes?: string;
+    assignedTo?: string | null;
+  }) {
+    try {
+      // El token de seguridad y autenticación se agregan automáticamente por apiRequest
+      const response = await apiRequest<any>(`/contact-forms/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error actualizando formulario de contacto:', error);
+      throw error;
+    }
+  },
+
+  // Eliminar formulario (requiere autenticación superadmin)
+  async delete(id: string) {
+    try {
+      // El token de seguridad y autenticación se agregan automáticamente por apiRequest
+      const response = await apiRequest<any>(`/contact-forms/${id}`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error eliminando formulario de contacto:', error);
       throw error;
     }
   }

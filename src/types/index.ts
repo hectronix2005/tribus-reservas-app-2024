@@ -38,7 +38,7 @@ export interface Reservation {
     userId: string;
     userName: string;
     userEmail: string;
-    userRole: 'admin' | 'lider' | 'colaborador';
+    userRole: 'superadmin' | 'admin' | 'lider' | 'colaborador';
   };
   // Colaboradores incluidos en la reserva
   colaboradores?: Array<{
@@ -224,7 +224,7 @@ export interface User {
   password: string; // En producción debería estar hasheada
   cedula: string;
   employeeId: string;
-  role: 'admin' | 'lider' | 'colaborador';
+  role: 'superadmin' | 'admin' | 'lider' | 'colaborador';
   department?: string;
   isActive: boolean;
   createdAt: string;

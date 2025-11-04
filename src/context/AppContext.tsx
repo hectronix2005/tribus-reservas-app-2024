@@ -3,6 +3,7 @@ import { Area, Reservation, AdminSettings, DailyCapacity, User, AuthState } from
 import { getCurrentDateString } from '../utils/dateUtils';
 import { normalizeUTCDateToLocal } from '../utils/unifiedDateUtils';
 import { userService, areaService, reservationService } from '../services/api';
+import { getAuthState, saveAuthState, clearAuthSession, hasValidSession } from '../utils/storage';
 
 interface AppState {
   areas: Area[];
@@ -231,23 +232,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = { ...state, auth: { ...state.auth, error: action.payload } };
       break;
     case 'LOGOUT':
-      newState = { 
-        ...state, 
-        auth: { 
-          currentUser: null, 
-          isAuthenticated: false, 
-          isLoading: false, 
-          error: null 
-        } 
-      };
-      // Limpiar sessionStorage al hacer logout
-      try {
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('tribus-auth');
+      newState = {
+        ...state,
+        auth: {
+          currentUser: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null
         }
-      } catch (error) {
-        console.error('❌ Error limpiando sesión:', error);
-      }
+      };
+      // Limpiar sessionStorage usando la utilidad robusta
+      clearAuthSession();
       break;
     case 'SET_ADMIN_SETTINGS':
       newState = { ...state, adminSettings: action.payload };
@@ -289,69 +284,72 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   // Cargar estado inicial desde MongoDB y restaurar sesión
   const loadInitialState = (): AppState => {
-    // Intentar restaurar el estado de autenticación desde sessionStorage
+    // Solo intentar restaurar si hay datos guardados (evitar logs innecesarios en Home público)
     try {
       if (typeof window !== 'undefined') {
         const savedAuth = sessionStorage.getItem('tribus-auth');
-        const token = sessionStorage.getItem('authToken');
-        console.log('🔍 Debug sessionStorage:', {
-          savedAuth: savedAuth ? 'exists' : 'not found',
-          token: token ? 'exists' : 'not found',
-          savedAuthContent: savedAuth
-        });
-        
-        if (savedAuth && token) {
-          const authData = JSON.parse(savedAuth);
-          console.log('🔄 Restaurando sesión desde sessionStorage:', authData);
-          return {
-            ...initialState,
-            auth: {
-              ...initialState.auth,
-              currentUser: authData.currentUser,
-              isAuthenticated: authData.isAuthenticated,
-              isLoading: false,
-              error: null
-            }
-          };
-        } else {
-          console.log('⚠️ No se encontró sesión completa en sessionStorage');
+
+        // Si no hay datos guardados, retornar estado inicial sin logs
+        if (!savedAuth) {
+          return initialState;
+        }
+
+        // Si hay datos, validar la sesión completa
+        if (hasValidSession()) {
+          const authData = getAuthState();
+
+          if (authData && authData.currentUser && authData.isAuthenticated) {
+            console.log('🔄 Sesión restaurada exitosamente');
+            return {
+              ...initialState,
+              auth: {
+                ...initialState.auth,
+                currentUser: authData.currentUser,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null
+              }
+            };
+          }
         }
       }
     } catch (error) {
       console.error('❌ Error restaurando sesión:', error);
     }
-    
+
     return initialState;
   };
 
   const [state, dispatch] = useReducer(appReducer, loadInitialState());
 
-  // Verificar y restaurar sesión al inicializar
+  // Verificar y restaurar sesión al inicializar - SOLO UNA VEZ
   useEffect(() => {
     const checkAndRestoreSession = async () => {
       try {
+        // Solo verificar si NO hay usuario autenticado en el estado actual
+        // Esto evita verificaciones innecesarias en páginas públicas
+        if (state.auth.isAuthenticated) {
+          return; // Ya hay sesión activa, no hacer nada
+        }
+
         // Verificar que el token existe en sessionStorage
         const token = sessionStorage.getItem('authToken');
         const savedAuth = sessionStorage.getItem('tribus-auth');
-        
-        console.log('🔍 Verificando sesión al inicializar:', {
-          hasToken: !!token,
-          hasSavedAuth: !!savedAuth,
-          currentAuthState: {
-            isAuthenticated: state.auth.isAuthenticated,
-            hasCurrentUser: !!state.auth.currentUser
-          }
-        });
-        
+
+        // Si no hay datos guardados, no hacer nada (evitar logs en Home público)
+        if (!token && !savedAuth) {
+          return;
+        }
+
         // Si hay token pero no hay usuario autenticado en el estado, restaurar la sesión
-        if (token && savedAuth && !state.auth.isAuthenticated) {
+        if (token && savedAuth) {
           try {
             const authData = JSON.parse(savedAuth);
-            console.log('🔄 Restaurando sesión desde sessionStorage:', authData);
-            
+            console.log('🔄 Restaurando sesión desde sessionStorage');
+
             dispatch({ type: 'SET_CURRENT_USER', payload: authData.currentUser });
             dispatch({ type: 'SET_AUTHENTICATED', payload: authData.isAuthenticated });
-            
+
             console.log('✅ Sesión restaurada exitosamente');
           } catch (error) {
             console.error('❌ Error restaurando sesión:', error);
@@ -359,38 +357,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
             sessionStorage.removeItem('tribus-auth');
             sessionStorage.removeItem('authToken');
           }
-        } else if (!token && state.auth.isAuthenticated) {
-          // Si no hay token pero hay usuario autenticado, limpiar la sesión
-          console.log('❌ Token no encontrado, limpiando sesión...');
-          dispatch({ type: 'LOGOUT' });
-        } else if (token && state.auth.isAuthenticated) {
-          console.log('✅ Sesión válida, no se requiere acción');
-        } else {
-          console.log('ℹ️ No hay sesión activa');
         }
       } catch (error) {
         console.error('❌ Error verificando sesión:', error);
       }
     };
 
-    // Ejecutar después de un pequeño delay para asegurar que el estado inicial se ha cargado
-    setTimeout(checkAndRestoreSession, 100);
-  }, [state.auth.isAuthenticated, state.auth.currentUser]);
+    // Ejecutar solo una vez al montar el componente
+    checkAndRestoreSession();
+  }, []); // Dependencias vacías = solo se ejecuta una vez al montar
 
-  // Cargar datos desde MongoDB al inicializar
+  // Cargar datos desde MongoDB al inicializar - SOLO si el usuario está autenticado
   useEffect(() => {
     const loadDataFromBackend = async () => {
+      // Solo cargar datos si el usuario está autenticado
+      if (!state.auth.isAuthenticated) {
+        console.log('⏸️ [AppContext] Usuario no autenticado, saltando carga de datos');
+        return;
+      }
+
       try {
+        console.log('🔄 [AppContext] Usuario autenticado, cargando datos desde MongoDB...');
+
         // Cargar usuarios
         const users = await userService.getAllUsers();
         dispatch({ type: 'SET_USERS', payload: users });
         sessionUsers = users;
-        
+
         // Cargar áreas
         const areas = await loadAreasFromMongoDB();
         dispatch({ type: 'SET_AREAS', payload: areas });
-        
-        
+
+
         // Cargar reservaciones
         const reservations = await loadReservationsFromMongoDB();
         console.log('🔄 [AppContext] Cargando reservaciones desde MongoDB:', {
@@ -402,6 +400,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           })
         });
         dispatch({ type: 'SET_RESERVATIONS', payload: reservations });
+
+        console.log('✅ [AppContext] Datos cargados exitosamente');
       } catch (error) {
         console.error('Error cargando datos desde MongoDB:', error);
         // Si falla, mantener arrays vacíos
@@ -413,19 +413,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Cargar datos al inicializar
+    // Cargar datos al inicializar o cuando cambie el estado de autenticación
     loadDataFromBackend();
-    
+
     // Exponer las variables globales en window para acceso directo
     (window as any).sessionUsers = sessionUsers;
     (window as any).sessionAreas = sessionAreas;
-    
+
     // Debug inicial
-    console.log('AppProvider - Datos iniciales:', {
-      users: sessionUsers.length,
-      areas: sessionAreas.length,
-    });
-  }, []);
+    if (state.auth.isAuthenticated) {
+      console.log('AppProvider - Datos iniciales:', {
+        users: sessionUsers.length,
+        areas: sessionAreas.length,
+      });
+    }
+  }, [state.auth.isAuthenticated]); // Agregar dependencia de autenticación
 
   const getDailyCapacity = useCallback((date: string): DailyCapacity[] => {
     // Normalizar la fecha para comparación usando el sistema unificado

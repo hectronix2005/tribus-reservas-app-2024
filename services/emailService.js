@@ -343,6 +343,281 @@ Tribus - Sistema de Reservas
   }
 
   /**
+   * Envía notificación de formulario de contacto
+   */
+  async sendContactFormNotification(contactForm) {
+    if (!this.transporter) {
+      console.log('⚠️  Servicio de email no configurado. Saltando notificación de contacto.');
+      return { success: false, reason: 'Email service not configured' };
+    }
+
+    try {
+      const adminEmail = 'noreply.tribus@gmail.com';
+
+      // Email al usuario (confirmación)
+      const userEmailHtml = this.getContactConfirmationTemplate(contactForm);
+      const userMailOptions = {
+        from: this.from,
+        to: contactForm.email,
+        subject: '✅ Hemos recibido tu mensaje - Tribus Coworking',
+        html: userEmailHtml
+      };
+
+      // Email al admin (notificación de nuevo contacto)
+      const adminEmailHtml = this.getContactNotificationTemplate(contactForm);
+      const adminMailOptions = {
+        from: this.from,
+        to: adminEmail,
+        subject: `📧 Nuevo contacto de ${contactForm.name}`,
+        html: adminEmailHtml
+      };
+
+      // Enviar ambos emails
+      const [userInfo, adminInfo] = await Promise.all([
+        this.transporter.sendMail(userMailOptions),
+        this.transporter.sendMail(adminMailOptions)
+      ]);
+
+      console.log(`📧 Emails de contacto enviados exitosamente`);
+      console.log(`   Usuario: ${userInfo.messageId}`);
+      console.log(`   Admin: ${adminInfo.messageId}`);
+
+      return {
+        success: true,
+        userMessageId: userInfo.messageId,
+        adminMessageId: adminInfo.messageId
+      };
+    } catch (error) {
+      console.error('❌ Error enviando emails de contacto:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Plantilla HTML de confirmación para el usuario
+   */
+  getContactConfirmationTemplate(contactForm) {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmación de Contacto</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">
+                ✅ ¡Gracias por contactarnos!
+              </h1>
+              <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.9;">
+                Hemos recibido tu mensaje
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; color: #333333;">
+                Hola <strong>${contactForm.name}</strong>,
+              </p>
+
+              <p style="margin: 0 0 30px 0; font-size: 16px; color: #666666; line-height: 1.6;">
+                Gracias por tu interés en Tribus Coworking. Hemos recibido tu mensaje y nuestro equipo se pondrá en contacto contigo lo antes posible.
+              </p>
+
+              <!-- Contact Details -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; margin-bottom: 30px;">
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Tu mensaje:</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 15px; background-color: #ffffff;">
+                    ${contactForm.message}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Important Note -->
+              <div style="background-color: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px; margin-bottom: 30px; border-radius: 4px;">
+                <p style="margin: 0; color: #055160; font-size: 14px;">
+                  <strong>📞 Información de contacto:</strong><br>
+                  Tel: ${contactForm.countryCode} ${contactForm.phone}<br>
+                  Email: ${contactForm.email}
+                </p>
+              </div>
+
+              <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.6;">
+                Responderemos a la brevedad. Si necesitas atención urgente, puedes llamarnos al +57 300 123 4567.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #dee2e6;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #666666;">
+                <strong>Tribus Coworking</strong>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #999999;">
+                Este es un email automático, por favor no responder.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * Plantilla HTML de notificación para el admin
+   */
+  getContactNotificationTemplate(contactForm) {
+    const interestedInLabels = {
+      hot_desk: 'Hot Desk (Puesto flexible)',
+      sala_reunion: 'Sala de Reuniones',
+      oficina_privada: 'Oficina Privada',
+      otro: 'Otro / Información General'
+    };
+
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo Contacto</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f4f4f4; padding: 20px;">
+    <tr>
+      <td align="center">
+        <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">
+                📧 Nuevo Formulario de Contacto
+              </h1>
+              <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.9;">
+                CRM - Gestión de Leads
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 30px 0; font-size: 16px; color: #666666; line-height: 1.6;">
+                Has recibido un nuevo formulario de contacto que requiere seguimiento.
+              </p>
+
+              <!-- Contact Details -->
+              <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border: 1px solid #dee2e6; border-radius: 6px; overflow: hidden; margin-bottom: 30px;">
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Nombre:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    ${contactForm.name}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Email:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    <a href="mailto:${contactForm.email}" style="color: #667eea; text-decoration: none;">${contactForm.email}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Teléfono:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    <a href="tel:${contactForm.countryCode}${contactForm.phone}" style="color: #667eea; text-decoration: none;">${contactForm.countryCode} ${contactForm.phone}</a>
+                  </td>
+                </tr>
+                ${contactForm.company ? `
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Empresa:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    ${contactForm.company}
+                  </td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Interesado en:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    ${interestedInLabels[contactForm.interestedIn] || contactForm.interestedIn}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Mensaje:</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding: 15px; background-color: #ffffff;">
+                    ${contactForm.message}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <div style="text-align: center; margin-top: 30px;">
+                <p style="margin: 0 0 15px 0; font-size: 14px; color: #666666;">
+                  Gestiona este contacto desde el panel de administración
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #dee2e6;">
+              <p style="margin: 0 0 10px 0; font-size: 14px; color: #666666;">
+                <strong>Tribus CRM - Sistema de Gestión de Contactos</strong>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #999999;">
+                Notificación automática del sistema
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+  }
+
+  /**
    * Plantilla HTML para cancelación
    */
   getCancellationTemplate(reservation, user) {

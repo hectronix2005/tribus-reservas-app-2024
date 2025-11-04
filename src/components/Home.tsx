@@ -1,0 +1,349 @@
+import React, { useState } from 'react';
+import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail } from 'lucide-react';
+
+interface HomeProps {
+  onLoginClick: () => void;
+  onContactClick?: () => void;
+}
+
+export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
+  const [activeFeature, setActiveFeature] = useState(0);
+
+  const features = [
+    {
+      icon: Building2,
+      title: "Espacios Flexibles",
+      description: "Salas de reuniones, hot desks y espacios colaborativos adaptados a tus necesidades"
+    },
+    {
+      icon: Calendar,
+      title: "Reserva Inteligente",
+      description: "Sistema de reservas en tiempo real con disponibilidad instantánea"
+    },
+    {
+      icon: Users,
+      title: "Colaboración",
+      description: "Gestiona equipos y colaboradores fácilmente en cada reserva"
+    },
+    {
+      icon: Clock,
+      title: "24/7 Disponible",
+      description: "Acceso flexible cuando lo necesites, adaptado a tu horario"
+    }
+  ];
+
+  const spaces = [
+    {
+      name: "Salas de Reuniones",
+      capacity: "4-12 personas",
+      priceFrom: "$80,000/mes",
+      features: ["Pantalla 4K", "Videoconferencia", "Video Beam"],
+      image: "🏢"
+    },
+    {
+      name: "Hot Desk",
+      capacity: "1-8 puestos",
+      priceFrom: "$50,000/mes",
+      features: ["Escritorio Ergonómico", "WiFi Alta Velocidad", "Zonas Abiertas"],
+      image: "💼"
+    },
+    {
+      name: "Espacios Colaborativos",
+      capacity: "6-20 personas",
+      priceFrom: "$120,000/mes",
+      features: ["Mobiliario Flexible", "Zonas de Descanso", "Cafetería"],
+      image: "👥"
+    }
+  ];
+
+  const benefits = [
+    "Sin compromisos a largo plazo",
+    "Facturación transparente",
+    "Soporte técnico incluido",
+    "Ubicaciones estratégicas",
+    "Networking empresarial",
+    "Servicios de recepción"
+  ];
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header/Navbar */}
+      <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-2">
+              <Building2 className="h-8 w-8 text-indigo-600" />
+              <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Tribus
+              </span>
+            </div>
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-gray-700 hover:text-indigo-600 transition">Características</a>
+              <a href="#spaces" className="text-gray-700 hover:text-indigo-600 transition">Espacios</a>
+              <a href="#benefits" className="text-gray-700 hover:text-indigo-600 transition">Beneficios</a>
+              {onContactClick && (
+                <button
+                  onClick={onContactClick}
+                  className="px-6 py-2 border-2 border-indigo-600 text-indigo-600 rounded-full hover:bg-indigo-50 transition flex items-center gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Contacto
+                </button>
+              )}
+              <button
+                onClick={onLoginClick}
+                className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:-translate-y-0.5 transition"
+              >
+                Iniciar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-4xl mx-auto">
+            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
+              Tu espacio de trabajo,
+              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> cuando lo necesites</span>
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              Reserva salas de reuniones, hot desks y espacios colaborativos de forma rápida y sencilla. Flexibilidad total para tu equipo.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={onLoginClick}
+                className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition flex items-center justify-center"
+              >
+                Empezar Ahora
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </button>
+              <button className="px-8 py-4 bg-white text-gray-700 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition border-2 border-gray-200">
+                Ver Demo
+              </button>
+            </div>
+            <div className="mt-12 flex items-center justify-center space-x-12">
+              <div>
+                <div className="text-3xl font-bold text-indigo-600">500+</div>
+                <div className="text-sm text-gray-600">Reservas Activas</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-purple-600">98%</div>
+                <div className="text-sm text-gray-600">Satisfacción</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-pink-600">24/7</div>
+                <div className="text-sm text-gray-600">Disponibilidad</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Todo lo que necesitas para trabajar mejor
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Herramientas diseñadas para facilitar la colaboración y maximizar la productividad
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={index}
+                  onMouseEnter={() => setActiveFeature(index)}
+                  className={`p-6 rounded-2xl transition-all duration-300 cursor-pointer ${
+                    activeFeature === index
+                      ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-xl transform -translate-y-2'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                  }`}
+                >
+                  <Icon className={`h-12 w-12 mb-4 ${activeFeature === index ? 'text-white' : 'text-indigo-600'}`} />
+                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                  <p className={`${activeFeature === index ? 'text-indigo-100' : 'text-gray-600'}`}>
+                    {feature.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Spaces Section */}
+      <section id="spaces" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-indigo-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Espacios diseñados para ti
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Encuentra el espacio perfecto para cada ocasión
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {spaces.map((space: any, index: number) => (
+              <div
+                key={index}
+                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
+              >
+                <div className="h-48 bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-6xl">
+                  {space.image}
+                </div>
+                <div className="p-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{space.name}</h3>
+                  <div className="flex items-center justify-between text-gray-600 mb-2">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2" />
+                      <span className="text-sm">{space.capacity}</span>
+                    </div>
+                    {space.priceFrom && (
+                      <div className="text-sm font-semibold text-indigo-600">
+                        Desde {space.priceFrom}
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t border-gray-200 my-4"></div>
+                  <ul className="space-y-2">
+                    {space.features.map((feat: string, idx: number) => (
+                      <li key={idx} className="flex items-center text-sm text-gray-600">
+                        <Check className="h-4 w-4 text-green-500 mr-2" />
+                        {feat}
+                      </li>
+                    ))}
+                  </ul>
+                  <button className="mt-6 w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    Ver Disponibilidad
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Section */}
+      <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6">
+                ¿Por qué elegir Tribus?
+              </h2>
+              <p className="text-xl text-gray-600 mb-8">
+                Más que un espacio de trabajo, una experiencia completa diseñada para impulsar tu productividad
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {benefits.map((benefit: string, index: number) => (
+                  <div key={index} className="flex items-start">
+                    <Star className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <span className="text-gray-700">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 text-white">
+              <h3 className="text-3xl font-bold mb-6">Comienza hoy mismo</h3>
+              <ul className="space-y-4 mb-8">
+                <li className="flex items-start">
+                  <Check className="h-6 w-6 mr-3 flex-shrink-0" />
+                  <span>Registro rápido y sencillo en menos de 2 minutos</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-6 w-6 mr-3 flex-shrink-0" />
+                  <span>Acceso inmediato a todos nuestros espacios</span>
+                </li>
+                <li className="flex items-start">
+                  <Check className="h-6 w-6 mr-3 flex-shrink-0" />
+                  <span>Sin costos ocultos ni compromisos permanentes</span>
+                </li>
+              </ul>
+              <button
+                onClick={onLoginClick}
+                className="w-full px-8 py-4 bg-white text-indigo-600 rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition"
+              >
+                Iniciar Sesión Ahora
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-indigo-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            ¿Listo para transformar tu forma de trabajar?
+          </h2>
+          <p className="text-xl mb-8 text-indigo-100">
+            Únete a cientos de equipos que ya confían en Tribus para gestionar sus espacios
+          </p>
+          <button
+            onClick={onLoginClick}
+            className="px-12 py-4 bg-white text-indigo-600 rounded-full font-semibold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition"
+          >
+            Empezar Gratis
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Building2 className="h-6 w-6 text-indigo-400" />
+                <span className="text-xl font-bold text-white">Tribus</span>
+              </div>
+              <p className="text-sm">
+                Espacios de trabajo flexibles para equipos modernos
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Producto</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-white transition">Características</a></li>
+                <li><a href="#" className="hover:text-white transition">Espacios</a></li>
+                <li><a href="#" className="hover:text-white transition">Precios</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Compañía</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-white transition">Sobre Nosotros</a></li>
+                <li>
+                  {onContactClick ? (
+                    <button onClick={onContactClick} className="hover:text-white transition">Contacto</button>
+                  ) : (
+                    <a href="#" className="hover:text-white transition">Contacto</a>
+                  )}
+                </li>
+                <li><a href="#" className="hover:text-white transition">Blog</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Legal</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-white transition">Privacidad</a></li>
+                <li><a href="#" className="hover:text-white transition">Términos</a></li>
+                <li><a href="#" className="hover:text-white transition">Cookies</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-8 text-sm text-center">
+            <p>&copy; 2025 Tribus. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
