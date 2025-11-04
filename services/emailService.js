@@ -271,6 +271,14 @@ class EmailService {
                   </td>
                 </tr>
                 ` : ''}
+                <tr>
+                  <td style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                    <strong>Creado por:</strong>
+                  </td>
+                  <td style="padding: 15px; background-color: #ffffff; border-bottom: 1px solid #dee2e6;">
+                    ${user.name}${user.username ? ` (@${user.username})` : ''}
+                  </td>
+                </tr>
                 ${collaboratorsList}
                 ${reservation.notes ? `
                 <tr>
@@ -335,6 +343,7 @@ Fecha: ${reservation.date}
 ${!reservation.area.toLowerCase().includes('hot desk') ? `Horario: ${reservation.startTime} - ${reservation.endTime}` : ''}
 Equipo: ${reservation.teamName}
 Puestos: ${reservation.requestedSeats}
+Creado por: ${user.name}${user.username ? ` (@${user.username})` : ''}
 ${reservation.notes ? `Notas: ${reservation.notes}` : ''}
 
 Por favor, llega puntualmente a tu reserva.
