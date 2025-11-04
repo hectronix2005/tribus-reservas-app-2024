@@ -59,7 +59,8 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     { id: 'areas', label: 'Áreas', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
     ...(state.auth.currentUser?.role === 'superadmin' ? [
-      { id: 'coworking', label: 'Gestión Coworking', icon: Home }
+      { id: 'coworking', label: 'Gestión Coworking', icon: Home },
+      { id: 'blog', label: 'Blog', icon: FileText }
     ] : []),
   ];
 
@@ -99,7 +100,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               <div className="relative" ref={adminMenuRef}>
                 <button
                   onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
-                  className={`nav-link ${['admin', 'areas', 'users', 'coworking'].includes(currentView) ? 'nav-link-active' : ''} group`}
+                  className={`nav-link ${['admin', 'areas', 'users', 'coworking', 'blog'].includes(currentView) ? 'nav-link-active' : ''} group`}
                 >
                   <Settings className="w-5 h-5 transition-transform duration-200 group-hover:rotate-90" />
                   <span>Administración</span>

@@ -12,6 +12,7 @@ import { Availability } from './components/Availability';
 import { UserProfile } from './components/UserProfile';
 import { ColaboradorView } from './components/ColaboradorView';
 import { CoworkingManagement } from './components/CoworkingManagement';
+import { BlogManagement } from './components/BlogManagement';
 import { ContactForm } from './components/ContactForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -165,6 +166,16 @@ function AppContent() {
         return state.auth.currentUser?.role === 'superadmin' ? (
           <ErrorBoundary fallbackMessage="Error en Gestión de Coworking">
             <CoworkingManagement />
+          </ErrorBoundary>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-gray-500">Acceso restringido. Solo super administradores.</div>
+          </div>
+        );
+      case 'blog':
+        return state.auth.currentUser?.role === 'superadmin' ? (
+          <ErrorBoundary fallbackMessage="Error en Gestión de Blog">
+            <BlogManagement />
           </ErrorBoundary>
         ) : (
           <div className="text-center py-12">

@@ -411,6 +411,94 @@ const deletionLogSchema = new mongoose.Schema({
 
 const DeletionLog = mongoose.model('DeletionLog', deletionLogSchema);
 
+// Modelo de Blog Post
+const blogPostSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  slug: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true
+  },
+  excerpt: {
+    type: String,
+    required: true,
+    maxlength: 300
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  author: {
+    type: String,
+    required: true,
+    default: 'Equipo Tribus'
+  },
+  category: {
+    type: String,
+    required: true,
+    enum: ['Networking', 'Ahorro', 'Tecnología', 'Productividad', 'Emprendimiento', 'Coworking', 'Otro'],
+    default: 'Coworking'
+  },
+  image: {
+    type: String,
+    default: '📝'
+  },
+  keywords: [{
+    type: String,
+    trim: true
+  }],
+  readTime: {
+    type: String,
+    default: '5 min'
+  },
+  published: {
+    type: Boolean,
+    default: false
+  },
+  publishedAt: {
+    type: Date
+  },
+  views: {
+    type: Number,
+    default: 0
+  },
+  createdBy: {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    userName: {
+      type: String,
+      required: true
+    }
+  },
+  lastModifiedBy: {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    userName: String,
+    modifiedAt: Date
+  }
+}, {
+  timestamps: true
+});
+
+// Índices para mejor rendimiento en búsquedas
+blogPostSchema.index({ slug: 1 });
+blogPostSchema.index({ published: 1, publishedAt: -1 });
+blogPostSchema.index({ category: 1 });
+blogPostSchema.index({ keywords: 1 });
+
+const BlogPost = mongoose.model('BlogPost', blogPostSchema);
+
 // Modelo de Reservación
 const reservationSchema = new mongoose.Schema({
   // ID único legible para identificación fácil
@@ -2788,6 +2876,243 @@ app.put('/api/coworking-settings', async (req, res) => {
   } catch (error) {
     console.error('Error actualizando configuración de coworking:', error);
     res.status(500).json({ error: 'Error al actualizar la configuración' });
+  }
+});
+
+// ==================== BLOG POSTS ENDPOINTS ====================
+
+// GET all blog posts (Super Admin only)
+app.get('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const posts = await BlogPost.find()
+      .sort({ createdAt: -1 })
+      .populate('createdBy.userId', 'name email')
+      .populate('lastModifiedBy.userId', 'name email');
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error obteniendo blog posts:', error);
+    res.status(500).json({ error: 'Error al obtener los artículos del blog' });
+  }
+});
+
+// GET published blog posts (público)
+app.get('/api/blog-posts/published', async (req, res) => {
+  try {
+    const posts = await BlogPost.find({ published: true })
+      .sort({ publishedAt: -1 })
+      .select('-createdBy -lastModifiedBy');
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error obteniendo blog posts publicados:', error);
+    res.status(500).json({ error: 'Error al obtener los artículos publicados' });
+  }
+});
+
+// GET single blog post by slug (público si está publicado)
+app.get('/api/blog-posts/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const post = await BlogPost.findOne({ slug });
+
+    if (!post) {
+      return res.status(404).json({ error: 'Artículo no encontrado' });
+    }
+
+    // Si el post no está publicado, solo Super Admin puede verlo
+    if (!post.published) {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) {
+        return res.status(403).json({ error: 'Este artículo no está disponible públicamente' });
+      }
+
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId);
+
+        if (!user || user.role !== 'superadmin') {
+          return res.status(403).json({ error: 'Este artículo no está disponible públicamente' });
+        }
+      } catch (err) {
+        return res.status(403).json({ error: 'Este artículo no está disponible públicamente' });
+      }
+    }
+
+    // Incrementar contador de vistas solo si está publicado
+    if (post.published) {
+      post.views += 1;
+      await post.save();
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error('Error obteniendo blog post:', error);
+    res.status(500).json({ error: 'Error al obtener el artículo' });
+  }
+});
+
+// POST - Crear nuevo blog post (solo Super Admin)
+app.post('/api/blog-posts', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { title, slug, excerpt, content, author, category, image, keywords, readTime } = req.body;
+
+    // Validar campos requeridos
+    if (!title || !slug || !excerpt || !content || !category) {
+      return res.status(400).json({
+        error: 'Campos requeridos faltantes',
+        required: ['title', 'slug', 'excerpt', 'content', 'category']
+      });
+    }
+
+    // Verificar que el slug no exista
+    const existingPost = await BlogPost.findOne({ slug });
+    if (existingPost) {
+      return res.status(400).json({ error: 'Ya existe un artículo con este slug' });
+    }
+
+    // Crear nuevo post
+    const newPost = new BlogPost({
+      title,
+      slug,
+      excerpt,
+      content,
+      author: author || 'Equipo Tribus',
+      category,
+      image: image || '📝',
+      keywords: keywords || [],
+      readTime: readTime || '5 min',
+      createdBy: {
+        userId: req.user.userId,
+        userName: req.user.name
+      }
+    });
+
+    await newPost.save();
+
+    res.status(201).json({
+      message: 'Artículo creado exitosamente',
+      post: newPost
+    });
+  } catch (error) {
+    console.error('Error creando blog post:', error);
+    res.status(500).json({ error: 'Error al crear el artículo' });
+  }
+});
+
+// PUT - Actualizar blog post (solo Super Admin)
+app.put('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, slug, excerpt, content, author, category, image, keywords, readTime } = req.body;
+
+    const post = await BlogPost.findById(id);
+    if (!post) {
+      return res.status(404).json({ error: 'Artículo no encontrado' });
+    }
+
+    // Si se está cambiando el slug, verificar que no exista
+    if (slug && slug !== post.slug) {
+      const existingPost = await BlogPost.findOne({ slug });
+      if (existingPost) {
+        return res.status(400).json({ error: 'Ya existe un artículo con este slug' });
+      }
+    }
+
+    // Actualizar campos
+    if (title) post.title = title;
+    if (slug) post.slug = slug;
+    if (excerpt) post.excerpt = excerpt;
+    if (content) post.content = content;
+    if (author) post.author = author;
+    if (category) post.category = category;
+    if (image !== undefined) post.image = image;
+    if (keywords) post.keywords = keywords;
+    if (readTime) post.readTime = readTime;
+
+    // Registrar última modificación
+    post.lastModifiedBy = {
+      userId: req.user.userId,
+      userName: req.user.name,
+      modifiedAt: new Date()
+    };
+
+    await post.save();
+
+    res.json({
+      message: 'Artículo actualizado exitosamente',
+      post
+    });
+  } catch (error) {
+    console.error('Error actualizando blog post:', error);
+    res.status(500).json({ error: 'Error al actualizar el artículo' });
+  }
+});
+
+// DELETE - Eliminar blog post (solo Super Admin)
+app.delete('/api/blog-posts/:id', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const post = await BlogPost.findById(id);
+    if (!post) {
+      return res.status(404).json({ error: 'Artículo no encontrado' });
+    }
+
+    await BlogPost.findByIdAndDelete(id);
+
+    res.json({
+      message: 'Artículo eliminado exitosamente',
+      deletedPost: {
+        id: post._id,
+        title: post.title,
+        slug: post.slug
+      }
+    });
+  } catch (error) {
+    console.error('Error eliminando blog post:', error);
+    res.status(500).json({ error: 'Error al eliminar el artículo' });
+  }
+});
+
+// PATCH - Publicar/Despublicar blog post (solo Super Admin)
+app.patch('/api/blog-posts/:id/publish', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { published } = req.body;
+
+    if (typeof published !== 'boolean') {
+      return res.status(400).json({ error: 'El campo "published" debe ser booleano' });
+    }
+
+    const post = await BlogPost.findById(id);
+    if (!post) {
+      return res.status(404).json({ error: 'Artículo no encontrado' });
+    }
+
+    post.published = published;
+
+    // Si se está publicando por primera vez, establecer publishedAt
+    if (published && !post.publishedAt) {
+      post.publishedAt = new Date();
+    }
+
+    // Registrar última modificación
+    post.lastModifiedBy = {
+      userId: req.user.userId,
+      userName: req.user.name,
+      modifiedAt: new Date()
+    };
+
+    await post.save();
+
+    res.json({
+      message: `Artículo ${published ? 'publicado' : 'despublicado'} exitosamente`,
+      post
+    });
+  } catch (error) {
+    console.error('Error cambiando estado de publicación:', error);
+    res.status(500).json({ error: 'Error al cambiar el estado de publicación' });
   }
 });
 

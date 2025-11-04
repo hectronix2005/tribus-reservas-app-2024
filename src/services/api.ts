@@ -779,4 +779,140 @@ export const contactFormsService = {
   }
 };
 
+// ==========================================
+// SERVICIO DE BLOG
+// ==========================================
+
+export const blogService = {
+  // Obtener todos los posts (solo Super Admin)
+  async getAll() {
+    try {
+      const response = await apiRequest<any>('/blog-posts', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error obteniendo blog posts:', error);
+      throw error;
+    }
+  },
+
+  // Obtener posts publicados (público)
+  async getPublished() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/blog-posts/published`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new ApiError(response.status, data.error || 'Error al obtener artículos publicados');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error obteniendo blog posts publicados:', error);
+      throw error;
+    }
+  },
+
+  // Obtener un post por slug (público si está publicado)
+  async getBySlug(slug: string) {
+    try {
+      const token = getAuthToken();
+      const headers: HeadersInit = {};
+
+      // Si hay token, agregarlo para poder ver posts no publicados (Super Admin)
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/blog-posts/${slug}`, { headers });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new ApiError(response.status, data.error || 'Error al obtener el artículo');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error obteniendo blog post por slug:', error);
+      throw error;
+    }
+  },
+
+  // Crear nuevo post (solo Super Admin)
+  async create(postData: {
+    title: string;
+    slug: string;
+    excerpt: string;
+    content: string;
+    author?: string;
+    category: string;
+    image?: string;
+    keywords?: string[];
+    readTime?: string;
+  }) {
+    try {
+      const response = await apiRequest<any>('/blog-posts', {
+        method: 'POST',
+        body: JSON.stringify(postData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creando blog post:', error);
+      throw error;
+    }
+  },
+
+  // Actualizar post (solo Super Admin)
+  async update(id: string, postData: {
+    title?: string;
+    slug?: string;
+    excerpt?: string;
+    content?: string;
+    author?: string;
+    category?: string;
+    image?: string;
+    keywords?: string[];
+    readTime?: string;
+  }) {
+    try {
+      const response = await apiRequest<any>(`/blog-posts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(postData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error actualizando blog post:', error);
+      throw error;
+    }
+  },
+
+  // Eliminar post (solo Super Admin)
+  async delete(id: string) {
+    try {
+      const response = await apiRequest<any>(`/blog-posts/${id}`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error eliminando blog post:', error);
+      throw error;
+    }
+  },
+
+  // Publicar/Despublicar post (solo Super Admin)
+  async togglePublish(id: string, published: boolean) {
+    try {
+      const response = await apiRequest<any>(`/blog-posts/${id}/publish`, {
+        method: 'PATCH',
+        body: JSON.stringify({ published }),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error cambiando estado de publicación:', error);
+      throw error;
+    }
+  }
+};
+
 export { ApiError };

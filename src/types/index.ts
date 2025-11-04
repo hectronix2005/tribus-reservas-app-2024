@@ -267,3 +267,30 @@ export interface ReservationFormData {
   notes?: string;
 }
 
+export interface BlogPost {
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  author: string;
+  category: 'Networking' | 'Ahorro' | 'Tecnología' | 'Productividad' | 'Emprendimiento' | 'Coworking' | 'Otro';
+  image: string;
+  keywords: string[];
+  readTime: string;
+  published: boolean;
+  publishedAt?: string;
+  views: number;
+  createdBy: {
+    userId: string;
+    userName: string;
+  };
+  lastModifiedBy?: {
+    userId: string;
+    userName: string;
+    modifiedAt: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
