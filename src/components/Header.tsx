@@ -59,8 +59,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
     { id: 'areas', label: 'Áreas', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
     ...(state.auth.currentUser?.role === 'superadmin' ? [
-      { id: 'coworking', label: 'Gestión Coworking', icon: Home },
-      { id: 'blog', label: 'Blog', icon: FileText }
+      { id: 'coworking', label: 'Gestión Coworking', icon: Home }
     ] : []),
   ];
 

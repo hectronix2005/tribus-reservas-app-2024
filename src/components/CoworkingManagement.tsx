@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Building2, AlertCircle, Check, Mail } from 'lucide-react';
+import { Save, Plus, Trash2, Building2, AlertCircle, Check, Mail, FileText } from 'lucide-react';
 import { coworkingService } from '../services/api';
 import { ContactFormsManagement } from './ContactFormsManagement';
+import { BlogManagement } from './BlogManagement';
 
 export function CoworkingManagement() {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'hero' | 'features' | 'spaces' | 'benefits' | 'company' | 'mensajes'>('hero');
+  const [activeTab, setActiveTab] = useState<'hero' | 'features' | 'spaces' | 'benefits' | 'company' | 'mensajes' | 'blog'>('hero');
 
   useEffect(() => {
     loadSettings();
@@ -272,19 +273,20 @@ export function CoworkingManagement() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {[
             { id: 'hero', label: 'Sección Hero' },
             { id: 'features', label: 'Características' },
             { id: 'spaces', label: 'Espacios' },
             { id: 'benefits', label: 'Beneficios' },
             { id: 'company', label: 'Compañía' },
-            { id: 'mensajes', label: '📧 Mensajes' }
+            { id: 'mensajes', label: '📧 Mensajes' },
+            { id: 'blog', label: '📝 Blog' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-indigo-500 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -596,6 +598,11 @@ export function CoworkingManagement() {
       {/* Mensajes de Contacto Tab */}
       {activeTab === 'mensajes' && (
         <ContactFormsManagement />
+      )}
+
+      {/* Blog Tab */}
+      {activeTab === 'blog' && (
+        <BlogManagement />
       )}
     </div>
   );
