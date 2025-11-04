@@ -1117,18 +1117,31 @@ export function Reservations() {
         if (editingReservation) {
           // Actualizar reservación existente
           response = await reservationService.updateReservation(editingReservation._id, reservationData);
+
+          // Para ediciones, hacer reload inmediatamente
+          console.log('✅ Reservación actualizada, recargando página...');
+          window.location.reload();
         } else {
           // Crear nueva reservación
           response = await reservationService.createReservation(reservationData);
-        }
 
-        // No es necesario recargar estado ya que haremos reload completo
+          // Para nuevas reservas, mostrar modal de confirmación
+          if (response?.reservation) {
+            setConfirmedReservation(response.reservation);
+            setShowConfirmationModal(true);
+            setIsLoading(false);
+            // El reload se hará cuando el usuario cierre el modal
+            return;
+          } else {
+            // Si no hay response, hacer reload inmediatamente
+            console.log('✅ Reservación creada, recargando página...');
+            window.location.reload();
+          }
+        }
       }
 
-      // Log antes de reload
-      console.log('✅ Reservación guardada, recargando página...');
-
-      // Hacer hard refresh de la página para mostrar cambios inmediatamente
+      // Para reservas recurrentes, hacer reload inmediatamente
+      console.log('✅ Reservaciones creadas, recargando página...');
       window.location.reload();
 
     } catch (error: any) {
@@ -2981,6 +2994,8 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
                   onClick={() => {
                     setShowConfirmationModal(false);
                     setConfirmedReservation(null);
+                    // Hacer reload después de cerrar el modal
+                    window.location.reload();
                   }}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
