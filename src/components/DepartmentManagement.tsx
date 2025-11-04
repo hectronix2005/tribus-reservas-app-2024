@@ -23,7 +23,7 @@ export function DepartmentManagement() {
   });
 
   // Verificar permisos
-  const canManageDepartments = currentUser?.role === 'admin' || currentUser?.role === 'lider';
+  const canManageDepartments = currentUser?.role === 'superadmin' || currentUser?.role === 'admin' || currentUser?.role === 'lider';
 
   useEffect(() => {
     if (canManageDepartments) {

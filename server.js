@@ -1567,8 +1567,8 @@ app.post('/api/reservations', async (req, res) => {
 
     // Determinar tiempo máximo de reservación según el rol del usuario
     let maxReservationTimeMinutes;
-    if (user.role === 'admin') {
-      maxReservationTimeMinutes = 480; // 8 horas para administradores
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      maxReservationTimeMinutes = 480; // 8 horas para administradores y superadmins
     } else {
       maxReservationTimeMinutes = 180; // 3 horas para usuarios regulares
     }
@@ -1593,9 +1593,9 @@ app.post('/api/reservations', async (req, res) => {
       // Validar tiempo máximo según el rol del usuario
       if (reservationDuration > maxReservationTimeMinutes) {
         const maxHours = maxReservationTimeMinutes / 60;
-        const userRole = user.role === 'admin' ? 'administrador' : 'usuario';
-        return res.status(400).json({ 
-          error: `Como ${userRole}, la reservación no puede exceder ${maxReservationTimeMinutes} minutos (${maxHours} horas)` 
+        const userRole = (user.role === 'admin' || user.role === 'superadmin') ? 'administrador' : 'usuario';
+        return res.status(400).json({
+          error: `Como ${userRole}, la reservación no puede exceder ${maxReservationTimeMinutes} minutos (${maxHours} horas)`
         });
       }
       

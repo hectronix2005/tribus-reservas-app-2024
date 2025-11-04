@@ -198,8 +198,8 @@ export function Reservations() {
       { value: '480', label: '8 horas' }
     ];
 
-    // Si el usuario es admin, mostrar todas las opciones
-    if (currentUser?.role === 'admin') {
+    // Si el usuario es admin o superadmin, mostrar todas las opciones
+    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') {
       return baseOptions;
     }
 
@@ -1055,8 +1055,8 @@ export function Reservations() {
       setIsLoading(true);
       setError(null);
 
-      // Verificar si es una reservación recurrente (solo para admins)
-      if (formData.isRecurring && currentUser?.role === 'admin') {
+      // Verificar si es una reservación recurrente (solo para admins y superadmins)
+      if (formData.isRecurring && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')) {
         if (!formData.recurrenceEndDate) {
           setError('Para reservaciones recurrentes, debe especificar una fecha de fin.');
           return;
@@ -2248,8 +2248,8 @@ Timestamp: ${debug.metadata?.timestamp ? formatDate(debug.metadata.timestamp) : 
               )}
 
 
-            {/* Sección de Reservaciones Recurrentes (solo para admins) */}
-            {currentUser?.role === 'admin' && (
+            {/* Sección de Reservaciones Recurrentes (solo para admins y superadmins) */}
+            {(currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
               <div className="border-t border-gray-200 pt-4">
                 <div className="flex items-center space-x-2 mb-4">
                   <input
