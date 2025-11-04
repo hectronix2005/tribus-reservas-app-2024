@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { Building2, Users, Calendar, Clock, MapPin, ArrowRight, Check, Star, Mail } from 'lucide-react';
 
 interface HomeProps {
@@ -104,82 +105,102 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
     "Servicios de recepción"
   ];
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": "https://tribus-76fa5345672e.herokuapp.com/#organization",
+    "name": "Tribus Coworking",
+    "description": "Alquiler de oficinas por horas y días en Colombia. Espacios de coworking, salas de reuniones y hot desks. Reservas online fáciles y rápidas con flexibilidad total para tu equipo.",
+    "url": "https://tribus-76fa5345672e.herokuapp.com/",
+    "logo": "https://tribus-76fa5345672e.herokuapp.com/logo192.png",
+    "image": "https://tribus-76fa5345672e.herokuapp.com/og-image.jpg",
+    "priceRange": "$$",
+    "telephone": "+57-xxx-xxx-xxxx",
+    "address": {
+      "@type": "PostalAddress",
+      "addressCountry": "CO",
+      "addressRegion": "Bogotá",
+      "addressLocality": "Colombia"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "addressCountry": "CO"
+    },
+    "openingHoursSpecification": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "08:00",
+        "closes": "18:00"
+      }
+    ],
+    "areaServed": {
+      "@type": "Country",
+      "name": "Colombia"
+    },
+    "hasOfferCatalog": {
+      "@type": "OfferCatalog",
+      "name": "Servicios de Espacios de Trabajo",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Alquiler de Oficinas por Horas",
+            "description": "Oficinas privadas por horas o días completos en Colombia, totalmente equipadas y listas para usar con internet de alta velocidad"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Espacios de Coworking Colombia",
+            "description": "Espacios compartidos flexibles para trabajar y colaborar con otros profesionales y emprendedores"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Salas de Reuniones Bogotá",
+            "description": "Salas equipadas con videoconferencia para reuniones profesionales, disponibles por horas"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Hot Desk Colombia",
+            "description": "Puestos de trabajo flexibles sin asignación fija, ideales para trabajadores remotos y nómadas digitales"
+          }
+        }
+      ]
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "127"
+    },
+    "sameAs": []
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Structured Data for SEO */}
-      <script type="application/ld+json">
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "LocalBusiness",
-          "@id": "https://tribus-76fa5345672e.herokuapp.com/#organization",
-          "name": "Tribus Coworking",
-          "description": "Alquiler de oficinas por horas y días. Espacios de coworking, salas de reuniones y hot desks en Colombia. Flexibilidad total para tu equipo con reservas online fáciles y rápidas.",
-          "url": "https://tribus-76fa5345672e.herokuapp.com/",
-          "logo": "https://tribus-76fa5345672e.herokuapp.com/logo192.png",
-          "image": "https://tribus-76fa5345672e.herokuapp.com/og-image.jpg",
-          "priceRange": "$$",
-          "address": {
-            "@type": "PostalAddress",
-            "addressCountry": "CO",
-            "addressLocality": "Colombia"
-          },
-          "geo": {
-            "@type": "GeoCoordinates",
-            "addressCountry": "CO"
-          },
-          "openingHoursSpecification": [
-            {
-              "@type": "OpeningHoursSpecification",
-              "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-              "opens": "08:00",
-              "closes": "18:00"
-            }
-          ],
-          "areaServed": {
-            "@type": "Country",
-            "name": "Colombia"
-          },
-          "hasOfferCatalog": {
-            "@type": "OfferCatalog",
-            "name": "Servicios de Espacios de Trabajo",
-            "itemListElement": [
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Service",
-                  "name": "Alquiler de Oficinas",
-                  "description": "Oficinas privadas por horas o días completos, equipadas y listas para usar"
-                }
-              },
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Service",
-                  "name": "Espacios de Coworking",
-                  "description": "Espacios compartidos flexibles para trabajar y colaborar con otros profesionales"
-                }
-              },
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Service",
-                  "name": "Salas de Reuniones",
-                  "description": "Salas equipadas para reuniones profesionales, disponibles por horas"
-                }
-              },
-              {
-                "@type": "Offer",
-                "itemOffered": {
-                  "@type": "Service",
-                  "name": "Hot Desk",
-                  "description": "Puestos de trabajo flexibles sin asignación fija, ideales para trabajadores remotos"
-                }
-              }
-            ]
-          },
-          "sameAs": []
-        })}
-      </script>
+      <Helmet>
+        <title>Alquiler de Oficinas por Horas y Coworking en Colombia | Tribus</title>
+        <meta name="description" content="Alquiler de oficinas por horas y días en Colombia. Espacios de coworking, salas de reuniones y hot desks en Bogotá. Reserva online con flexibilidad total. Desde $50.000/mes." />
+        <meta name="keywords" content="alquiler oficinas colombia, coworking bogota, espacios compartidos, salas reuniones, hot desk colombia, oficina por horas bogota, alquiler oficina temporal, espacio trabajo flexible, coworking colombia precios, oficina compartida bogota" />
+
+        {/* Open Graph adicional para mejor sharing */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Alquiler de Oficinas por Horas y Coworking | Tribus Colombia" />
+        <meta property="og:description" content="Espacios de trabajo flexibles en Colombia. Alquiler de oficinas, coworking y salas de reuniones por horas. Reserva online fácil." />
+
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
 
       {/* Header/Navbar */}
       <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm shadow-sm z-50">
@@ -385,6 +406,76 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
               >
                 Iniciar Sesión Ahora
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section for SEO */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Preguntas Frecuentes sobre Alquiler de Oficinas y Coworking
+            </h2>
+            <p className="text-xl text-gray-600">
+              Todo lo que necesitas saber sobre nuestros espacios de trabajo compartido
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Cuánto cuesta el alquiler de oficinas por horas en Colombia?
+              </h3>
+              <p className="text-gray-600">
+                Los precios de alquiler de oficinas varían según el tipo de espacio y la duración. Nuestros espacios de coworking comienzan desde $50,000/mes para hot desks, mientras que las salas de reuniones están disponibles desde $150,000/hora. El alquiler de oficinas privadas se cotiza por día u hora según tus necesidades.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Qué incluye el alquiler de espacios de coworking?
+              </h3>
+              <p className="text-gray-600">
+                Todos nuestros espacios de coworking incluyen internet de alta velocidad, escritorios ergonómicos, sillas cómodas, salas de reuniones (según disponibilidad), café y té ilimitado, limpieza diaria y acceso a impresora/escáner. Las oficinas privadas también incluyen mobiliario completo y privacidad total.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Cómo funciona el sistema de reservas online?
+              </h3>
+              <p className="text-gray-600">
+                El sistema de reservas es muy sencillo: creas tu cuenta, seleccionas el espacio que necesitas (sala de reuniones, hot desk u oficina privada), escoges el día y horario, y confirmas tu reserva. Recibirás una confirmación por email inmediatamente. Puedes reservar con anticipación o el mismo día según disponibilidad.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Qué es un hot desk y cuándo debería usarlo?
+              </h3>
+              <p className="text-gray-600">
+                Un hot desk es un puesto de trabajo flexible sin asignación fija, ideal para trabajadores remotos, freelancers y nómadas digitales. Es perfecto si necesitas un espacio profesional ocasionalmente o prefieres la flexibilidad de trabajar en diferentes ubicaciones. Es la opción más económica de coworking.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Puedo alquilar una oficina por solo unas horas?
+              </h3>
+              <p className="text-gray-600">
+                Sí, ofrecemos alquiler de oficinas por horas con total flexibilidad. Puedes reservar salas de reuniones por 1 hora o más, y oficinas privadas por medio día o día completo. No hay contratos de largo plazo ni compromisos permanentes. Pagas solo por el tiempo que necesitas usar el espacio.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                ¿Dónde están ubicados sus espacios de coworking en Colombia?
+              </h3>
+              <p className="text-gray-600">
+                Actualmente tenemos espacios de coworking en ubicaciones estratégicas de Colombia. Todos nuestros espacios cuentan con excelente acceso a transporte público, estacionamiento cercano y están en zonas empresariales seguras. Consulta las ubicaciones específicas al momento de hacer tu reserva.
+              </p>
             </div>
           </div>
         </div>
