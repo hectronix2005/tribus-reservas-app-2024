@@ -238,6 +238,7 @@ const coworkingSettingsSchema = new mongoose.Schema({
     spaces: [{
       name: { type: String, required: true },
       capacity: { type: String, required: true },
+      priceFrom: { type: String },
       features: [{ type: String }],
       image: { type: String, required: true }
     }],
