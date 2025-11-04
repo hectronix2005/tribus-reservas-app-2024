@@ -14,6 +14,7 @@ import { ColaboradorView } from './components/ColaboradorView';
 import { CoworkingManagement } from './components/CoworkingManagement';
 import { ContactForm } from './components/ContactForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Messages } from './components/Messages';
 
 // Componente para la página Home pública
 function HomePage() {
@@ -157,6 +158,8 @@ function AppContent() {
         </div>;
       case 'profile':
         return <UserProfile />;
+      case 'messages':
+        return <Messages />;
       case 'colaborador':
         return state.auth.currentUser?.role === 'colaborador' ? <ColaboradorView /> : <div className="text-center py-12">
           <div className="text-gray-500">Acceso restringido. Solo colaboradores.</div>

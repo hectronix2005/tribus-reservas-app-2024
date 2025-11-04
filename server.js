@@ -696,6 +696,46 @@ const areaSchema = new mongoose.Schema({
 
 const Area = mongoose.model('Area', areaSchema);
 
+// Schema para mensajes del sistema de chat
+const messageSchema = new mongoose.Schema({
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  receiver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 5000
+  },
+  read: {
+    type: Boolean,
+    default: false
+  },
+  readAt: {
+    type: Date
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true
+  }
+}, {
+  timestamps: true
+});
+
+// Índices para mejorar el rendimiento de las consultas
+messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
+messageSchema.index({ receiver: 1, read: 1 });
+
+const Message = mongoose.model('Message', messageSchema);
+
 
 // Middleware de autenticación
 const auth = (req, res, next) => {
@@ -3548,6 +3588,217 @@ app.delete('/api/contact-forms/:id', async (req, res) => {
   } catch (error) {
     console.error('Error eliminando formulario de contacto:', error);
     res.status(500).json({ error: 'Error al eliminar el formulario' });
+  }
+});
+
+// ============================================
+// ENDPOINTS DE MENSAJERÍA
+// ============================================
+
+// GET - Obtener conversaciones del usuario actual
+app.get('/api/messages/conversations', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const userId = decoded.userId;
+
+    // Obtener todos los mensajes donde el usuario es sender o receiver
+    const messages = await Message.find({
+      $or: [{ sender: userId }, { receiver: userId }]
+    })
+      .populate('sender', 'name username email')
+      .populate('receiver', 'name username email')
+      .sort({ createdAt: -1 });
+
+    // Agrupar por conversación
+    const conversationsMap = new Map();
+
+    messages.forEach(msg => {
+      const otherUserId = msg.sender._id.toString() === userId ? msg.receiver._id.toString() : msg.sender._id.toString();
+
+      if (!conversationsMap.has(otherUserId)) {
+        const otherUser = msg.sender._id.toString() === userId ? msg.receiver : msg.sender;
+        const unreadCount = messages.filter(m =>
+          m.sender._id.toString() === otherUserId &&
+          m.receiver._id.toString() === userId &&
+          !m.read
+        ).length;
+
+        conversationsMap.set(otherUserId, {
+          user: {
+            _id: otherUser._id,
+            name: otherUser.name,
+            username: otherUser.username,
+            email: otherUser.email
+          },
+          lastMessage: {
+            content: msg.content,
+            createdAt: msg.createdAt,
+            sender: msg.sender._id.toString()
+          },
+          unreadCount
+        });
+      }
+    });
+
+    const conversations = Array.from(conversationsMap.values());
+    res.json(conversations);
+  } catch (error) {
+    console.error('Error obteniendo conversaciones:', error);
+    res.status(500).json({ error: 'Error al obtener conversaciones' });
+  }
+});
+
+// GET - Obtener mensajes con un usuario específico
+app.get('/api/messages/:userId', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const currentUserId = decoded.userId;
+    const { userId } = req.params;
+
+    // Obtener mensajes entre los dos usuarios
+    const messages = await Message.find({
+      $or: [
+        { sender: currentUserId, receiver: userId },
+        { sender: userId, receiver: currentUserId }
+      ]
+    })
+      .populate('sender', 'name username email')
+      .populate('receiver', 'name username email')
+      .sort({ createdAt: 1 });
+
+    // Marcar como leídos los mensajes recibidos
+    await Message.updateMany(
+      { sender: userId, receiver: currentUserId, read: false },
+      { read: true, readAt: new Date() }
+    );
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Error obteniendo mensajes:', error);
+    res.status(500).json({ error: 'Error al obtener mensajes' });
+  }
+});
+
+// POST - Enviar un nuevo mensaje
+app.post('/api/messages', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const senderId = decoded.userId;
+
+    const { receiverId, content } = req.body;
+
+    if (!receiverId || !content || content.trim() === '') {
+      return res.status(400).json({ error: 'Destinatario y contenido son requeridos' });
+    }
+
+    // Verificar que el destinatario existe
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ error: 'Usuario destinatario no encontrado' });
+    }
+
+    const message = new Message({
+      sender: senderId,
+      receiver: receiverId,
+      content: content.trim()
+    });
+
+    await message.save();
+
+    // Poblar la información del mensaje antes de devolverlo
+    await message.populate('sender', 'name username email');
+    await message.populate('receiver', 'name username email');
+
+    console.log(`📧 Mensaje enviado de ${message.sender.name} a ${message.receiver.name}`);
+
+    res.status(201).json({
+      message: 'Mensaje enviado exitosamente',
+      data: message
+    });
+  } catch (error) {
+    console.error('Error enviando mensaje:', error);
+    res.status(500).json({ error: 'Error al enviar mensaje' });
+  }
+});
+
+// GET - Obtener contador de mensajes no leídos
+app.get('/api/messages/unread/count', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const userId = decoded.userId;
+
+    const unreadCount = await Message.countDocuments({
+      receiver: userId,
+      read: false
+    });
+
+    res.json({ unreadCount });
+  } catch (error) {
+    console.error('Error obteniendo contador de no leídos:', error);
+    res.status(500).json({ error: 'Error al obtener contador' });
+  }
+});
+
+// GET - Obtener todos los usuarios (para buscar y iniciar conversaciones)
+app.get('/api/messages/users/search', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const currentUserId = decoded.userId;
+
+    const { query } = req.query;
+
+    let searchFilter = { _id: { $ne: currentUserId }, isActive: true };
+
+    if (query) {
+      searchFilter = {
+        ...searchFilter,
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { username: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } }
+        ]
+      };
+    }
+
+    const users = await User.find(searchFilter)
+      .select('name username email role department')
+      .limit(20)
+      .sort({ name: 1 });
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error buscando usuarios:', error);
+    res.status(500).json({ error: 'Error al buscar usuarios' });
   }
 });
 

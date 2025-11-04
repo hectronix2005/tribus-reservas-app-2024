@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye, ChevronDown, UserCheck, Menu, X } from 'lucide-react';
+import { Building2, Users, Settings, Calendar, Home, FileText, LogOut, User, Eye, ChevronDown, UserCheck, Menu, X, MessageCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TribusLogo } from './TribusLogo';
+import { api } from '../services/api';
 
 interface HeaderProps {
   currentView: string;
@@ -13,12 +14,32 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isUserConfigMenuOpen, setIsUserConfigMenuOpen] = useState(false);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const adminMenuRef = useRef<HTMLDivElement>(null);
   const userConfigMenuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     logout();
   };
+
+  // Cargar contador de mensajes no leídos
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      try {
+        const response = await api.get<{ unreadCount: number }>('/messages/unread/count');
+        setUnreadMessagesCount(response.unreadCount);
+      } catch (error) {
+        // Error silencioso, no es crítico
+      }
+    };
+
+    if (state.auth.isAuthenticated) {
+      loadUnreadCount();
+      // Polling cada 15 segundos
+      const interval = setInterval(loadUnreadCount, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [state.auth.isAuthenticated]);
 
   // Cerrar menús cuando se hace clic fuera de ellos
   useEffect(() => {
@@ -93,7 +114,24 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 </button>
               );
             })}
-            
+
+            {/* Botón de Mensajes con badge */}
+            <button
+              onClick={() => onViewChange('messages')}
+              className={`nav-link ${currentView === 'messages' ? 'nav-link-active' : ''} group relative`}
+            >
+              <MessageCircle className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${currentView === 'messages' ? 'animate-bounce-soft' : ''}`} />
+              <span>Mensajes</span>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                </span>
+              )}
+              {currentView === 'messages' && (
+                <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-white rounded-full"></div>
+              )}
+            </button>
+
             {/* Admin Dropdown Menu */}
             {(state.auth.currentUser?.role === 'admin' || state.auth.currentUser?.role === 'superadmin') && (
               <div className="relative" ref={adminMenuRef}>
