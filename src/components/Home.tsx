@@ -465,10 +465,10 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                 </li>
               </ul>
               <button
-                onClick={onLoginClick}
+                onClick={onContactClick}
                 className="w-full px-8 py-4 bg-white text-indigo-600 rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition"
               >
-                Iniciar Sesión Ahora
+                Regístrate (contacto)
               </button>
             </div>
           </div>
