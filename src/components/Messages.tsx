@@ -409,9 +409,9 @@ export function Messages() {
 
       {/* Área de chat */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col bg-gray-50">
-          {/* Header del chat - Sticky con botón a la derecha */}
-          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm p-4">
+        <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+          {/* Header del chat - Fixed/Sticky con mayor z-index */}
+          <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-md p-4 flex-shrink-0" style={{ willChange: 'transform' }}>
             <div className="flex items-center justify-between gap-3">
               {/* Info del usuario */}
               <div className="flex items-center space-x-3 flex-1 min-w-0">
@@ -455,8 +455,8 @@ export function Messages() {
             </div>
           </div>
 
-          {/* Mensajes */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Mensajes - Contenedor con scroll independiente */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-gray-500">Cargando mensajes...</div>
@@ -584,8 +584,8 @@ export function Messages() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input de mensaje */}
-          <form onSubmit={sendMessage} className="bg-white border-t border-gray-200 p-4">
+          {/* Input de mensaje - Sticky bottom */}
+          <form onSubmit={sendMessage} className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex-shrink-0 z-40 shadow-lg" style={{ willChange: 'transform' }}>
             {/* Preview de archivos seleccionados */}
             {selectedFiles.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
