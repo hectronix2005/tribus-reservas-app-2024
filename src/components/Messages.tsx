@@ -447,8 +447,8 @@ export function Messages() {
           transition-all duration-300
           ${!sidebarOpen ? 'md:ml-0 lg:ml-0' : 'md:ml-0 lg:ml-0'}
         `}>
-          {/* Header del chat */}
-          <div className="bg-white border-b border-gray-200 p-4 flex items-center space-x-3">
+          {/* Header del chat - Sticky */}
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-4 flex items-center space-x-3 shadow-sm">
             {/* Botón hamburger para abrir sidebar (solo visible cuando está cerrado en desktop) */}
             {!sidebarOpen && (
               <button
