@@ -468,7 +468,7 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                 onClick={onContactClick}
                 className="w-full px-8 py-4 bg-white text-indigo-600 rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition"
               >
-                Regístrate (contacto)
+                Contactar Asesor
               </button>
             </div>
           </div>
