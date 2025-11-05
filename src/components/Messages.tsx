@@ -410,42 +410,48 @@ export function Messages() {
       {/* Área de chat */}
       {selectedConversation ? (
         <div className="flex-1 flex flex-col bg-gray-50">
-          {/* Header del chat - Sticky */}
-          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-4 flex items-center space-x-3 shadow-sm">
-            {/* Botón volver a la bandeja (móvil) - Más prominente */}
-            <button
-              onClick={() => setSelectedConversation(null)}
-              className="md:hidden flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-primary-600" />
-              <span className="text-sm font-medium text-primary-600">Bandeja</span>
-            </button>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              selectedConversation.user._id === 'broadcast'
-                ? 'bg-orange-100'
-                : 'bg-primary-100'
-            }`}>
-              {selectedConversation.user._id === 'broadcast' ? (
-                <Megaphone className="w-5 h-5 text-orange-600" />
-              ) : (
-                <User className="w-5 h-5 text-primary-600" />
-              )}
+          {/* Header del chat - Sticky con mejor UX móvil */}
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
+            {/* Barra de navegación móvil - Más prominente */}
+            <div className="md:hidden flex items-center justify-between px-3 py-3 border-b border-gray-100">
+              <button
+                onClick={() => setSelectedConversation(null)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-sm font-medium"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Volver a Chats</span>
+              </button>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                {selectedConversation.user.name}
-                {selectedConversation.user._id === 'broadcast' && (
-                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
-                    Mensaje a todos
-                  </span>
+
+            {/* Info del chat - Compartido entre móvil y desktop */}
+            <div className="p-4 flex items-center space-x-3">
+              <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center ${
+                selectedConversation.user._id === 'broadcast'
+                  ? 'bg-orange-100'
+                  : 'bg-primary-100'
+              }`}>
+                {selectedConversation.user._id === 'broadcast' ? (
+                  <Megaphone className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
+                ) : (
+                  <User className="w-5 h-5 md:w-6 md:h-6 text-primary-600" />
                 )}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {selectedConversation.user._id === 'broadcast'
-                  ? 'Todos los usuarios recibirán este mensaje'
-                  : `@${selectedConversation.user.username}`
-                }
-              </p>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 truncate">
+                  {selectedConversation.user.name}
+                  {selectedConversation.user._id === 'broadcast' && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                      Mensaje a todos
+                    </span>
+                  )}
+                </h3>
+                <p className="text-sm text-gray-500 truncate">
+                  {selectedConversation.user._id === 'broadcast'
+                    ? 'Todos los usuarios recibirán este mensaje'
+                    : `@${selectedConversation.user.username}`
+                  }
+                </p>
+              </div>
             </div>
           </div>
 
