@@ -16,7 +16,7 @@
     "@types/react-dom": "^18.2.0",
     "@types/react-helmet": "^6.1.11",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^1.41.0",
+    "cloudinary": "^2.8.0",
     "clsx": "^2.0.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",

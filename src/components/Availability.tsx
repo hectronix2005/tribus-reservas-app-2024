@@ -148,6 +148,30 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
       const reservations = state.reservations;
       const areas = state.areas.filter(area => area.isActive !== false);
 
+      // Log detallado para noviembre 6
+      const nov6Reservations = reservations.filter(r => r.date.includes('2025-11-06'));
+      console.log('🔍 [DEBUG NOV 6] TODAS las reservaciones para 2025-11-06:', {
+        totalCount: nov6Reservations.length,
+        byStatus: {
+          confirmed: nov6Reservations.filter(r => r.status === 'confirmed').length,
+          active: nov6Reservations.filter(r => r.status === 'active').length,
+          cancelled: nov6Reservations.filter(r => r.status === 'cancelled').length,
+          other: nov6Reservations.filter(r => !['confirmed', 'active', 'cancelled'].includes(r.status)).length
+        },
+        allReservations: nov6Reservations.map(r => ({
+          _id: r._id,
+          area: r.area,
+          date: r.date,
+          status: r.status,
+          requestedSeats: r.requestedSeats
+        })),
+        totalSeatsConfirmed: nov6Reservations
+          .filter(r => r.status === 'confirmed')
+          .reduce((sum, r) => sum + (r.requestedSeats || 0), 0),
+        totalSeatsAll: nov6Reservations
+          .reduce((sum, r) => sum + (r.requestedSeats || 0), 0)
+      });
+
       console.log('🔍 [Availability] Estado global de reservaciones:', {
         totalReservations: reservations.length,
         hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
@@ -177,7 +201,25 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
         const dayReservations = reservations.filter(reservation => {
           // Normalizar la fecha de la reservación del backend (UTC) a formato local
           const reservationDate = normalizeUTCDateToLocal(reservation.date);
-          return reservationDate === dateString && reservation.status === 'confirmed';
+          const matches = reservationDate === dateString && reservation.status === 'confirmed';
+
+          // Log detallado para noviembre 6
+          if (dateString === '2025-11-06' || reservation.date.includes('2025-11-06')) {
+            console.log(`🔍 [DEBUG NOV 6] Verificando reservación:`, {
+              reservationId: reservation._id,
+              originalDate: reservation.date,
+              normalizedDate: reservationDate,
+              targetDate: dateString,
+              status: reservation.status,
+              area: reservation.area,
+              requestedSeats: reservation.requestedSeats,
+              matches,
+              dateMatches: reservationDate === dateString,
+              statusMatches: reservation.status === 'confirmed'
+            });
+          }
+
+          return matches;
         });
 
         console.log(`🔍 [Availability] Procesando fecha ${dateString}:`, {
@@ -242,6 +284,25 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
             }, 0);
 
             const availableSpaces = Math.max(0, area.capacity - totalReservedSeats);
+
+            // Log detallado para noviembre 6
+            if (dateString === '2025-11-06') {
+              console.log(`🔍 [DEBUG NOV 6] Hot Desk ${area.name}:`, {
+                areaName: area.name,
+                category: area.category,
+                totalCapacity: area.capacity,
+                areaReservationsCount: areaReservations.length,
+                areaReservationsDetails: areaReservations.map(r => ({
+                  _id: r._id,
+                  requestedSeats: r.requestedSeats,
+                  date: r.date,
+                  status: r.status
+                })),
+                totalReservedSeats,
+                availableSpaces,
+                calculatedReserved: area.capacity - availableSpaces
+              });
+            }
 
             console.log(`🔍 [Availability] Hot Desk ${area.name} para ${dateString}:`, {
               areaName: area.name,
