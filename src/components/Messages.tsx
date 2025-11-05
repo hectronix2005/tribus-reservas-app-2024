@@ -10,6 +10,7 @@ interface Attachment {
   size: number;
   path: string;
   url: string;
+  cloudinary_id?: string;
   uploadedAt?: string;
 }
 

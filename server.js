@@ -10,11 +10,28 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
 const MONGODB_CONFIG = require('./mongodb-config');
 const emailService = require('./services/emailService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ============================================
+// CONFIGURACIÓN DE CLOUDINARY
+// ============================================
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'demo',
+  api_key: process.env.CLOUDINARY_API_KEY || 'demo',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'demo',
+  secure: true
+});
+
+console.log('☁️ Cloudinary configurado:', {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? '✓ Configurado' : '⚠️ Usando demo',
+  api_key: process.env.CLOUDINARY_API_KEY ? '✓ Configurado' : '⚠️ Usando demo',
+  api_secret: process.env.CLOUDINARY_API_SECRET ? '✓ Configurado' : '⚠️ Usando demo'
+});
 
 // Enable trust proxy para manejar correctamente X-Forwarded-For en desarrollo
 app.set('trust proxy', 1);
@@ -87,25 +104,9 @@ app.use(express.json());
 // CONFIGURACIÓN DE MULTER PARA ARCHIVOS
 // ============================================
 
-// Crear directorio de uploads si no existe
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Configuración de almacenamiento
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    // Generar nombre único: timestamp-randomstring-filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    const nameWithoutExt = path.basename(file.originalname, ext);
-    cb(null, nameWithoutExt + '-' + uniqueSuffix + ext);
-  }
-});
+// Configuración de almacenamiento en MEMORIA (no en disco)
+// Los archivos se subirán directamente a Cloudinary
+const storage = multer.memoryStorage();
 
 // Filtro de tipos de archivo permitidos
 const fileFilter = (req, file, cb) => {
@@ -148,9 +149,6 @@ const upload = multer({
   },
   fileFilter: fileFilter
 });
-
-// Servir archivos estáticos desde la carpeta uploads
-app.use('/uploads', express.static(uploadsDir));
 
 // 🔐 Middleware de Seguridad de Aplicación
 // Valida que todas las peticiones incluyan el token de seguridad correcto
@@ -792,6 +790,7 @@ const messageSchema = new mongoose.Schema({
     size: Number,
     path: String,
     url: String,
+    cloudinary_id: String, // ID público de Cloudinary para gestión del archivo
     uploadedAt: {
       type: Date,
       default: Date.now
@@ -3826,15 +3825,50 @@ app.post('/api/messages', upload.array('files', 5), async (req, res) => {
       return res.status(404).json({ error: 'Usuario destinatario no encontrado' });
     }
 
-    // Procesar archivos adjuntos
-    const attachments = files ? files.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      path: file.path,
-      url: `/uploads/${file.filename}`
-    })) : [];
+    // Procesar archivos adjuntos - Subir a Cloudinary
+    const attachments = [];
+
+    if (files && files.length > 0) {
+      console.log(`📤 Subiendo ${files.length} archivos a Cloudinary...`);
+
+      for (const file of files) {
+        try {
+          // Crear promesa para subir a Cloudinary usando stream
+          const uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'tribus/messages',
+                resource_type: 'auto', // Detecta automáticamente si es imagen, video, etc.
+                public_id: `${Date.now()}-${Math.round(Math.random() * 1E9)}`,
+                filename_override: file.originalname
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
+
+            // Escribir el buffer del archivo en el stream
+            uploadStream.end(file.buffer);
+          });
+
+          attachments.push({
+            filename: uploadResult.public_id,
+            originalName: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: uploadResult.secure_url,
+            url: uploadResult.secure_url,
+            cloudinary_id: uploadResult.public_id
+          });
+
+          console.log(`  ✓ ${file.originalname} subido a Cloudinary`);
+        } catch (uploadError) {
+          console.error(`  ✗ Error subiendo ${file.originalname}:`, uploadError);
+          throw new Error(`Error al subir archivo ${file.originalname}`);
+        }
+      }
+    }
 
     const message = new Message({
       sender: senderId,
@@ -3856,6 +3890,12 @@ app.post('/api/messages', upload.array('files', 5), async (req, res) => {
     console.log(`📧 Mensaje enviado de ${message.sender.name} a ${message.receiver.name}`);
     console.log(`   Contenido: ${content || '(sin texto)'}`);
     console.log(`   Archivos adjuntos: ${attachments.length}`);
+    if (attachments.length > 0) {
+      console.log(`   URLs Cloudinary:`);
+      attachments.forEach((att, idx) => {
+        console.log(`     ${idx + 1}. ${att.originalName} -> ${att.url}`);
+      });
+    }
     console.log(`   Estado inicial: delivered=${message.delivered}, read=${message.read}`);
 
     res.status(201).json({
