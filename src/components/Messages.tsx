@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck, Paperclip, File, Image as ImageIcon, FileText, Download, Menu } from 'lucide-react';
+import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck, Paperclip, File, Image as ImageIcon, FileText, Download, Menu, Megaphone } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 
@@ -22,12 +22,13 @@ interface Message {
     username: string;
     email: string;
   };
-  receiver: {
+  receiver?: {
     _id: string;
     name: string;
     username: string;
     email: string;
   };
+  isBroadcast?: boolean;
   content: string;
   attachments?: Attachment[];
   delivered: boolean;
@@ -120,7 +121,13 @@ export function Messages() {
   const loadMessages = async (userId: string) => {
     try {
       setIsLoading(true);
-      const data = await api.get<Message[]>(`/messages/${userId}`);
+
+      // Si es la conversación broadcast, usar endpoint especial
+      const endpoint = userId === 'broadcast'
+        ? '/messages/broadcast/all'
+        : `/messages/${userId}`;
+
+      const data = await api.get<Message[]>(endpoint);
 
       // Debug: verificar estado de mensajes recibidos
       console.log(`📬 Mensajes recibidos (${data.length} total):`);
@@ -150,7 +157,13 @@ export function Messages() {
 
     try {
       const formData = new FormData();
-      formData.append('receiverId', selectedConversation.user._id);
+      const isBroadcast = selectedConversation.user._id === 'broadcast';
+
+      // Si no es broadcast, agregar receiverId
+      if (!isBroadcast) {
+        formData.append('receiverId', selectedConversation.user._id);
+      }
+
       if (newMessage.trim()) {
         formData.append('content', newMessage.trim());
       }
@@ -160,9 +173,12 @@ export function Messages() {
         formData.append('files', file);
       });
 
+      // Determinar endpoint según si es broadcast o no
+      const endpoint = isBroadcast ? '/api/messages/broadcast' : '/api/messages';
+
       // Usar fetch directamente en lugar de api.post para enviar FormData
       const token = sessionStorage.getItem('authToken') || sessionStorage.getItem('tribus-auth');
-      const response = await fetch('/api/messages', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -177,7 +193,7 @@ export function Messages() {
 
       const result = await response.json();
 
-      console.log('📤 Mensaje enviado. Estado recibido del backend:', {
+      console.log(`📤 Mensaje ${isBroadcast ? 'BROADCAST' : ''} enviado. Estado recibido del backend:`, {
         delivered: result.data.delivered,
         read: result.data.read,
         content: result.data.content ? result.data.content.substring(0, 20) : '(adjuntos)',
@@ -375,12 +391,25 @@ export function Messages() {
                 className={`w-full p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 flex items-start space-x-3 ${selectedConversation?.user._id === conversation.user._id ? 'bg-primary-50' : ''
                   }`}
               >
-                <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                  <User className="w-6 h-6 text-primary-600" />
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  conversation.user._id === 'broadcast'
+                    ? 'bg-orange-100'
+                    : 'bg-primary-100'
+                }`}>
+                  {conversation.user._id === 'broadcast' ? (
+                    <Megaphone className="w-6 h-6 text-orange-600" />
+                  ) : (
+                    <User className="w-6 h-6 text-primary-600" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-gray-900 truncate">{conversation.user.name}</h3>
+                    <h3 className="font-semibold text-gray-900 truncate flex items-center gap-1">
+                      {conversation.user.name}
+                      {conversation.user._id === 'broadcast' && (
+                        <Megaphone className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                      )}
+                    </h3>
                     <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                       {formatTime(conversation.lastMessage.createdAt)}
                     </span>
@@ -437,12 +466,32 @@ export function Messages() {
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary-600" />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              selectedConversation.user._id === 'broadcast'
+                ? 'bg-orange-100'
+                : 'bg-primary-100'
+            }`}>
+              {selectedConversation.user._id === 'broadcast' ? (
+                <Megaphone className="w-5 h-5 text-orange-600" />
+              ) : (
+                <User className="w-5 h-5 text-primary-600" />
+              )}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{selectedConversation.user.name}</h3>
-              <p className="text-sm text-gray-500">@{selectedConversation.user.username}</p>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                {selectedConversation.user.name}
+                {selectedConversation.user._id === 'broadcast' && (
+                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                    Mensaje a todos
+                  </span>
+                )}
+              </h3>
+              <p className="text-sm text-gray-500">
+                {selectedConversation.user._id === 'broadcast'
+                  ? 'Todos los usuarios recibirán este mensaje'
+                  : `@${selectedConversation.user.username}`
+                }
+              </p>
             </div>
           </div>
 

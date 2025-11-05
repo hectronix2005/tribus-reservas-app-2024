@@ -775,8 +775,22 @@ const messageSchema = new mongoose.Schema({
   receiver: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Opcional para mensajes broadcast
   },
+  isBroadcast: {
+    type: Boolean,
+    default: false // true para mensajes enviados a @todos
+  },
+  readBy: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }], // Para trackear quién leyó los mensajes broadcast
   content: {
     type: String,
     required: false, // Ahora es opcional porque puede haber mensajes solo con archivos
@@ -3737,10 +3751,109 @@ app.get('/api/messages/conversations', async (req, res) => {
     });
 
     const conversations = Array.from(conversationsMap.values());
+
+    // Agregar conversación "@Todos" para admins/superadmins
+    const currentUser = await User.findById(userId);
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) {
+      // Obtener mensajes broadcast
+      const broadcastMessages = await Message.find({ isBroadcast: true })
+        .populate('sender', 'name username email')
+        .sort({ createdAt: -1 });
+
+      if (broadcastMessages.length > 0) {
+        // Contar mensajes broadcast no leídos por el usuario actual
+        const unreadBroadcastCount = broadcastMessages.filter(msg => {
+          const hasRead = msg.readBy.some(
+            (entry) => entry.user && entry.user.toString() === userId
+          );
+          return !hasRead;
+        }).length;
+
+        const lastBroadcastMessage = broadcastMessages[0];
+
+        // Agregar conversación @Todos al inicio
+        conversations.unshift({
+          user: {
+            _id: 'broadcast',
+            name: '@Todos',
+            username: 'broadcast',
+            email: 'broadcast@system'
+          },
+          lastMessage: {
+            content: lastBroadcastMessage.content || '(Archivo adjunto)',
+            createdAt: lastBroadcastMessage.createdAt,
+            sender: lastBroadcastMessage.sender._id.toString()
+          },
+          unreadCount: unreadBroadcastCount
+        });
+      } else {
+        // Si no hay mensajes broadcast, agregar conversación vacía para admins
+        conversations.unshift({
+          user: {
+            _id: 'broadcast',
+            name: '@Todos',
+            username: 'broadcast',
+            email: 'broadcast@system'
+          },
+          lastMessage: {
+            content: 'Envía un mensaje a todos los usuarios',
+            createdAt: new Date(),
+            sender: userId
+          },
+          unreadCount: 0
+        });
+      }
+    }
+
     res.json(conversations);
   } catch (error) {
     console.error('Error obteniendo conversaciones:', error);
     res.status(500).json({ error: 'Error al obtener conversaciones' });
+  }
+});
+
+// GET - Obtener mensajes broadcast para el usuario actual
+app.get('/api/messages/broadcast/all', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const currentUserId = decoded.userId;
+
+    console.log(`📢 Usuario ${currentUserId} cargando mensajes broadcast`);
+
+    // Obtener todos los mensajes broadcast
+    const messages = await Message.find({
+      isBroadcast: true
+    })
+      .populate('sender', 'name username email')
+      .sort({ createdAt: 1 });
+
+    // Marcar como leídos los mensajes que este usuario aún no ha leído
+    for (const message of messages) {
+      const hasRead = message.readBy.some(
+        (entry) => entry.user && entry.user.toString() === currentUserId
+      );
+
+      if (!hasRead) {
+        message.readBy.push({
+          user: currentUserId,
+          readAt: new Date()
+        });
+        await message.save();
+      }
+    }
+
+    console.log(`📨 Enviando ${messages.length} mensajes broadcast`);
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Error obteniendo mensajes broadcast:', error);
+    res.status(500).json({ error: 'Error al obtener mensajes broadcast' });
   }
 });
 
@@ -3914,6 +4027,121 @@ app.post('/api/messages', upload.array('files', 5), async (req, res) => {
     }
 
     res.status(500).json({ error: 'Error al enviar mensaje' });
+  }
+});
+
+// POST - Enviar mensaje broadcast a @todos (solo admins/superadmins)
+app.post('/api/messages/broadcast', upload.array('files', 5), async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu-clave-secreta-super-segura');
+    const senderId = decoded.userId;
+
+    // Verificar que el usuario sea admin o superadmin
+    const sender = await User.findById(senderId);
+    if (!sender || (sender.role !== 'admin' && sender.role !== 'superadmin')) {
+      return res.status(403).json({ error: 'Solo administradores pueden enviar mensajes a todos' });
+    }
+
+    const { content } = req.body;
+    const files = req.files;
+
+    // Validar que al menos haya contenido o archivos
+    if (!content && (!files || files.length === 0)) {
+      return res.status(400).json({ error: 'Contenido o archivos son requeridos' });
+    }
+
+    // Procesar archivos adjuntos - Subir a Cloudinary
+    const attachments = [];
+
+    if (files && files.length > 0) {
+      console.log(`📤 [BROADCAST] Subiendo ${files.length} archivos a Cloudinary...`);
+
+      for (const file of files) {
+        try {
+          const uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: 'tribus/messages',
+                resource_type: 'auto',
+                public_id: `${Date.now()}-${Math.round(Math.random() * 1E9)}`,
+                filename_override: file.originalname
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
+
+            uploadStream.end(file.buffer);
+          });
+
+          attachments.push({
+            filename: uploadResult.public_id,
+            originalName: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: uploadResult.secure_url,
+            url: uploadResult.secure_url,
+            cloudinary_id: uploadResult.public_id
+          });
+
+          console.log(`  ✓ ${file.originalname} subido a Cloudinary`);
+        } catch (uploadError) {
+          console.error(`  ✗ Error subiendo ${file.originalname}:`, uploadError);
+          throw new Error(`Error al subir archivo ${file.originalname}`);
+        }
+      }
+    }
+
+    // Crear mensaje broadcast (sin receiver específico)
+    const message = new Message({
+      sender: senderId,
+      receiver: null, // No hay receiver específico
+      isBroadcast: true,
+      content: content ? content.trim() : '',
+      attachments: attachments,
+      delivered: true,
+      deliveredAt: new Date(),
+      read: false,
+      readBy: [] // Array vacío, se llenará cuando usuarios lean el mensaje
+    });
+
+    await message.save();
+
+    // Poblar la información del mensaje antes de devolverlo
+    await message.populate('sender', 'name username email');
+
+    console.log(`📢 Mensaje BROADCAST enviado por ${message.sender.name}`);
+    console.log(`   Contenido: ${content || '(sin texto)'}`);
+    console.log(`   Archivos adjuntos: ${attachments.length}`);
+    if (attachments.length > 0) {
+      console.log(`   URLs Cloudinary:`);
+      attachments.forEach((att, idx) => {
+        console.log(`     ${idx + 1}. ${att.originalName} -> ${att.url}`);
+      });
+    }
+
+    res.status(201).json({
+      message: 'Mensaje broadcast enviado exitosamente a todos los usuarios',
+      data: message
+    });
+  } catch (error) {
+    console.error('Error enviando mensaje broadcast:', error);
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Archivo demasiado grande. Máximo 10MB por archivo.' });
+      }
+      return res.status(400).json({ error: `Error al subir archivo: ${error.message}` });
+    }
+
+    res.status(500).json({ error: 'Error al enviar mensaje broadcast' });
   }
 });
 
