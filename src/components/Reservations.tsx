@@ -1761,35 +1761,35 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="container mx-auto px-3 py-4 md:px-4 md:py-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reservaciones</h1>
-          <p className="text-gray-600 mt-2">Gestiona las reservaciones de espacios de trabajo</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Reservaciones</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Gestiona las reservaciones de espacios de trabajo</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {/* Botón para filtrar solo mis reservas */}
           <button
             onClick={() => setShowMyReservationsOnly(!showMyReservationsOnly)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${
+            className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-md font-medium text-sm transition-colors ${
               showMyReservationsOnly
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
             disabled={isLoading}
           >
-            <User className="w-5 h-5" />
-            Mis Reservas
+            <User className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="whitespace-nowrap">Mis Reservas</span>
           </button>
 
           {/* Botón Nueva Reservación */}
           <button
             onClick={() => setShowForm(true)}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-sm"
             disabled={isLoading}
           >
-            <Plus className="w-5 h-5" />
-            Nueva Reservación
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="whitespace-nowrap">Nueva Reservación</span>
           </button>
         </div>
       </div>
@@ -1802,19 +1802,19 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
 
       {/* Formulario de Reservación */}
       {showForm && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6 md:mb-8">
+          <h2 className="text-lg md:text-xl font-semibold mb-3 md:mb-4">
             {editingReservation ? 'Editar Reservación' : 'Nueva Reservación'}
           </h2>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
             {/* Paso 1: Fecha, Tipo de Área y Departamento */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
                 <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">1</span>
                 📅 Información Básica de la Reservación
               </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                 {/* Fecha - Izquierda */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1959,7 +1959,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                   <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">2</span>
                   📊 Configuración de la Reservación
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   {/* Cantidad de Personas - Solo para Hot Desk */}
                   {!selectedArea.isMeetingRoom && (
               <div>
@@ -2167,7 +2167,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                   <span className="bg-primary-100 text-primary-600 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold mr-2">4</span>
                   ⏰ Horarios
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Hora de Inicio
@@ -2302,7 +2302,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
 
                 {formData.isRecurring && (
                   <div className="space-y-4 bg-gray-50 p-4 rounded-md">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                           Tipo de Recurrencia
@@ -2551,7 +2551,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                       </div>
                     )}
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 text-sm text-gray-600">
                       
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
@@ -2709,7 +2709,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
               </div>
 
               {/* Información Principal */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                 {/* Columna Izquierda - Información Básica */}
                 <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -2953,7 +2953,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
               </p>
 
               <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">ID de Reserva</p>
                     <p className="text-lg font-semibold text-gray-900">{confirmedReservation.reservationId}</p>
@@ -2964,7 +2964,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Fecha</p>
                     <p className="text-lg font-semibold text-gray-900">
@@ -2979,7 +2979,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Equipo</p>
                     <p className="text-lg font-semibold text-gray-900">{confirmedReservation.teamName}</p>

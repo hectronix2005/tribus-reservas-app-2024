@@ -82,7 +82,7 @@ export function Login({ onBackClick }: LoginProps = {}) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 md:py-12 sm:px-6 lg:px-8">
       {onBackClick && (
         <div className="absolute top-4 left-4">
           <button
@@ -96,7 +96,7 @@ export function Login({ onBackClick }: LoginProps = {}) {
       )}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-lg overflow-hidden">
+          <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden">
             <img 
               src="/images/tribus-logo.svg" 
               alt="Logo" 
@@ -113,7 +113,7 @@ export function Login({ onBackClick }: LoginProps = {}) {
             </div>
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-4 md:mt-6 text-center text-2xl md:text-3xl font-extrabold text-gray-900">
           Sistema de Reservas
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
@@ -121,11 +121,11 @@ export function Login({ onBackClick }: LoginProps = {}) {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      <div className="mt-6 md:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-6 px-4 md:py-8 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded-md">
+              <div className="bg-danger-50 border border-danger-200 text-danger-700 px-3 py-2 md:px-4 md:py-3 rounded-md text-sm">
                 {error}
               </div>
             )}
