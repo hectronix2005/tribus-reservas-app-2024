@@ -12,7 +12,8 @@ const multer = require('multer');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const MONGODB_CONFIG = require('./mongodb-config');
-const emailService = require('./services/emailService');
+// Usar el servicio mejorado con auditoría completa y validación estricta
+const emailService = require('./services/emailService-improved');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -2074,7 +2075,11 @@ app.post('/api/reservations', async (req, res) => {
       const emailResult = await emailService.sendReservationConfirmation(
         reservationWithAreaInfo,
         user,
-        colaboradoresData
+        colaboradoresData,
+        {
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.headers['user-agent'] || 'Unknown'
+        }
       );
 
       if (emailResult.success) {
@@ -2314,7 +2319,11 @@ app.delete('/api/reservations/:id', async (req, res) => {
           reservation,
           reservationOwner,
           colaboradoresData,
-          user // Usuario que está cancelando la reserva
+          user, // Usuario que está cancelando la reserva
+          {
+            ipAddress: req.ip || req.connection.remoteAddress,
+            userAgent: req.headers['user-agent'] || 'Unknown'
+          }
         );
       }
     } catch (emailError) {
