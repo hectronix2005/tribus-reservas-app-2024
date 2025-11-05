@@ -2751,13 +2751,13 @@ app.get('/api/departments', async (req, res) => {
   }
 });
 
-// Obtener todos los departamentos (incluyendo inactivos) - solo para admin/user
+// Obtener todos los departamentos (incluyendo inactivos) - solo para admin/superadmin/user
 app.get('/api/departments/all', async (req, res) => {
   try {
     const { userId, userRole } = req.query;
 
-    // Verificar que el usuario tenga permisos (admin o user)
-    if (!userId || (userRole !== 'admin' && userRole !== 'user')) {
+    // Verificar que el usuario tenga permisos (admin, superadmin o user)
+    if (!userId || (userRole !== 'admin' && userRole !== 'superadmin' && userRole !== 'user')) {
       return res.status(403).json({ error: 'No tiene permisos para ver todos los departamentos' });
     }
 
@@ -2772,13 +2772,13 @@ app.get('/api/departments/all', async (req, res) => {
   }
 });
 
-// Crear nuevo departamento - solo para admin/user
+// Crear nuevo departamento - solo para admin/superadmin/user
 app.post('/api/departments', async (req, res) => {
   try {
     const { name, description, userId, userRole } = req.body;
 
-    // Verificar que el usuario tenga permisos (admin o user)
-    if (!userId || (userRole !== 'admin' && userRole !== 'user')) {
+    // Verificar que el usuario tenga permisos (admin, superadmin o user)
+    if (!userId || (userRole !== 'admin' && userRole !== 'superadmin' && userRole !== 'user')) {
       return res.status(403).json({ error: 'No tiene permisos para crear departamentos' });
     }
 
@@ -2822,14 +2822,14 @@ app.post('/api/departments', async (req, res) => {
   }
 });
 
-// Actualizar departamento - solo para admin/user
+// Actualizar departamento - solo para admin/superadmin/user
 app.put('/api/departments/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, isActive, userId, userRole } = req.body;
 
-    // Verificar que el usuario tenga permisos (admin o user)
-    if (!userId || (userRole !== 'admin' && userRole !== 'user')) {
+    // Verificar que el usuario tenga permisos (admin, superadmin o user)
+    if (!userId || (userRole !== 'admin' && userRole !== 'superadmin' && userRole !== 'user')) {
       return res.status(403).json({ error: 'No tiene permisos para editar departamentos' });
     }
 
@@ -2875,14 +2875,14 @@ app.put('/api/departments/:id', async (req, res) => {
   }
 });
 
-// Eliminar departamento (marcar como inactivo) - solo para admin/user
+// Eliminar departamento (marcar como inactivo) - solo para admin/superadmin/user
 app.delete('/api/departments/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { userId, userRole } = req.query;
 
-    // Verificar que el usuario tenga permisos (admin o user)
-    if (!userId || (userRole !== 'admin' && userRole !== 'user')) {
+    // Verificar que el usuario tenga permisos (admin, superadmin o user)
+    if (!userId || (userRole !== 'admin' && userRole !== 'superadmin' && userRole !== 'user')) {
       return res.status(403).json({ error: 'No tiene permisos para eliminar departamentos' });
     }
 
