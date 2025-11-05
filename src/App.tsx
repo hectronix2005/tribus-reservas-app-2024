@@ -145,8 +145,8 @@ function AppContent() {
       case 'availability':
         return <Availability onHourClick={handleAvailabilityHourClick} onNewReservation={handleNewReservationClick} onAreaClick={handleAreaClick} />;
       case 'areas':
-        return (state.auth.currentUser?.role === 'admin' || state.auth.currentUser?.role === 'superadmin') ? <Areas /> : <div className="text-center py-12">
-          <div className="text-gray-500">Acceso restringido. Solo administradores.</div>
+        return state.auth.currentUser?.role === 'superadmin' ? <Areas /> : <div className="text-center py-12">
+          <div className="text-gray-500">Acceso restringido. Solo Super Admins.</div>
         </div>;
       case 'users':
         return (state.auth.currentUser?.role === 'admin' || state.auth.currentUser?.role === 'superadmin') ? <UserManagement /> : <div className="text-center py-12">

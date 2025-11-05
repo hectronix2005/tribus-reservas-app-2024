@@ -359,10 +359,10 @@ export const areaService = {
     };
   },
 
-  async createArea(areaData: any) {
+  async createArea(areaData: any, userId: string, userRole: string) {
     const response = await apiRequest<any>('/areas', {
       method: 'POST',
-      body: JSON.stringify(areaData),
+      body: JSON.stringify({ ...areaData, userId, userRole }),
     });
     return {
       ...response,
@@ -373,10 +373,10 @@ export const areaService = {
     };
   },
 
-  async updateArea(id: string, areaData: any) {
+  async updateArea(id: string, areaData: any, userId: string, userRole: string) {
     const response = await apiRequest<any>(`/areas/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(areaData),
+      body: JSON.stringify({ ...areaData, userId, userRole }),
     });
     return {
       ...response,
@@ -387,8 +387,8 @@ export const areaService = {
     };
   },
 
-  async deleteArea(id: string) {
-    return apiRequest<any>(`/areas/${id}`, {
+  async deleteArea(id: string, userId: string, userRole: string) {
+    return apiRequest<any>(`/areas/${id}?userId=${userId}&userRole=${userRole}`, {
       method: 'DELETE',
     });
   }

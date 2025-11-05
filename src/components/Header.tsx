@@ -77,7 +77,9 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
 
   const adminItems = [
     { id: 'admin', label: 'Administración', icon: Settings },
-    { id: 'areas', label: 'Áreas', icon: Building2 },
+    ...(state.auth.currentUser?.role === 'superadmin' ? [
+      { id: 'areas', label: 'Áreas', icon: Building2 }
+    ] : []),
     { id: 'users', label: 'Usuarios', icon: Users },
     ...(state.auth.currentUser?.role === 'superadmin' ? [
       { id: 'coworking', label: 'Gestión Coworking', icon: Home }

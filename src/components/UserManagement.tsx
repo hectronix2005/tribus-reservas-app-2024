@@ -919,7 +919,10 @@ export function UserManagement() {
                     <option value="lider">Lider</option>
                     <option value="admin">Administrador</option>
                     <option value="colaborador">Colaborador</option>
-                    <option value="superadmin">Super Admin</option>
+                    {/* Solo superadmin puede asignar rol de Super Admin */}
+                    {currentUser?.role === 'superadmin' && (
+                      <option value="superadmin">Super Admin</option>
+                    )}
                   </select>
                 </div>
 

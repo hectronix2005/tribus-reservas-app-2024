@@ -893,8 +893,13 @@ app.get('/api/areas/:id', async (req, res) => {
 
 app.post('/api/areas', async (req, res) => {
   try {
-    const { name, capacity, description, color, category, minReservationTime, maxReservationTime, officeHours } = req.body;
-    
+    const { name, capacity, description, color, category, minReservationTime, maxReservationTime, officeHours, userId, userRole } = req.body;
+
+    // Verificar que solo superadmin pueda crear áreas
+    if (!userId || userRole !== 'superadmin') {
+      return res.status(403).json({ error: 'Solo Super Admins pueden crear áreas' });
+    }
+
     // Validar campos requeridos
     if (!name || !capacity || !color || !category) {
       return res.status(400).json({ error: 'Nombre, capacidad, color y categoría son requeridos' });
@@ -954,6 +959,13 @@ app.post('/api/areas', async (req, res) => {
 
 app.put('/api/areas/:id', async (req, res) => {
   try {
+    const { userId, userRole } = req.body;
+
+    // Verificar que solo superadmin pueda editar áreas
+    if (!userId || userRole !== 'superadmin') {
+      return res.status(403).json({ error: 'Solo Super Admins pueden editar áreas' });
+    }
+
     const area = await Area.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!area) {
       return res.status(404).json({ error: 'Área no encontrada' });
@@ -967,6 +979,13 @@ app.put('/api/areas/:id', async (req, res) => {
 
 app.delete('/api/areas/:id', async (req, res) => {
   try {
+    const { userId, userRole } = req.query;
+
+    // Verificar que solo superadmin pueda eliminar áreas
+    if (!userId || userRole !== 'superadmin') {
+      return res.status(403).json({ error: 'Solo Super Admins pueden eliminar áreas' });
+    }
+
     const area = await Area.findByIdAndDelete(req.params.id);
     if (!area) {
       return res.status(404).json({ error: 'Área no encontrada' });

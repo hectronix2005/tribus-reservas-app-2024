@@ -37,8 +37,11 @@ export function Areas() {
         
         // Use the MongoDB _id for backend operations
         const areaId = editingArea._id || editingArea.id;
+        const currentUser = state.auth.currentUser;
+        if (!currentUser) throw new Error('Usuario no autenticado');
+
         console.log('🔄 Actualizando área:', areaId, updatedAreaData);
-        const response = await areaService.updateArea(areaId, updatedAreaData);
+        const response = await areaService.updateArea(areaId, updatedAreaData, currentUser.id, currentUser.role);
         console.log('✅ Área actualizada:', response);
         
         // Update local state with the response from backend
@@ -57,8 +60,11 @@ export function Areas() {
           category: formData.category
         };
         
+        const currentUser = state.auth.currentUser;
+        if (!currentUser) throw new Error('Usuario no autenticado');
+
         console.log('🔄 Creando nueva área:', newAreaData);
-        const response = await areaService.createArea(newAreaData);
+        const response = await areaService.createArea(newAreaData, currentUser.id, currentUser.role);
         console.log('✅ Área creada:', response);
         
         // Add to local state with the response from backend
@@ -109,8 +115,11 @@ export function Areas() {
         
         // Use the MongoDB _id for backend operations
         const mongoId = area._id || area.id;
+        const currentUser = state.auth.currentUser;
+        if (!currentUser) throw new Error('Usuario no autenticado');
+
         console.log('🔄 Eliminando área:', mongoId);
-        await areaService.deleteArea(mongoId);
+        await areaService.deleteArea(mongoId, currentUser.id, currentUser.role);
         console.log('✅ Área eliminada:', mongoId);
         
         // Remove from local state
