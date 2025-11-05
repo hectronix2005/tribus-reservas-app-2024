@@ -8,6 +8,8 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const fs = require('fs');
 const MONGODB_CONFIG = require('./mongodb-config');
 const emailService = require('./services/emailService');
 
@@ -80,6 +82,75 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(express.json());
+
+// ============================================
+// CONFIGURACIÓN DE MULTER PARA ARCHIVOS
+// ============================================
+
+// Crear directorio de uploads si no existe
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configuración de almacenamiento
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // Generar nombre único: timestamp-randomstring-filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const nameWithoutExt = path.basename(file.originalname, ext);
+    cb(null, nameWithoutExt + '-' + uniqueSuffix + ext);
+  }
+});
+
+// Filtro de tipos de archivo permitidos
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    // Imágenes
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    // Documentos
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Texto
+    'text/plain',
+    'text/csv',
+    // Comprimidos
+    'application/zip',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed'
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten imágenes, documentos y archivos comprimidos.`), false);
+  }
+};
+
+// Configurar multer
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB máximo
+  },
+  fileFilter: fileFilter
+});
+
+// Servir archivos estáticos desde la carpeta uploads
+app.use('/uploads', express.static(uploadsDir));
 
 // 🔐 Middleware de Seguridad de Aplicación
 // Valida que todas las peticiones incluyan el token de seguridad correcto
@@ -710,10 +781,22 @@ const messageSchema = new mongoose.Schema({
   },
   content: {
     type: String,
-    required: true,
+    required: false, // Ahora es opcional porque puede haber mensajes solo con archivos
     trim: true,
     maxlength: 5000
   },
+  attachments: [{
+    filename: String,
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    path: String,
+    url: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   delivered: {
     type: Boolean,
     default: true // Se marca como entregado inmediatamente al crear el mensaje
@@ -3717,8 +3800,8 @@ app.get('/api/messages/:userId', async (req, res) => {
   }
 });
 
-// POST - Enviar un nuevo mensaje
-app.post('/api/messages', async (req, res) => {
+// POST - Enviar un nuevo mensaje (con o sin archivos)
+app.post('/api/messages', upload.array('files', 5), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -3730,9 +3813,11 @@ app.post('/api/messages', async (req, res) => {
     const senderId = decoded.userId;
 
     const { receiverId, content } = req.body;
+    const files = req.files;
 
-    if (!receiverId || !content || content.trim() === '') {
-      return res.status(400).json({ error: 'Destinatario y contenido son requeridos' });
+    // Validar que al menos haya contenido o archivos
+    if (!receiverId || (!content && (!files || files.length === 0))) {
+      return res.status(400).json({ error: 'Destinatario y contenido o archivos son requeridos' });
     }
 
     // Verificar que el destinatario existe
@@ -3741,10 +3826,21 @@ app.post('/api/messages', async (req, res) => {
       return res.status(404).json({ error: 'Usuario destinatario no encontrado' });
     }
 
+    // Procesar archivos adjuntos
+    const attachments = files ? files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      path: file.path,
+      url: `/uploads/${file.filename}`
+    })) : [];
+
     const message = new Message({
       sender: senderId,
       receiver: receiverId,
-      content: content.trim(),
+      content: content ? content.trim() : '',
+      attachments: attachments,
       // Estos valores son explícitos para claridad (aunque tienen defaults en schema)
       delivered: true,
       deliveredAt: new Date(),
@@ -3758,6 +3854,8 @@ app.post('/api/messages', async (req, res) => {
     await message.populate('receiver', 'name username email');
 
     console.log(`📧 Mensaje enviado de ${message.sender.name} a ${message.receiver.name}`);
+    console.log(`   Contenido: ${content || '(sin texto)'}`);
+    console.log(`   Archivos adjuntos: ${attachments.length}`);
     console.log(`   Estado inicial: delivered=${message.delivered}, read=${message.read}`);
 
     res.status(201).json({
@@ -3766,6 +3864,15 @@ app.post('/api/messages', async (req, res) => {
     });
   } catch (error) {
     console.error('Error enviando mensaje:', error);
+
+    // Si hay error con multer, dar mensaje más específico
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Archivo demasiado grande. Máximo 10MB por archivo.' });
+      }
+      return res.status(400).json({ error: `Error al subir archivo: ${error.message}` });
+    }
+
     res.status(500).json({ error: 'Error al enviar mensaje' });
   }
 });

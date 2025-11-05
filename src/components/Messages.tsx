@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck } from 'lucide-react';
+import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck, Paperclip, File, Image as ImageIcon, FileText, Download } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
+
+interface Attachment {
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  path: string;
+  url: string;
+  uploadedAt?: string;
+}
 
 interface Message {
   _id: string;
@@ -18,6 +28,7 @@ interface Message {
     email: string;
   };
   content: string;
+  attachments?: Attachment[];
   delivered: boolean;
   deliveredAt?: string;
   read: boolean;
@@ -57,12 +68,14 @@ export function Messages() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<UserSearch[]>([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Cargar conversaciones al montar
@@ -131,26 +144,76 @@ export function Messages() {
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !selectedConversation) return;
+    if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedConversation) return;
 
     try {
-      const response = await api.post<{ message: string; data: Message }>('/messages', {
-        receiverId: selectedConversation.user._id,
-        content: newMessage.trim()
+      const formData = new FormData();
+      formData.append('receiverId', selectedConversation.user._id);
+      if (newMessage.trim()) {
+        formData.append('content', newMessage.trim());
+      }
+
+      // Agregar archivos
+      selectedFiles.forEach(file => {
+        formData.append('files', file);
       });
+
+      // Usar fetch directamente en lugar de api.post para enviar FormData
+      const token = sessionStorage.getItem('authToken') || sessionStorage.getItem('tribus-auth');
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-App-Token': 'bfd883d6ac23922f664295e1d67a5da42791969042804a37af15189b353065b1'
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al enviar mensaje');
+      }
+
+      const result = await response.json();
 
       console.log('📤 Mensaje enviado. Estado recibido del backend:', {
-        delivered: response.data.delivered,
-        read: response.data.read,
-        content: response.data.content.substring(0, 20)
+        delivered: result.data.delivered,
+        read: result.data.read,
+        content: result.data.content ? result.data.content.substring(0, 20) : '(adjuntos)',
+        attachments: result.data.attachments?.length || 0
       });
 
-      setMessages([...messages, response.data]);
+      setMessages([...messages, result.data]);
       setNewMessage('');
+      setSelectedFiles([]);
       loadConversations(); // Actualizar lista de conversaciones
     } catch (error) {
       console.error('Error enviando mensaje:', error);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+
+      // Validar tamaño (máximo 10MB por archivo)
+      const invalidFiles = files.filter(file => file.size > 10 * 1024 * 1024);
+      if (invalidFiles.length > 0) {
+        alert('Algunos archivos son demasiado grandes. Máximo 10MB por archivo.');
+        return;
+      }
+
+      // Limitar a 5 archivos
+      if (files.length + selectedFiles.length > 5) {
+        alert('Máximo 5 archivos por mensaje');
+        return;
+      }
+
+      setSelectedFiles([...selectedFiles, ...files]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
   };
 
   const searchUsers = async (query: string) => {
@@ -365,7 +428,69 @@ export function Messages() {
                           : 'bg-white text-gray-900 border border-gray-200'
                           }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                        {/* Contenido del mensaje */}
+                        {message.content && (
+                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                        )}
+
+                        {/* Archivos adjuntos */}
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className={`${message.content ? 'mt-2' : ''} space-y-2`}>
+                            {message.attachments.map((attachment, idx) => {
+                              const isImage = attachment.mimetype.startsWith('image/');
+                              const isPDF = attachment.mimetype === 'application/pdf';
+                              const isDoc = attachment.mimetype.includes('word') || attachment.mimetype.includes('document');
+                              const isExcel = attachment.mimetype.includes('excel') || attachment.mimetype.includes('sheet');
+
+                              return (
+                                <div key={idx}>
+                                  {isImage ? (
+                                    // Mostrar imagen
+                                    <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                                      <img
+                                        src={attachment.url}
+                                        alt={attachment.originalName}
+                                        className="max-w-full rounded-lg cursor-pointer hover:opacity-90"
+                                        style={{ maxHeight: '300px' }}
+                                      />
+                                    </a>
+                                  ) : (
+                                    // Mostrar archivo como enlace de descarga
+                                    <a
+                                      href={attachment.url}
+                                      download={attachment.originalName}
+                                      className={`flex items-center gap-2 p-2 rounded ${
+                                        isSentByMe
+                                          ? 'bg-primary-700 hover:bg-primary-800'
+                                          : 'bg-gray-100 hover:bg-gray-200'
+                                      } transition-colors`}
+                                    >
+                                      {isPDF ? (
+                                        <FileText className="w-5 h-5" />
+                                      ) : isDoc ? (
+                                        <FileText className="w-5 h-5" />
+                                      ) : isExcel ? (
+                                        <File className="w-5 h-5" />
+                                      ) : (
+                                        <File className="w-5 h-5" />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className={`text-sm truncate ${isSentByMe ? 'text-white' : 'text-gray-900'}`}>
+                                          {attachment.originalName}
+                                        </p>
+                                        <p className={`text-xs ${isSentByMe ? 'text-primary-100' : 'text-gray-500'}`}>
+                                          {(attachment.size / 1024).toFixed(1)} KB
+                                        </p>
+                                      </div>
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         <div className={`flex items-center justify-end space-x-1 mt-1 ${isSentByMe ? 'text-primary-100' : 'text-gray-500'}`}>
                           <p className="text-xs">
                             {formatTime(message.createdAt)}
@@ -397,7 +522,46 @@ export function Messages() {
 
           {/* Input de mensaje */}
           <form onSubmit={sendMessage} className="bg-white border-t border-gray-200 p-4">
+            {/* Preview de archivos seleccionados */}
+            {selectedFiles.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {selectedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg">
+                    <File className="w-4 h-4 text-gray-600" />
+                    <span className="text-sm text-gray-700 max-w-[150px] truncate">{file.name}</span>
+                    <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="ml-1 text-gray-500 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="flex space-x-2">
+              {/* Botón adjuntar */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Adjuntar archivo"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
+              />
+
               <input
                 type="text"
                 value={newMessage}
@@ -407,7 +571,7 @@ export function Messages() {
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim()}
+                disabled={!newMessage.trim() && selectedFiles.length === 0}
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
               >
                 <Send className="w-5 h-5" />
