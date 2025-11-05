@@ -304,36 +304,36 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       <section className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-4 md:mb-6">
               Alquiler de Oficinas y Espacios de Coworking en Colombia
             </h1>
-            <p className="text-xl text-gray-600 mb-8">
+            <p className="text-base md:text-lg lg:text-xl text-gray-600 mb-6 md:mb-8">
               Alquiler de oficinas por horas y días. Reserva salas de reuniones, hot desks y espacios de coworking compartidos. Sistema de reservas online fácil y rápido con flexibilidad total para tu equipo.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <button
                 onClick={onLoginClick}
-                className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition flex items-center justify-center"
+                className="px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition flex items-center justify-center"
               >
                 Empezar Ahora
                 <ArrowRight className="ml-2 h-5 w-5" />
               </button>
-              <button className="px-8 py-4 bg-white text-gray-700 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition border-2 border-gray-200">
+              <button className="px-6 py-3 sm:px-8 sm:py-4 bg-white text-gray-700 rounded-full font-semibold hover:shadow-lg transform hover:-translate-y-1 transition border-2 border-gray-200">
                 Ver Demo
               </button>
             </div>
-            <div className="mt-12 flex items-center justify-center space-x-12">
+            <div className="mt-8 md:mt-12 grid grid-cols-3 gap-4 sm:flex sm:items-center sm:justify-center sm:space-x-8 md:space-x-12">
               <div>
-                <div className="text-3xl font-bold text-indigo-600">500+</div>
-                <div className="text-sm text-gray-600">Reservas Activas</div>
+                <div className="text-2xl sm:text-3xl font-bold text-indigo-600">500+</div>
+                <div className="text-xs sm:text-sm text-gray-600">Reservas Activas</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-purple-600">98%</div>
-                <div className="text-sm text-gray-600">Satisfacción</div>
+                <div className="text-2xl sm:text-3xl font-bold text-purple-600">98%</div>
+                <div className="text-xs sm:text-sm text-gray-600">Satisfacción</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-pink-600">24/7</div>
-                <div className="text-sm text-gray-600">Disponibilidad</div>
+                <div className="text-2xl sm:text-3xl font-bold text-pink-600">24/7</div>
+                <div className="text-xs sm:text-sm text-gray-600">Disponibilidad</div>
               </div>
             </div>
           </div>
@@ -341,17 +341,17 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="features" className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
               Características de Nuestros Espacios de Coworking y Oficinas
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto">
               Espacios de trabajo flexibles equipados con todo lo necesario para tu equipo. Alquiler de oficinas por horas con sistema de reservas online, salas de reuniones profesionales y hot desks compartidos.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
@@ -377,17 +377,17 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       </section>
 
       {/* Spaces Section */}
-      <section id="spaces" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-indigo-50">
+      <section id="spaces" className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 to-indigo-50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
               Alquiler de Oficinas Privadas, Salas de Reuniones y Hot Desks
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto">
               Espacios de coworking flexibles para alquilar por horas o días. Oficinas compartidas, salas de reuniones equipadas y puestos de trabajo hot desk con todas las comodidades.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
             {spaces.map((space: any, index: number) => (
               <div
                 key={index}
@@ -396,8 +396,8 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                 <div className="h-48 bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-6xl">
                   {space.image}
                 </div>
-                <div className="p-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{space.name}</h3>
+                <div className="p-4 md:p-6">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">{space.name}</h3>
                   <div className="flex items-center justify-between text-gray-600 mb-2">
                     <div className="flex items-center">
                       <Users className="h-4 w-4 mr-2" />
@@ -429,17 +429,17 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       </section>
 
       {/* Benefits Section */}
-      <section id="benefits" className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="benefits" className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 md:mb-6">
                 ¿Por qué elegir Tribus?
               </h2>
-              <p className="text-xl text-gray-600 mb-8">
+              <p className="text-base md:text-lg lg:text-xl text-gray-600 mb-6 md:mb-8">
                 Más que un espacio de trabajo, una experiencia completa diseñada para impulsar tu productividad
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 {benefits.map((benefit: string, index: number) => (
                   <div key={index} className="flex items-start">
                     <Star className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -448,8 +448,8 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                 ))}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 text-white">
-              <h3 className="text-3xl font-bold mb-6">Comienza hoy mismo</h3>
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 md:p-8 text-white mt-8 lg:mt-0">
+              <h3 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Comienza hoy mismo</h3>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-start">
                   <Check className="h-6 w-6 mr-3 flex-shrink-0" />
@@ -466,7 +466,7 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
               </ul>
               <button
                 onClick={onContactClick}
-                className="w-full px-8 py-4 bg-white text-indigo-600 rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition"
+                className="w-full px-6 py-3 sm:px-8 sm:py-4 bg-white text-indigo-600 rounded-full font-semibold hover:shadow-xl transform hover:-translate-y-1 transition"
               >
                 Contactar Asesor
               </button>
@@ -477,21 +477,21 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
 
       {/* Blog Section */}
       {blogPosts.length > 0 && (
-        <section id="blog" className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <section id="blog" className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <div className="text-center mb-8 md:mb-16">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
                 Blog y Recursos
               </h2>
-              <p className="text-xl text-gray-600">
+              <p className="text-base md:text-lg lg:text-xl text-gray-600">
                 Consejos, tendencias y mejores prácticas para tu espacio de trabajo
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-3 gap-4 md:gap-6 lg:gap-8">
               {blogPosts.map((post) => (
                 <article key={post._id} className="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
-                  <div className="p-8">
+                  <div className="p-4 md:p-6 lg:p-8">
                     <div className="text-6xl mb-4">{post.image}</div>
 
                     <div className="flex items-center gap-2 mb-4">
@@ -504,7 +504,7 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
                       </span>
                     </div>
 
-                    <h3 className="text-2xl font-bold text-gray-900 mb-3 line-clamp-2">
+                    <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 line-clamp-2">
                       {post.title}
                     </h3>
 
@@ -542,20 +542,20 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       )}
 
       {/* FAQ Section for SEO */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 md:mb-4">
               Preguntas Frecuentes sobre Alquiler de Oficinas y Coworking
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-base md:text-lg lg:text-xl text-gray-600">
               Todo lo que necesitas saber sobre nuestros espacios de trabajo compartido
             </p>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
+          <div className="space-y-4 md:space-y-6">
+            <div className="bg-gray-50 p-4 md:p-6 rounded-lg">
+              <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2 md:mb-3">
                 ¿Cuánto cuesta el alquiler de oficinas por horas en Colombia?
               </h3>
               <p className="text-gray-600">
@@ -612,17 +612,17 @@ export const Home: React.FC<HomeProps> = ({ onLoginClick, onContactClick }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-indigo-600 to-purple-600">
+      <section className="py-12 md:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-indigo-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center text-white">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6">
             ¿Listo para transformar tu forma de trabajar?
           </h2>
-          <p className="text-xl mb-8 text-indigo-100">
+          <p className="text-base md:text-lg lg:text-xl mb-6 md:mb-8 text-indigo-100">
             Únete a cientos de equipos que ya confían en Tribus para gestionar sus espacios
           </p>
           <button
             onClick={onLoginClick}
-            className="px-12 py-4 bg-white text-indigo-600 rounded-full font-semibold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition"
+            className="px-8 py-3 sm:px-12 sm:py-4 bg-white text-indigo-600 rounded-full font-semibold text-base md:text-lg hover:shadow-2xl transform hover:-translate-y-1 transition"
           >
             Empezar Gratis
           </button>
