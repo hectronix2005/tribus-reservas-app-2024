@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🏢 Sistema de Reservas Tribus - 2024
 
 Sistema completo de gestión de reservas para espacios de trabajo, salas de reuniones y hot desks con administración de usuarios, áreas y configuraciones avanzadas.
