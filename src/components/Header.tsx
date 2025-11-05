@@ -282,8 +282,8 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                       setIsMobileMenuOpen(false);
                     }}
                     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                      isActive 
-                        ? 'bg-gradient-primary text-white shadow-glow' 
+                      isActive
+                        ? 'bg-gradient-primary text-white shadow-glow'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -292,7 +292,28 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                   </button>
                 );
               })}
-              
+
+              {/* Botón de Mensajes con badge - Mobile */}
+              <button
+                onClick={() => {
+                  onViewChange('messages');
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
+                  currentView === 'messages'
+                    ? 'bg-gradient-primary text-white shadow-glow'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <MessageCircle className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${currentView === 'messages' ? 'animate-bounce-soft' : ''}`} />
+                <span>Mensajes</span>
+                {unreadMessagesCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                    {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                  </span>
+                )}
+              </button>
+
               {/* Admin Menu for Mobile */}
               {(state.auth.currentUser?.role === 'admin' || state.auth.currentUser?.role === 'superadmin') && (
                 <>
