@@ -621,6 +621,9 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                                     <div className="text-xs text-gray-500">
                                       Capacidad: {totalSpaces} puestos
                                     </div>
+                                    <div className="text-xs text-gray-600 font-medium">
+                                      Puestos reservados: {totalSpaces - availableSpaces}
+                                    </div>
                                   </>
                                 )}
                                 {isAvailable && (
