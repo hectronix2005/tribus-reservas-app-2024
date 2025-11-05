@@ -460,11 +460,13 @@ export function Messages() {
               </button>
             )}
 
+            {/* Botón volver a la bandeja (móvil) - Más prominente */}
             <button
               onClick={() => setSelectedConversation(null)}
-              className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
+              className="md:hidden flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 text-primary-600" />
+              <span className="text-sm font-medium text-primary-600">Bandeja</span>
             </button>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               selectedConversation.user._id === 'broadcast'
