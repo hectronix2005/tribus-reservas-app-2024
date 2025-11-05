@@ -194,33 +194,72 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
           }))
         });
 
-        const areasData: { [areaName: string]: any } = {};
-        
+        const areasData: { [areaName: string]: any} = {};
+
         areas.forEach(area => {
-          const areaReservations = dayReservations.filter(reservation => 
+          const areaReservations = dayReservations.filter(reservation =>
             reservation.area === area.name
           );
-          
-          const totalReservedSeats = areaReservations.reduce((total, reservation) => {
-            return total + (reservation.requestedSeats || 0);
-          }, 0);
-          
-          const availableSpaces = Math.max(0, area.capacity - totalReservedSeats);
-          
-          console.log(`🔍 [Availability] Área ${area.name} para ${dateString}:`, {
-            areaName: area.name,
-            totalCapacity: area.capacity,
-            areaReservations: areaReservations.length,
-            totalReservedSeats,
-            availableSpaces
-          });
-          
-          areasData[area.name] = {
-            isAvailable: availableSpaces > 0,
-            reservations: areaReservations,
-            availableSpaces,
-            totalSpaces: area.capacity
-          };
+
+          // Calcular según el tipo de área
+          if (area.category === 'SALA') {
+            // Para salas: calcular horas reservadas
+            const totalReservedHours = areaReservations.reduce((total, reservation) => {
+              if (reservation.startTime && reservation.endTime) {
+                const start = new Date(`2000-01-01T${reservation.startTime}`);
+                const end = new Date(`2000-01-01T${reservation.endTime}`);
+                const hours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                return total + hours;
+              }
+              return total;
+            }, 0);
+
+            // Horas disponibles por día (típicamente 8am-6pm = 10 horas para salas)
+            const totalAvailableHours = 10;
+            const availableHours = Math.max(0, totalAvailableHours - totalReservedHours);
+
+            console.log(`🔍 [Availability] Sala ${area.name} para ${dateString}:`, {
+              areaName: area.name,
+              category: area.category,
+              areaReservations: areaReservations.length,
+              totalReservedHours: totalReservedHours.toFixed(1),
+              availableHours: availableHours.toFixed(1),
+              totalAvailableHours
+            });
+
+            areasData[area.name] = {
+              isAvailable: availableHours > 0,
+              reservations: areaReservations,
+              availableSpaces: availableHours,
+              totalSpaces: totalAvailableHours,
+              isSala: true,
+              reservedHours: totalReservedHours
+            };
+          } else {
+            // Para Hot Desk: calcular puestos reservados
+            const totalReservedSeats = areaReservations.reduce((total, reservation) => {
+              return total + (reservation.requestedSeats || 0);
+            }, 0);
+
+            const availableSpaces = Math.max(0, area.capacity - totalReservedSeats);
+
+            console.log(`🔍 [Availability] Hot Desk ${area.name} para ${dateString}:`, {
+              areaName: area.name,
+              category: area.category,
+              totalCapacity: area.capacity,
+              areaReservations: areaReservations.length,
+              totalReservedSeats,
+              availableSpaces
+            });
+
+            areasData[area.name] = {
+              isAvailable: availableSpaces > 0,
+              reservations: areaReservations,
+              availableSpaces,
+              totalSpaces: area.capacity,
+              isSala: false
+            };
+          }
         });
 
         return {
@@ -528,11 +567,13 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                           });
                         }
 
-                        // Usar datos de areaData si existen, de lo contrario usar capacidad total
-                        const availableSpaces = areaData?.availableSpaces ?? area.capacity;
-                        const totalSpaces = area.capacity;
+                        // Determinar si es sala o hot desk
+                        const isSala = area.category === 'SALA';
+                        const availableSpaces = areaData?.availableSpaces ?? (isSala ? 10 : area.capacity);
+                        const totalSpaces = isSala ? (areaData?.totalSpaces ?? 10) : area.capacity;
                         const isAvailable = availableSpaces > 0;
-                        
+                        const reservedHours = (areaData as any)?.reservedHours ?? 0;
+
                         return (
                           <div
                             key={area._id}
@@ -557,16 +598,31 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                                   {area.name}
                                 </span>
                               </div>
-                              
+
                               <div className="text-right">
-                                <div className={`text-sm font-medium ${
-                                  isAvailable ? 'text-green-700' : 'text-red-700'
-                                }`}>
-                                  {availableSpaces}/{totalSpaces} disponibles
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Capacidad: {totalSpaces} puestos
-                                </div>
+                                {isSala ? (
+                                  <>
+                                    <div className={`text-sm font-medium ${
+                                      isAvailable ? 'text-green-700' : 'text-red-700'
+                                    }`}>
+                                      {reservedHours.toFixed(1)}h reservadas / {totalSpaces}h total
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {availableSpaces.toFixed(1)}h libres
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className={`text-sm font-medium ${
+                                      isAvailable ? 'text-green-700' : 'text-red-700'
+                                    }`}>
+                                      {availableSpaces}/{totalSpaces} disponibles
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      Capacidad: {totalSpaces} puestos
+                                    </div>
+                                  </>
+                                )}
                                 {isAvailable && (
                                   <div className="text-xs text-blue-600 font-medium mt-1">
                                     Click para reservar
@@ -574,9 +630,9 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                                 )}
                               </div>
                             </div>
-                            
+
                             {areaData?.reservations && areaData.reservations.length > 0 && (
-                              <div 
+                              <div
                                 className="mt-2 text-xs text-blue-600 font-medium cursor-pointer hover:text-blue-800 hover:underline"
                                 onClick={(e) => {
                                   e.stopPropagation();
