@@ -194,22 +194,22 @@ export function ColaboradorView() {
                       <span className="font-medium">{formatDateWithDayName(reservation.date)}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      <span>
-                        {(() => {
-                          // Verificar si es HOT DESK (reserva de día completo)
-                          const area = state.areas.find(a => a.name === reservation.area);
-                          const isFullDay = area?.isFullDayReservation || false;
-                          
-                          if (isFullDay) {
-                            return 'Día completo';
-                          } else {
-                            return `${reservation.startTime} - ${reservation.endTime}`;
-                          }
-                        })()}
-                      </span>
-                    </div>
+                    {/* Solo mostrar horario para SALA (salas de juntas), NO para HOT_DESK */}
+                    {(() => {
+                      const area = state.areas.find(a => a.name === reservation.area);
+                      const isHotDesk = area?.category === 'HOT_DESK';
+
+                      if (isHotDesk) {
+                        return null; // No mostrar horario para Hot Desk
+                      }
+
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span>{`${reservation.startTime} - ${reservation.endTime}`}</span>
+                        </div>
+                      );
+                    })()}
                     
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-gray-400" />

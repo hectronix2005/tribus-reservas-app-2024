@@ -172,18 +172,24 @@ export function ReservationFilters({
     ];
 
     // Crear filas del CSV
-    const rows = filteredReservations.map(reservation => [
-      reservation._id,
-      reservation.area,
-      formatDateToString(createLocalDate(reservation.date)),
-      reservation.startTime,
-      reservation.endTime,
-      reservation.teamName,
-      reservation.requestedSeats,
-      getStatusText(reservation.status),
-      reservation.notes,
-      new Date(reservation.createdAt).toLocaleDateString('es-ES')
-    ]);
+    const rows = filteredReservations.map(reservation => {
+      // Verificar si es Hot Desk para ocultar horarios
+      const area = areas.find(a => a.name === reservation.area);
+      const isHotDesk = (area as any)?.category === 'HOT_DESK';
+
+      return [
+        reservation._id,
+        reservation.area,
+        formatDateToString(createLocalDate(reservation.date)),
+        isHotDesk ? '' : reservation.startTime,  // Vacío si es Hot Desk
+        isHotDesk ? '' : reservation.endTime,    // Vacío si es Hot Desk
+        reservation.teamName,
+        reservation.requestedSeats,
+        getStatusText(reservation.status),
+        reservation.notes,
+        new Date(reservation.createdAt).toLocaleDateString('es-ES')
+      ];
+    });
 
     // Combinar encabezados y filas
     const csvContent = [headers, ...rows]

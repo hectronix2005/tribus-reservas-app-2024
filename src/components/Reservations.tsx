@@ -1470,9 +1470,12 @@ Equipo: ${reservation.teamName || 'N/A'}
 📅 INFORMACIÓN DE LA RESERVA
 ────────────────────────────
 Fecha: ${reservation.date || 'N/A'}
-Hora Inicio: ${reservation.startTime || 'N/A'}
-Hora Fin: ${reservation.endTime || 'N/A'}
-Puestos Solicitados: ${reservation.requestedSeats || 0}
+${(() => {
+  const area = areas.find(a => a.name === reservation.area);
+  const isHotDesk = area?.category === 'HOT_DESK';
+  if (isHotDesk) return '';
+  return `Hora Inicio: ${reservation.startTime || 'N/A'}\nHora Fin: ${reservation.endTime || 'N/A'}\n`;
+})()}Puestos Solicitados: ${reservation.requestedSeats || 0}
 Estado: ${reservation.status || 'N/A'}
 
 👥 COLABORADORES
@@ -1569,9 +1572,12 @@ ${debug.userInfo?.collaborators?.map((c: any, i: number) => {
 Fecha de Creación: ${formatDate(debug.systemInfo?.createdAt || reservation.createdAt)}
 Fecha Reservada: ${formatDate(debug.dateProcessing?.original?.dateString || reservation.date)}
 Fecha UTC: ${formatDate(debug.dateProcessing?.utc?.reservationDate)}
-Hora Inicio: ${safeValue(debug.dateProcessing?.original?.startTimeString || reservation.startTime)}
-Hora Fin: ${safeValue(debug.dateProcessing?.original?.endTimeString || reservation.endTime)}
-Día de la Semana: ${safeValue(debug.dateProcessing?.validation?.dayName)}
+${(() => {
+  const area = areas.find(a => a.name === reservation.area);
+  const isHotDesk = area?.category === 'HOT_DESK';
+  if (isHotDesk) return '';
+  return `Hora Inicio: ${safeValue(debug.dateProcessing?.original?.startTimeString || reservation.startTime)}\nHora Fin: ${safeValue(debug.dateProcessing?.original?.endTimeString || reservation.endTime)}\n`;
+})()}Día de la Semana: ${safeValue(debug.dateProcessing?.validation?.dayName)}
 Zona Horaria: ${safeValue(debug.dateProcessing?.utc?.timezone || debug.systemInfo?.timezone, 'America/Bogota')}
 User Agent: ${safeValue(debug.systemInfo?.userAgent || debug.metadata?.userAgent)}
 Es Día de Oficina: ${debug.dateProcessing?.validation?.isOfficeDay ? 'Sí' : 'No'}
@@ -2245,14 +2251,22 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                             const formDate = normalizeDate(formData.date);
                             return r.area === formData.area && reservationDate === formDate && (r.status === 'confirmed' || r.status === 'active');
                           })
-                          .map((reservation, index) => (
-                            <div key={index} className="text-sm text-gray-600 mb-1">
-                              <span className="font-medium">
-                                {reservation.startTime} - {reservation.endTime}
-                              </span>
-                              {reservation.notes && ` (${reservation.notes})`}
-                            </div>
-                          ))}
+                          .map((reservation, index) => {
+                            // Solo mostrar horario si NO es Hot Desk
+                            const area = areas.find(a => a.name === reservation.area);
+                            const isHotDesk = area?.category === 'HOT_DESK';
+
+                            return (
+                              <div key={index} className="text-sm text-gray-600 mb-1">
+                                {!isHotDesk && (
+                                  <span className="font-medium">
+                                    {reservation.startTime} - {reservation.endTime}
+                                  </span>
+                                )}
+                                {reservation.notes && ` (${reservation.notes})`}
+                              </div>
+                            );
+                          })}
                         {reservations.filter(r => {
                           const reservationDate = normalizeDate(r.date);
                           const formDate = normalizeDate(formData.date);
@@ -2276,7 +2290,7 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-sm font-medium text-blue-800">
-                      Esta área se reserva por día completo ({formData.startTime} - {formData.endTime})
+                      Esta área se reserva por día completo
                       </span>
                     </div>
                   </div>
@@ -2558,22 +2572,22 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                         <span>{formatDateWithDayName(reservation.date)}</span>
                       </div>
                       
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        <span>
-                          {(() => {
-                            // Verificar si es HOT DESK (reserva de día completo)
-                            const area = areas.find(a => a.name === reservation.area);
-                            const isFullDay = area?.isFullDayReservation || false;
-                            
-                            if (isFullDay) {
-                              return 'Día completo';
-                            } else {
-                              return `${reservation.startTime} - ${reservation.endTime}`;
-                            }
-                          })()}
-                        </span>
-                      </div>
+                      {/* Solo mostrar horario para SALA (salas de juntas), NO para HOT_DESK */}
+                      {(() => {
+                        const area = areas.find(a => a.name === reservation.area);
+                        const isHotDesk = area?.category === 'HOT_DESK';
+
+                        if (isHotDesk) {
+                          return null; // No mostrar horario para Hot Desk
+                        }
+
+                        return (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            <span>{`${reservation.startTime} - ${reservation.endTime}`}</span>
+                          </div>
+                        );
+                      })()}
                       
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
@@ -2727,18 +2741,23 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
                       </div>
                       
                       {/* Ocultar horario solo para Hot Desk */}
-                      {!viewingReservation.area.toLowerCase().includes('hot desk') && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Horario:</span>
-                          <span className="font-medium">
-                            {(() => {
-                              const area = areas.find(a => a.name === viewingReservation.area);
-                              const isFullDay = area?.isFullDayReservation || false;
-                              return isFullDay ? 'Día completo' : `${viewingReservation.startTime} - ${viewingReservation.endTime}`;
-                            })()}
-                          </span>
-                        </div>
-                      )}
+                      {(() => {
+                        const area = areas.find(a => a.name === viewingReservation.area);
+                        const isHotDesk = area?.category === 'HOT_DESK';
+
+                        if (isHotDesk) {
+                          return null; // No mostrar horario para Hot Desk
+                        }
+
+                        return (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Horario:</span>
+                            <span className="font-medium">
+                              {`${viewingReservation.startTime} - ${viewingReservation.endTime}`}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       
                       <div className="flex justify-between">
                         <span className="text-gray-600">Equipo:</span>

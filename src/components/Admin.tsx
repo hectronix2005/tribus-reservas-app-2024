@@ -181,10 +181,17 @@ export function Admin() {
         'Notas'
       ],
       ...filteredReservations.map(r => {
-        // Calcular duración
-        const start = new Date(`2000-01-01T${r.startTime}`);
-        const end = new Date(`2000-01-01T${r.endTime}`);
-        const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+        // Verificar si es Hot Desk
+        const area = state.areas.find(a => a.name === r.area);
+        const isHotDesk = area?.category === 'HOT_DESK';
+
+        // Calcular duración solo si NO es Hot Desk
+        let durationMinutes = 0;
+        if (!isHotDesk && r.startTime && r.endTime) {
+          const start = new Date(`2000-01-01T${r.startTime}`);
+          const end = new Date(`2000-01-01T${r.endTime}`);
+          durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+        }
 
         // Obtener información del usuario
         const userId = typeof r.userId === 'string' ? r.userId : r.userId._id;
@@ -206,9 +213,9 @@ export function Admin() {
           r.teamName,
           r.requestedSeats.toString(),
           r.date.split('T')[0],
-          r.startTime,
-          r.endTime,
-          durationMinutes.toString(),
+          isHotDesk ? '' : r.startTime,  // Vacío si es Hot Desk
+          isHotDesk ? '' : r.endTime,    // Vacío si es Hot Desk
+          isHotDesk ? '' : durationMinutes.toString(),  // Vacío si es Hot Desk
           userName,
           employeeId,
           userEmail,
@@ -758,9 +765,17 @@ export function Admin() {
                            <div className="text-sm text-gray-900">
                              {reservation.date ? formatDateInBogota(reservation.date, 'dd/MM/yyyy') : 'Sin fecha'}
                            </div>
-                           <div className="text-sm text-gray-500">
-                              {reservation.startTime || 'Sin hora'} - {reservation.endTime || 'N/A'}
-                           </div>
+                           {/* Solo mostrar horario si NO es Hot Desk */}
+                           {(() => {
+                             const area = state.areas.find(a => a.name === reservation.area);
+                             const isHotDesk = area?.category === 'HOT_DESK';
+                             if (isHotDesk) return null;
+                             return (
+                               <div className="text-sm text-gray-500">
+                                 {reservation.startTime || 'Sin hora'} - {reservation.endTime || 'N/A'}
+                               </div>
+                             );
+                           })()}
                          </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(reservation.status)}

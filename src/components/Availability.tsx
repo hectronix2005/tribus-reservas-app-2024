@@ -712,9 +712,17 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                           <div className="text-sm font-medium text-gray-900">
                             {reservation.requestedSeats} puesto(s)
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {reservation.startTime} - {reservation.endTime}
-                          </div>
+                          {/* Solo mostrar horario si NO es Hot Desk */}
+                          {(() => {
+                            const area = state.areas.find(a => a.name === selectedAreaReservations.area);
+                            const isHotDesk = area?.category === 'HOT_DESK';
+                            if (isHotDesk) return null;
+                            return (
+                              <div className="text-xs text-gray-500">
+                                {reservation.startTime} - {reservation.endTime}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
