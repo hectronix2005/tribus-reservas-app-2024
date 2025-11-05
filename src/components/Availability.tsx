@@ -517,8 +517,20 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
                       .filter(area => selectedAreas.length === 0 || selectedAreas.includes(area.name))
                       .map((area) => {
                         const areaData = dayAvailability?.areas[area.name];
-                        const availableSpaces = areaData?.availableSpaces || area.capacity;
-                        const totalSpaces = areaData?.totalSpaces || area.capacity;
+
+                        // Debug: Log para entender por qué no se encuentran los datos
+                        if (!areaData) {
+                          console.warn(`⚠️ No se encontró areaData para ${area.name} en fecha ${dateString}`, {
+                            areaName: area.name,
+                            dateString,
+                            availableDayAvailability: dayAvailability,
+                            allAreasInDayAvailability: dayAvailability ? Object.keys(dayAvailability.areas) : []
+                          });
+                        }
+
+                        // Usar datos de areaData si existen, de lo contrario usar capacidad total
+                        const availableSpaces = areaData?.availableSpaces ?? area.capacity;
+                        const totalSpaces = area.capacity;
                         const isAvailable = availableSpaces > 0;
                         
                         return (
