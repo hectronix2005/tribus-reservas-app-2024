@@ -145,7 +145,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 </button>
                 
                 {isAdminMenuOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-2xl shadow-large border border-white/20 animate-fade-in-down">
+                  <div className="absolute top-full left-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-2xl shadow-large border border-white/20 animate-fade-in-down z-[60]">
                     <div className="p-2">
                       {adminItems.map((item, index) => {
                         const Icon = item.icon;
@@ -188,7 +188,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
                 </button>
                 
                 {isUserConfigMenuOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-2xl shadow-large border border-white/20 animate-fade-in-down">
+                  <div className="absolute top-full left-0 mt-2 w-56 bg-white/90 backdrop-blur-md rounded-2xl shadow-large border border-white/20 animate-fade-in-down z-[60]">
                     <div className="p-2">
                       {userConfigItems.map((item, index) => {
                         const Icon = item.icon;
