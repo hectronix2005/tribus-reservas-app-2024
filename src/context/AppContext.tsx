@@ -100,25 +100,6 @@ const loadReservationsFromMongoDB = async () => {
     console.log('🔄 [AppContext] Llamando a reservationService.getAllReservations()...');
     const reservations = await reservationService.getAllReservations();
 
-    // Logging específico para noviembre 6
-    const nov6Reservations = reservations.filter(r => r.date.includes('2025-11-06'));
-    console.log('🔍 [DEBUG NOV 6 - AppContext] Reservas del 6 de noviembre cargadas desde API:', {
-      totalReservations: reservations.length,
-      nov6Count: nov6Reservations.length,
-      nov6Reservations: nov6Reservations.map(r => ({
-        _id: r._id,
-        area: r.area,
-        date: r.date,
-        status: r.status,
-        requestedSeats: r.requestedSeats,
-        teamName: r.teamName
-      })),
-      nov6TotalSeats: nov6Reservations.reduce((sum, r) => sum + (r.requestedSeats || 0), 0),
-      nov6ConfirmedSeats: nov6Reservations
-        .filter(r => r.status === 'confirmed')
-        .reduce((sum, r) => sum + (r.requestedSeats || 0), 0)
-    });
-
     console.log('✅ [AppContext] Reservaciones cargadas desde MongoDB:', {
       totalReservations: reservations.length,
       hotDeskReservations: reservations.filter(r => r.area === 'Hot Desk'),
@@ -457,7 +438,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reservation => {
         // Normalizar la fecha de la reservación del backend (UTC) a formato local
         const reservationDate = normalizeUTCDateToLocal(reservation.date);
-        return reservationDate === normalizedDate && reservation.status === 'confirmed';
+        // Incluir tanto reservas confirmadas como activas (que están en curso)
+        return reservationDate === normalizedDate && (reservation.status === 'confirmed' || reservation.status === 'active');
       }
     );
 
