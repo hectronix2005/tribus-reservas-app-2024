@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck, Paperclip, File, Image as ImageIcon, FileText, Download } from 'lucide-react';
+import { MessageCircle, Send, Search, X, User, ArrowLeft, Check, CheckCheck, Paperclip, File, Image as ImageIcon, FileText, Download, Menu } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 
@@ -73,6 +73,7 @@ export function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<UserSearch[]>([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Panel lateral abierto por defecto
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -274,19 +275,49 @@ export function Messages() {
   };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex">
-      {/* Lista de conversaciones */}
-      <div className={`${selectedConversation && window.innerWidth < 768 ? 'hidden' : 'block'} w-full md:w-80 border-r border-gray-200 bg-white flex flex-col`}>
+    <div className="h-[calc(100vh-140px)] flex relative">
+      {/* Botón hamburger flotante (solo visible cuando sidebar está oculto en desktop) */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="hidden md:flex fixed left-4 top-24 z-50 p-3 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all items-center justify-center"
+          title="Abrir panel de conversaciones"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Lista de conversaciones - Panel lateral retráctil */}
+      <div className={`
+        ${selectedConversation && window.innerWidth < 768 ? 'hidden' : 'flex'}
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:-translate-x-full'}
+        w-full md:w-80
+        border-r border-gray-200 bg-white
+        flex-col
+        transition-transform duration-300 ease-in-out
+        md:absolute md:left-0 md:top-0 md:h-full md:z-40
+        lg:relative lg:translate-x-0
+      `}>
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xl font-bold text-gray-900">Mensajes</h2>
-            <button
-              onClick={() => setShowUserSearch(!showUserSearch)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              {showUserSearch ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5 text-primary-600" />}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Botón para cerrar sidebar en desktop */}
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="hidden md:block lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Ocultar panel"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setShowUserSearch(!showUserSearch)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                {showUserSearch ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5 text-primary-600" />}
+              </button>
+            </div>
           </div>
 
           {/* Búsqueda de usuarios */}
@@ -371,11 +402,34 @@ export function Messages() {
         </div>
       </div>
 
+      {/* Overlay/Backdrop cuando sidebar está abierto en tablets */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="hidden md:block lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+        />
+      )}
+
       {/* Área de chat */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col bg-gray-50">
+        <div className={`
+          flex-1 flex flex-col bg-gray-50
+          transition-all duration-300
+          ${!sidebarOpen ? 'md:ml-0 lg:ml-0' : 'md:ml-0 lg:ml-0'}
+        `}>
           {/* Header del chat */}
           <div className="bg-white border-b border-gray-200 p-4 flex items-center space-x-3">
+            {/* Botón hamburger para abrir sidebar (solo visible cuando está cerrado en desktop) */}
+            {!sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="hidden md:block lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                title="Abrir panel de conversaciones"
+              >
+                <Menu className="w-5 h-5 text-gray-600" />
+              </button>
+            )}
+
             <button
               onClick={() => setSelectedConversation(null)}
               className="md:hidden p-2 hover:bg-gray-100 rounded-lg"
