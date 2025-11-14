@@ -1735,10 +1735,11 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
           break;
           
         case 'weekly':
-          const dayOfWeek = currentDate.toLocaleDateString('en-US', { 
-            weekday: 'long',
-            timeZone: 'America/Bogota'
-          }).toLowerCase();
+          // Usar getDay() directamente para evitar problemas de zona horaria
+          // 0 = domingo, 1 = lunes, 2 = martes, 3 = miércoles, 4 = jueves, 5 = viernes, 6 = sábado
+          const dayIndex = currentDate.getDay();
+          const daysMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const dayOfWeek = daysMap[dayIndex];
           if (recurrenceDays.includes(dayOfWeek)) {
             shouldInclude = true;
           }
