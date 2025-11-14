@@ -5,16 +5,20 @@
 import { AdminSettings } from '../types';
 
 /**
- * Crea una fecha local a partir de un string YYYY-MM-DD
- * @param dateString - Fecha en formato YYYY-MM-DD
+ * Crea una fecha local a partir de un string YYYY-MM-DD o ISO string
+ * @param dateString - Fecha en formato YYYY-MM-DD o ISO string (ej: 2025-11-06T00:00:00.000Z)
  * @returns Date object en zona horaria local
  */
 export const createLocalDate = (dateString: string): Date => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-    throw new Error(`Formato de fecha inválido: ${dateString}. Se esperaba YYYY-MM-DD`);
+  // Normalizar la fecha si viene en formato ISO (con 'T')
+  const normalizedDate = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+
+  // Validar formato YYYY-MM-DD después de normalizar
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+    throw new Error(`Formato de fecha inválido: ${dateString}. Se esperaba YYYY-MM-DD o ISO string`);
   }
-  
-  const [year, month, day] = dateString.split('-').map(Number);
+
+  const [year, month, day] = normalizedDate.split('-').map(Number);
   return new Date(year, month - 1, day); // month - 1 porque Date usa 0-indexado
 };
 
