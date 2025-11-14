@@ -17,6 +17,27 @@ const MONGODB_CONFIG = require('./mongodb-config');
 const emailService = require('./services/emailService-improved');
 const { passwordResetTemplate, passwordResetTextTemplate } = require('./services/emailTemplates');
 
+// ============================================
+// SISTEMA ROBUSTO DE MANEJO DE FECHAS
+// ============================================
+// REGLA FUNDAMENTAL: Las fechas son SOLO fechas (YYYY-MM-DD) sin componente horario
+//
+// PRINCIPIOS:
+// 1. Fechas en BD: SIEMPRE almacenar como Date UTC a medianoche (00:00:00.000Z)
+// 2. Horas: SIEMPRE almacenar por separado como strings "HH:MM" en campos startTime/endTime
+// 3. Frontend: SIEMPRE enviar fechas como strings "YYYY-MM-DD"
+// 4. Backend: SIEMPRE convertir strings a Date UTC usando componentes individuales
+//
+// CONVERSIÓN CORRECTA:
+//   const [year, month, day] = dateString.split('-').map(Number);
+//   const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+//
+// ❌ NUNCA HACER:
+//   new Date(dateString) // Interpreta como hora local, causa desplazamientos
+//   new Date(Date.UTC(..., hours, minutes)) // NO incluir horas en la fecha
+//
+// ============================================
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -2044,18 +2065,11 @@ app.post('/api/reservations', async (req, res) => {
     }
 
 
-    // Crear la reservación usando el sistema unificado de fechas UTC
-    let reservationDate;
-    if (areaInfo.category === 'HOT_DESK') {
-      // Para Hot Desk: fecha local -> UTC (inicio del día)
-      const [resYear, resMonth, resDay] = date.split('-').map(Number);
-      reservationDate = new Date(Date.UTC(resYear, resMonth - 1, resDay, 0, 0, 0, 0));
-    } else {
-      // Para Salas: fecha local + hora local -> UTC
-      const [resYear, resMonth, resDay] = date.split('-').map(Number);
-      const [hours, minutes] = startTime.split(':').map(Number);
-      reservationDate = new Date(Date.UTC(resYear, resMonth - 1, resDay, hours, minutes, 0, 0));
-    }
+    // Sistema robusto de fechas: SIEMPRE almacenar fecha a medianoche UTC
+    // Las fechas son SOLO fechas (YYYY-MM-DD), sin componente horario
+    // Las horas se almacenan por separado en startTime/endTime como strings "HH:MM"
+    const [resYear, resMonth, resDay] = date.split('-').map(Number);
+    const reservationDate = new Date(Date.UTC(resYear, resMonth - 1, resDay, 0, 0, 0, 0));
 
     // Generar ID único: RES-YYYYMMDD-HHMMSS-XXXX
     const currentTime = new Date();

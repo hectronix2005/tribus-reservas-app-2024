@@ -39,10 +39,12 @@ export function DatePicker({
   }, []);
 
   // Formatear fecha para mostrar
+  // SISTEMA ROBUSTO: Nunca usar new Date(string), siempre usar componentes individuales
   const formatDisplayDate = (dateString: string) => {
     if (!dateString) return placeholder;
-    
-    const date = new Date(dateString + 'T00:00:00');
+
+    const [year, month, day] = dateString.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('es-CO', {
       weekday: 'long',
       year: 'numeric',
