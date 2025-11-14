@@ -2073,14 +2073,14 @@ app.post('/api/reservations', async (req, res) => {
 
     // Generar ID único: RES-YYYYMMDD-HHMMSS-XXXX
     const currentTime = new Date();
-    const resYear = currentTime.getFullYear();
+    const currentYear = currentTime.getFullYear();
     const currentMonth = String(currentTime.getMonth() + 1).padStart(2, '0');
     const currentDay = String(currentTime.getDate()).padStart(2, '0');
     const currentHours = String(currentTime.getHours()).padStart(2, '0');
     const currentMinutes = String(currentTime.getMinutes()).padStart(2, '0');
     const currentSeconds = String(currentTime.getSeconds()).padStart(2, '0');
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const uniqueReservationId = `RES-${resYear}${currentMonth}${currentDay}-${currentHours}${currentMinutes}${currentSeconds}-${random}`;
+    const uniqueReservationId = `RES-${currentYear}${currentMonth}${currentDay}-${currentHours}${currentMinutes}${currentSeconds}-${random}`;
 
     const reservation = new Reservation({
       reservationId: uniqueReservationId,
