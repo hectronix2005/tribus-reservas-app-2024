@@ -11,9 +11,11 @@ const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const crypto = require('crypto');
 const MONGODB_CONFIG = require('./mongodb-config');
 // Usar el servicio mejorado con auditoría completa y validación estricta
 const emailService = require('./services/emailService-improved');
+const { passwordResetTemplate, passwordResetTextTemplate } = require('./services/emailTemplates');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -841,6 +843,8 @@ messageSchema.index({ receiver: 1, read: 1 });
 
 const Message = mongoose.model('Message', messageSchema);
 
+// Cargar modelo de PasswordReset desde archivo separado
+const PasswordReset = require('./models/PasswordReset');
 
 // Middleware de autenticación
 const auth = (req, res, next) => {
@@ -1203,6 +1207,218 @@ app.post('/api/users/login', async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
+
+// ============================================
+// ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA
+// ============================================
+
+// Endpoint para solicitar recuperación de contraseña
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'El email es requerido'
+      });
+    }
+
+    // Buscar usuario por email
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      isActive: true
+    });
+
+    // Por seguridad, siempre retornamos éxito aunque el usuario no exista
+    // Esto previene enumerar usuarios válidos
+    if (!user) {
+      console.log(`⚠️ Intento de recuperación para email no existente: ${email}`);
+      return res.json({
+        success: true,
+        message: 'Si el email existe en nuestro sistema, recibirás instrucciones para restablecer tu contraseña'
+      });
+    }
+
+    // Generar token único y seguro
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Invalidar tokens anteriores del mismo usuario
+    await PasswordReset.updateMany(
+      { userId: user._id, used: false },
+      { used: true, usedAt: new Date() }
+    );
+
+    // Crear nuevo registro de reset
+    const passwordReset = new PasswordReset({
+      userId: user._id,
+      email: user.email,
+      token: hashedToken,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minutos
+      ipAddress: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('user-agent')
+    });
+
+    await passwordReset.save();
+
+    // Construir URL de reset
+    // Si FRONTEND_URL está configurada, usarla siempre (incluso en desarrollo)
+    // Esto permite que los emails funcionen en producción aunque el servidor esté en local
+    const resetUrl = process.env.FRONTEND_URL
+      ? `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
+      : `http://localhost:5173/reset-password?token=${resetToken}`;
+
+    console.log(`🔗 URL de reset generada: ${resetUrl.substring(0, 60)}...`);
+
+    // Preparar y enviar email
+    const emailHtml = passwordResetTemplate(user.name, resetUrl, 30);
+    const emailText = passwordResetTextTemplate(user.name, resetUrl, 30);
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'Tribus Reservas <noreply@tribus.com>',
+      to: user.email,
+      subject: '🔒 Recuperación de Contraseña - Tribus',
+      html: emailHtml,
+      text: emailText
+    };
+
+    // Enviar email
+    if (emailService.transporter) {
+      try {
+        const info = await emailService.transporter.sendMail(mailOptions);
+
+        // Registrar en EmailLog
+        const EmailLog = require('./models/EmailLog');
+        await EmailLog.create({
+          emailType: 'password_reset',
+          subject: mailOptions.subject,
+          to: [user.email],
+          status: 'success',
+          messageId: info.messageId,
+          sentAt: new Date(),
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('user-agent')
+        });
+
+        console.log(`✅ Email de recuperación enviado a: ${user.email}`);
+        console.log(`📧 Message ID: ${info.messageId}`);
+      } catch (emailError) {
+        console.error('❌ Error enviando email de recuperación:', emailError);
+
+        // Registrar error en EmailLog
+        const EmailLog = require('./models/EmailLog');
+        await EmailLog.create({
+          emailType: 'password_reset',
+          subject: mailOptions.subject,
+          to: [user.email],
+          status: 'failed',
+          error: emailError.message,
+          sentAt: new Date(),
+          ipAddress: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('user-agent')
+        });
+
+        // No revelamos el error al usuario
+        return res.status(500).json({
+          error: 'Error al enviar el email de recuperación. Intenta nuevamente.'
+        });
+      }
+    } else {
+      console.error('❌ Servicio de email no inicializado');
+      return res.status(500).json({
+        error: 'Servicio de email no disponible. Contacta al administrador.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Si el email existe en nuestro sistema, recibirás instrucciones para restablecer tu contraseña'
+    });
+
+  } catch (error) {
+    console.error('Error en forgot-password:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor'
+    });
+  }
+});
+
+// Endpoint para restablecer contraseña con token
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        error: 'Token y nueva contraseña son requeridos'
+      });
+    }
+
+    // Validar longitud de contraseña
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: 'La contraseña debe tener al menos 6 caracteres'
+      });
+    }
+
+    // Hash del token para buscar en la BD
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Buscar token en la BD
+    const passwordReset = await PasswordReset.findOne({
+      token: hashedToken
+    }).populate('userId');
+
+    if (!passwordReset) {
+      return res.status(400).json({
+        error: 'Token inválido o expirado'
+      });
+    }
+
+    // Verificar si el token es válido
+    if (!passwordReset.isValid()) {
+      return res.status(400).json({
+        error: 'Token inválido o expirado'
+      });
+    }
+
+    // Buscar usuario
+    const user = await User.findById(passwordReset.userId);
+
+    if (!user || !user.isActive) {
+      return res.status(400).json({
+        error: 'Usuario no encontrado o inactivo'
+      });
+    }
+
+    // Hash de la nueva contraseña
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña del usuario
+    user.password = hashedPassword;
+    await user.save();
+
+    // Marcar token como usado
+    await passwordReset.markAsUsed();
+
+    console.log(`✅ Contraseña restablecida para: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente'
+    });
+
+  } catch (error) {
+    console.error('Error en reset-password:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor'
+    });
+  }
+});
+
+// ============================================
+// FIN ENDPOINTS DE RECUPERACIÓN DE CONTRASEÑA
+// ============================================
 
 // Endpoint para obtener todos los usuarios (sin autenticación para facilitar el desarrollo)
 app.get('/api/users', async (req, res) => {

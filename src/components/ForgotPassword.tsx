@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { authService } from '../services/api';
 
 interface ForgotPasswordProps {
   onBackToLogin: () => void;
 }
 
 export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
-  const { state } = useApp();
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,21 +17,20 @@ export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
     setError(null);
     setIsLoading(true);
 
-    // Simular delay de procesamiento
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const response = await authService.forgotPassword(email);
 
-    // Verificar si el email existe en el sistema
-    const user = state.users.find(u => u.email === email && u.isActive);
-
-    if (user) {
-      setIsSubmitted(true);
-      // En una aplicación real, aquí se enviaría un email con instrucciones
-      // para restablecer la contraseña
-    } else {
-      setError('No se encontró una cuenta asociada a este email');
+      if (response.success) {
+        setIsSubmitted(true);
+      } else {
+        setError(response.message || 'Error al procesar la solicitud');
+      }
+    } catch (err: any) {
+      console.error('Error en forgot password:', err);
+      setError(err.message || 'Error al enviar el email. Por favor intenta nuevamente.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   if (isSubmitted) {
@@ -66,8 +64,8 @@ export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
                 <p className="text-sm text-blue-800">
-                  <strong>Nota:</strong> En esta versión de demostración, el email no se envía realmente. 
-                  En una aplicación real, recibirías un email con un enlace para restablecer tu contraseña.
+                  <strong>Importante:</strong> El enlace expirará en 30 minutos por razones de seguridad.
+                  Revisa tu bandeja de entrada y también la carpeta de spam.
                 </p>
               </div>
               <button
@@ -161,12 +159,13 @@ export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
             </div>
           </form>
 
-          {/* Información de usuarios de prueba */}
+          {/* Información de seguridad */}
           <div className="mt-6 p-4 bg-gray-50 rounded-md">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Emails de Prueba:</h4>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">¿No recibes el email?</h4>
             <div className="space-y-1 text-xs text-gray-600">
-              <div><strong>Admin:</strong> admin@tribus.com</div>
-              <div><strong>Usuario:</strong> usuario@tribus.com</div>
+              <div>• Revisa tu carpeta de spam o correo no deseado</div>
+              <div>• Verifica que el email esté escrito correctamente</div>
+              <div>• El email puede tardar algunos minutos en llegar</div>
             </div>
           </div>
         </div>

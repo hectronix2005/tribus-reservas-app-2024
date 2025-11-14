@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { authService } from '../services/api';
 
 interface ResetPasswordProps {
   token?: string;
@@ -8,7 +8,6 @@ interface ResetPasswordProps {
 }
 
 export function ResetPassword({ token, onBackToLogin }: ResetPasswordProps) {
-  const { state, dispatch } = useApp();
   const [passwords, setPasswords] = useState({
     password: '',
     confirmPassword: ''
@@ -18,10 +17,29 @@ export function ResetPassword({ token, onBackToLogin }: ResetPasswordProps) {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+
+  // Extraer token de la URL al montar el componente
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token') || token;
+
+    if (tokenFromUrl) {
+      setResetToken(tokenFromUrl);
+    } else {
+      setError('Token de recuperación no encontrado. Por favor solicita un nuevo enlace.');
+    }
+  }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // Validar que tenemos token
+    if (!resetToken) {
+      setError('Token de recuperación no encontrado');
+      return;
+    }
 
     // Validaciones
     if (passwords.password.length < 6) {
@@ -36,27 +54,20 @@ export function ResetPassword({ token, onBackToLogin }: ResetPasswordProps) {
 
     setIsLoading(true);
 
-    // Simular delay de procesamiento
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // En una aplicación real, aquí se validaría el token y se actualizaría la contraseña
-    // Por ahora, simulamos que el token es válido y actualizamos la contraseña del usuario admin
     try {
-      // Buscar usuario por token (en este caso simulamos que es el admin)
-      const user = state.users.find(u => u.username === 'admin');
-      
-      if (user) {
-        const updatedUser = { ...user, password: passwords.password };
-        dispatch({ type: 'UPDATE_USER', payload: updatedUser });
+      const response = await authService.resetPassword(resetToken, passwords.password);
+
+      if (response.success) {
         setIsSubmitted(true);
       } else {
-        setError('Token inválido o expirado');
+        setError(response.message || 'Error al restablecer la contraseña');
       }
-    } catch (err) {
-      setError('Error al restablecer la contraseña');
+    } catch (err: any) {
+      console.error('Error en reset password:', err);
+      setError(err.message || 'Error al restablecer la contraseña. El token puede haber expirado.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   if (isSubmitted) {
@@ -223,11 +234,11 @@ export function ResetPassword({ token, onBackToLogin }: ResetPasswordProps) {
             </div>
           </form>
 
-          {/* Información de demostración */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-md">
-            <p className="text-sm text-blue-800">
-              <strong>Nota:</strong> En esta versión de demostración, el token se simula automáticamente. 
-              En una aplicación real, el token vendría del enlace del email.
+          {/* Información de seguridad */}
+          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-sm text-yellow-800">
+              <strong>Seguridad:</strong> Por tu seguridad, este enlace expirará en 30 minutos.
+              Si el enlace ha expirado, solicita uno nuevo desde la página de recuperación de contraseña.
             </p>
           </div>
         </div>

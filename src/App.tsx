@@ -15,6 +15,8 @@ import { CoworkingManagement } from './components/CoworkingManagement';
 import { ContactForm } from './components/ContactForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Messages } from './components/Messages';
+import { ForgotPassword } from './components/ForgotPassword';
+import { ResetPassword } from './components/ResetPassword';
 
 // Componente para la página Home pública
 function HomePage() {
@@ -46,6 +48,18 @@ function LoginPage() {
   }, [state.auth.isAuthenticated, state.auth.currentUser?.role, navigate]);
 
   return <Login onBackClick={() => navigate('/home')} />;
+}
+
+// Componente para la página de Forgot Password
+function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  return <ForgotPassword onBackToLogin={() => navigate('/login')} />;
+}
+
+// Componente para la página de Reset Password
+function ResetPasswordPage() {
+  const navigate = useNavigate();
+  return <ResetPassword onBackToLogin={() => navigate('/login')} />;
 }
 
 // Componente para rutas protegidas (requiere autenticación)
@@ -206,6 +220,10 @@ function App() {
 
           {/* Ruta pública para Login */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Rutas públicas para recuperación de contraseña */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Rutas protegidas de la aplicación */}
           <Route path="/app/*" element={

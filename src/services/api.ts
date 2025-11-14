@@ -161,9 +161,16 @@ export const authService = {
   },
 
   async forgotPassword(email: string) {
-    return apiRequest<{ message: string }>('/users/forgot-password', {
+    return apiRequest<{ success: boolean; message: string }>('/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    });
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    return apiRequest<{ success: boolean; message: string }>('/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
     });
   },
 };
