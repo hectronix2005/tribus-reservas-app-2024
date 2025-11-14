@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Download, Filter, X, User as UserIcon } from 'lucide-react';
 import { reservationService } from '../services/api';
 import { Reservation } from '../types';
@@ -37,8 +37,15 @@ export function ReservationFilters({
   const showMyReservationsOnly = externalShowMyReservations !== undefined ? externalShowMyReservations : internalShowMyReservations;
   const setShowMyReservationsOnly = onMyReservationsChange || setInternalShowMyReservations;
 
+  // Usar ref para evitar loops infinitos con callbacks
+  const isLoadingRef = useRef(false);
+
   // Cargar todas las reservaciones al inicio y aplicar filtros por defecto
   useEffect(() => {
+    // Prevenir ejecuciones múltiples simultáneas
+    if (isLoadingRef.current) {
+      return;
+    }
     // Solo ejecutar cuando currentUser esté disponible (si el filtro "Mis Reservas" está activo)
     if (showMyReservationsOnly && !currentUser) {
       console.log('⏳ Esperando a que currentUser esté disponible...');
@@ -47,6 +54,7 @@ export function ReservationFilters({
 
     const loadAllReservations = async () => {
       try {
+        isLoadingRef.current = true;
         onLoadingChange(true);
         const allReservations = await reservationService.getAllReservations();
 
@@ -80,12 +88,14 @@ export function ReservationFilters({
         console.error('Error cargando todas las reservaciones:', error);
         onFilterChange(reservations);
       } finally {
+        isLoadingRef.current = false;
         onLoadingChange(false);
       }
     };
 
     loadAllReservations();
-  }, [showMyReservationsOnly, selectedStatus, currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMyReservationsOnly, selectedStatus, currentUser?.id]);
 
   // Función para filtrar reservaciones
   const applyFilters = async () => {
