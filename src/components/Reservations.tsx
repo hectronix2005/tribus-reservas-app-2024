@@ -1727,13 +1727,12 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
     
     while (currentDate <= end) {
       let shouldInclude = false;
-      
+
       switch (recurrenceType) {
         case 'daily':
           shouldInclude = true;
-          currentDate.setDate(currentDate.getDate() + recurrenceInterval);
           break;
-          
+
         case 'weekly':
           // Usar getDay() directamente para evitar problemas de zona horaria
           // 0 = domingo, 1 = lunes, 2 = martes, 3 = miércoles, 4 = jueves, 5 = viernes, 6 = sábado
@@ -1743,24 +1742,37 @@ ${debug.userInfo.collaborators.map((c: any, i: number) => {
           if (recurrenceDays.includes(dayOfWeek)) {
             shouldInclude = true;
           }
-          currentDate.setDate(currentDate.getDate() + 1);
           break;
-          
+
         case 'monthly':
           shouldInclude = true;
-          currentDate.setMonth(currentDate.getMonth() + recurrenceInterval);
           break;
-          
+
         default:
           shouldInclude = true;
-          currentDate.setDate(currentDate.getDate() + 1);
       }
-      
+
+      // CRÍTICO: Agregar la fecha ANTES de incrementar
       if (shouldInclude && currentDate <= end) {
         const year = currentDate.getFullYear();
         const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
         const day = currentDate.getDate().toString().padStart(2, '0');
         dates.push(`${year}-${month}-${day}`);
+      }
+
+      // Incrementar DESPUÉS de agregar la fecha
+      switch (recurrenceType) {
+        case 'daily':
+          currentDate.setDate(currentDate.getDate() + recurrenceInterval);
+          break;
+        case 'weekly':
+          currentDate.setDate(currentDate.getDate() + 1);
+          break;
+        case 'monthly':
+          currentDate.setMonth(currentDate.getMonth() + recurrenceInterval);
+          break;
+        default:
+          currentDate.setDate(currentDate.getDate() + 1);
       }
     }
     
