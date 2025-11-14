@@ -1003,35 +1003,37 @@ export function Admin() {
             <div className="card">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Reportes y Análisis</h3>
 
-              {/* Debug info */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
-                <div className="font-medium text-blue-900 mb-1">Información de depuración:</div>
-                <div className="text-blue-700">
-                  • Total de reservas en sistema: {state.reservations.length}
-                  <br />
-                  • Reservas completadas: {state.reservations.filter(r => r.status === 'completed').length}
-                  <br />
-                  • Rango seleccionado: {reportStartDate} a {reportEndDate}
-                  <br />
-                  • Reservas en rango: {state.reservations.filter(r => {
-                    if (r.status !== 'completed') return false;
-                    const reservationDateStr = r.date.split('T')[0];
-                    return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
-                  }).length}
-                  <br />
-                  • Muestra de fechas de reservas completadas:
-                  <br />
-                  {state.reservations
-                    .filter(r => r.status === 'completed')
-                    .slice(0, 5)
-                    .map((r, i) => (
-                      <div key={i} className="ml-4 text-xs">
-                        - {r.area}: {r.date} (formato: {r.date.split('T')[0]})
-                      </div>
-                    ))
-                  }
+              {/* Debug info - Oculto en producción */}
+              {false && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+                  <div className="font-medium text-blue-900 mb-1">Información de depuración:</div>
+                  <div className="text-blue-700">
+                    • Total de reservas en sistema: {state.reservations.length}
+                    <br />
+                    • Reservas completadas: {state.reservations.filter(r => r.status === 'completed').length}
+                    <br />
+                    • Rango seleccionado: {reportStartDate} a {reportEndDate}
+                    <br />
+                    • Reservas en rango: {state.reservations.filter(r => {
+                      if (r.status !== 'completed') return false;
+                      const reservationDateStr = r.date.split('T')[0];
+                      return reservationDateStr >= reportStartDate && reservationDateStr <= reportEndDate;
+                    }).length}
+                    <br />
+                    • Muestra de fechas de reservas completadas:
+                    <br />
+                    {state.reservations
+                      .filter(r => r.status === 'completed')
+                      .slice(0, 5)
+                      .map((r, i) => (
+                        <div key={i} className="ml-4 text-xs">
+                          - {r.area}: {r.date} (formato: {r.date.split('T')[0]})
+                        </div>
+                      ))
+                    }
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
