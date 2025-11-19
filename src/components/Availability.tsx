@@ -172,13 +172,23 @@ export function Availability({ onHourClick, onNewReservation, onAreaClick }: Ava
 
       // Generar disponibilidad para los próximos 15 días de oficina
       const days = generateNext15Days();
+      const todayString = formatDate(new Date()); // Fecha de hoy para comparación
+
       const availabilityData: DayAvailability[] = days.map(date => {
         const dateString = formatDate(date);
+        const isToday = dateString === todayString;
+
         const dayReservations = reservations.filter(reservation => {
           // Normalizar la fecha de la reservación del backend (UTC) a formato local
           const reservationDate = normalizeUTCDateToLocal(reservation.date);
-          // Incluir tanto reservas confirmadas como activas (que están en curso)
-          const matches = reservationDate === dateString && (reservation.status === 'confirmed' || reservation.status === 'active');
+
+          // Para HOY: incluir confirmed, active Y completed (puestos ya usados hoy)
+          // Para otros días: solo confirmed y active
+          const validStatus = isToday
+            ? (reservation.status === 'confirmed' || reservation.status === 'active' || reservation.status === 'completed')
+            : (reservation.status === 'confirmed' || reservation.status === 'active');
+
+          const matches = reservationDate === dateString && validStatus;
 
           return matches;
         });
