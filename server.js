@@ -1044,7 +1044,7 @@ app.get('/api/areas/:id/availability', async (req, res) => {
       const existingReservations = await Reservation.find({
         area: area.name,
         date: utcDate,
-        status: 'confirmed'
+        status: { $in: ['confirmed', 'active'] } // Incluir reservas activas también
       });
       
       const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
@@ -1066,7 +1066,7 @@ app.get('/api/areas/:id/availability', async (req, res) => {
       const existingReservations = await Reservation.find({
         area: area.name,
         date: utcDate,
-        status: 'confirmed'
+        status: { $in: ['confirmed', 'active'] } // Incluir reservas activas también
       });
       
       res.json({
