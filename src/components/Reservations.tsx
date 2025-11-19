@@ -1323,7 +1323,12 @@ export function Reservations() {
   const canDeleteReservation = (reservation: Reservation) => {
     if (!currentUser) return false;
 
-    // Solo se pueden eliminar reservas con status "confirmed"
+    // Superadmin y admin pueden eliminar CUALQUIER reserva sin importar el status
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      return true;
+    }
+
+    // Usuarios regulares solo pueden eliminar reservas con status "confirmed"
     if (reservation.status !== 'confirmed') return false;
 
     // Verificar si es el creador de la reserva
@@ -1332,10 +1337,6 @@ export function Reservations() {
                      reservation.userId === currentUser.id ||
                      reservation.userId === currentUser._id;
 
-    // Superadmin y admin pueden eliminar cualquier reserva confirmada, usuarios regulares solo las suyas
-    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
-      return true;
-    }
     // Usuario regular solo puede eliminar sus propias reservas confirmadas
     return isCreator;
   };

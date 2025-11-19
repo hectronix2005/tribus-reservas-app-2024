@@ -1037,24 +1037,14 @@ app.get('/api/areas/:id/availability', async (req, res) => {
       return res.status(400).json({ error: 'Fecha requerida' });
     }
 
-    // Determinar si la fecha solicitada es hoy
-    const today = new Date().toISOString().split('T')[0];
-    const isToday = date === today;
-
-    // Para hoy: incluir confirmed, active Y completed (puestos ya usados)
-    // Para otros días: solo confirmed y active
-    const validStatuses = isToday
-      ? ['confirmed', 'active', 'completed']
-      : ['confirmed', 'active'];
-
     if (area.category === 'HOT_DESK') {
       // Para HOT DESK: calcular puestos disponibles
+      // Incluir TODAS las reservas sin importar el status (confirmed, active, completed, etc.)
       const [year, month, day] = date.split('-').map(Number);
       const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
       const existingReservations = await Reservation.find({
         area: area.name,
-        date: utcDate,
-        status: { $in: validStatuses }
+        date: utcDate
       });
       
       const totalReservedSeats = existingReservations.reduce((total, res) => total + res.requestedSeats, 0);
@@ -1071,12 +1061,12 @@ app.get('/api/areas/:id/availability', async (req, res) => {
       });
     } else if (area.category === 'SALA') {
       // Para SALAS: verificar disponibilidad por horarios
+      // Incluir TODAS las reservas sin importar el status
       const [year, month, day] = date.split('-').map(Number);
       const utcDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
       const existingReservations = await Reservation.find({
         area: area.name,
-        date: utcDate,
-        status: { $in: validStatuses }
+        date: utcDate
       });
       
       res.json({
