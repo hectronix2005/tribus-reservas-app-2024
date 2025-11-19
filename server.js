@@ -2447,13 +2447,6 @@ app.delete('/api/reservations/:id', async (req, res) => {
       return res.status(404).json({ error: 'Reservación no encontrada' });
     }
 
-    // Verificar que solo se puedan eliminar reservas confirmadas
-    if (reservation.status !== 'confirmed') {
-      return res.status(400).json({
-        error: 'Solo se pueden eliminar reservas con estado "confirmado". Estado actual: ' + reservation.status
-      });
-    }
-
     // Verificar permisos: solo administradores o el creador pueden eliminar
     const user = await User.findById(userId);
     if (!user) {
@@ -2466,10 +2459,21 @@ app.delete('/api/reservations/:id', async (req, res) => {
     const isAdmin = user.role === 'admin' || user.role === 'superadmin';
     const isCreator = reservation.userId && reservation.userId.toString() === userId.toString();
 
-    if (!isAdmin && !isCreator) {
-      return res.status(403).json({
-        error: 'No tienes permisos para eliminar esta reservación. Solo administradores y el creador pueden eliminarla.'
-      });
+    // Superadmin y admin pueden eliminar CUALQUIER reserva sin importar el status
+    // Usuarios regulares solo pueden eliminar sus propias reservas confirmadas
+    if (!isAdmin) {
+      // Usuario regular: verificar que sea el creador
+      if (!isCreator) {
+        return res.status(403).json({
+          error: 'No tienes permisos para eliminar esta reservación. Solo administradores y el creador pueden eliminarla.'
+        });
+      }
+      // Usuario regular: verificar que la reserva esté confirmada
+      if (reservation.status !== 'confirmed') {
+        return res.status(400).json({
+          error: 'Solo se pueden eliminar reservas con estado "confirmado". Estado actual: ' + reservation.status
+        });
+      }
     }
 
     // Log detallado antes de eliminar
