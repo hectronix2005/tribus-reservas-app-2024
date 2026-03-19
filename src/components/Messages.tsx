@@ -181,7 +181,6 @@ export function Messages() {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-App-Token': 'bfd883d6ac23922f664295e1d67a5da42791969042804a37af15189b353065b1'
         },
         body: formData
       });

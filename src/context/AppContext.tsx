@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { Area, Reservation, AdminSettings, DailyCapacity, User, AuthState } from '../types';
-import { getCurrentDateString } from '../utils/dateUtils';
+import { getCurrentDateString } from '../utils/unifiedDateUtils';
 import { normalizeUTCDateToLocal } from '../utils/unifiedDateUtils';
 import { userService, areaService, reservationService } from '../services/api';
 import { getAuthState, saveAuthState, clearAuthSession, hasValidSession } from '../utils/storage';

@@ -526,6 +526,40 @@ export const formatOfficeHours = (officeHours: AdminSettings['officeHours']): st
 };
 
 /**
+ * Formatea una fecha en la zona horaria de Bogotá (UTC-5)
+ * @param date - Fecha a formatear
+ * @param format - Formato deseado (ej: 'dd/MM/yyyy', 'yyyy-MM-dd')
+ * @returns String formateado
+ */
+export const formatDateInBogota = (date: Date | string, format: string = 'dd/MM/yyyy'): string => {
+  if (!date) return 'Sin fecha';
+
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+  if (isNaN(dateObj.getTime())) return 'Fecha inválida';
+
+  // Convertir a zona horaria de Bogotá (UTC-5)
+  const bogotaDate = new Date(dateObj.getTime() - (5 * 60 * 60 * 1000));
+
+  const day = String(bogotaDate.getUTCDate()).padStart(2, '0');
+  const month = String(bogotaDate.getUTCMonth() + 1).padStart(2, '0');
+  const year = bogotaDate.getUTCFullYear();
+
+  return format
+    .replace('dd', day)
+    .replace('MM', month)
+    .replace('yyyy', year.toString());
+};
+
+/**
+ * Obtiene la fecha actual en formato string (YYYY-MM-DD) — alias de getTodayString
+ * @returns String de fecha actual
+ */
+export const getCurrentDateString = (): string => {
+  return getTodayString();
+};
+
+/**
  * Obtiene los días de oficina como texto
  * @param officeDays - Configuración de días de oficina
  * @returns String descriptivo

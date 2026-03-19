@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Plus, Edit, Trash2, Eye, EyeOff, Shield, User, Search, Filter } from 'lucide-react';
+import { Users, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User as UserType, Department } from '../types';
-import { formatDateInBogota, getCurrentDateString } from '../utils/dateUtils';
+import { formatDateInBogota } from '../utils/unifiedDateUtils';
 import { userService, departmentService, ApiError } from '../services/api';
 import { ProtocolNotification } from './ProtocolNotification';
+import { UserForm } from './users/UserForm';
+import { UserFilters } from './users/UserFilters';
+import { UserTable } from './users/UserTable';
 
 export function UserManagement() {
   const { state, dispatch } = useApp();
@@ -125,10 +128,10 @@ export function UserManagement() {
     });
     e.preventDefault();
     setError(null);
-    
+
     // Activar validaciones solo cuando se intenta enviar
     setShowValidation(true);
-    
+
     // Verificar si el formulario es válido antes de continuar
     const isValid = isFormValid();
     console.log('🔍 Validación del formulario:', {
@@ -137,13 +140,13 @@ export function UserManagement() {
       editingUser: !!editingUser,
       validationErrors: getValidationErrors()
     });
-    
+
     if (!isValid) {
       console.log('❌ Formulario no válido, deteniendo envío');
       setIsLoading(false);
       return;
     }
-    
+
     // Verificar que los datos no estén vacíos
     console.log('🔍 Verificación final de datos:', {
       name: formData.name.trim(),
@@ -152,15 +155,15 @@ export function UserManagement() {
       password: formData.password.trim(),
       role: formData.role
     });
-    
+
     try {
       setIsLoading(true);
       console.log('🚀 Iniciando protocolo de creación/actualización de usuario...');
-      
+
       if (editingUser) {
         // PROTOCOLO: Actualizar usuario existente
         console.log('📝 Protocolo: Actualizando usuario existente');
-        
+
         const userData = {
           name: formData.name,
           email: formData.email,
@@ -171,7 +174,7 @@ export function UserManagement() {
           department: formData.department,
           isActive: formData.isActive
         };
-        
+
         // Validar que la cédula no esté vacía
         if (!formData.cedula.trim()) {
           console.error('❌ Error: Cédula vacía detectada');
@@ -179,7 +182,7 @@ export function UserManagement() {
           setIsLoading(false);
           return;
         }
-        
+
         console.log('📝 Datos para actualizar usuario existente:', userData);
         console.log('🔍 Cédula en actualización:', {
           cedula: formData.cedula,
@@ -190,27 +193,27 @@ export function UserManagement() {
           cedulaIsUndefined: formData.cedula === undefined,
           cedulaIsNull: formData.cedula === null
         });
-        
+
         // Solo incluir password si se cambió
         if (formData.password) {
           (userData as any).password = formData.password;
         }
-        
+
         // Paso 1: Actualizar en MongoDB Atlas
         const response = await userService.updateUser(editingUser.id, userData);
-        
+
         // Paso 2: Actualizar estado local
         dispatch({ type: 'UPDATE_USER', payload: response.user });
-        
+
         // Paso 3: Verificar sincronización
         await userService.verifyUserSync(response.user.id);
-        
+
         console.log('✅ Protocolo completado: Usuario actualizado en MongoDB Atlas y estado local');
-        
+
       } else {
         // PROTOCOLO: Crear nuevo usuario
         console.log('🆕 Protocolo: Creando nuevo usuario');
-        
+
         // Verificar que los datos no estén vacíos antes de enviar
         if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() || !formData.password.trim() || !formData.cedula.trim() || !formData.employeeId.trim()) {
           console.error('❌ Error: Datos vacíos detectados antes del envío');
@@ -218,7 +221,7 @@ export function UserManagement() {
           setIsLoading(false);
           return;
         }
-        
+
         const userData = {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -230,14 +233,14 @@ export function UserManagement() {
           department: formData.department.trim(),
           isActive: formData.isActive
         };
-        
+
         console.log('📤 Datos que se van a enviar al backend:', userData);
         console.log('🔍 Cédula específicamente:', {
           cedula: formData.cedula,
           cedulaTrimmed: formData.cedula.trim(),
           cedulaLength: formData.cedula.trim().length
         });
-        
+
         console.log('🔍 Validación de datos antes del envío:', {
           name: formData.name.trim(),
           email: formData.email.trim(),
@@ -247,7 +250,7 @@ export function UserManagement() {
           department: formData.department.trim(),
           isActive: formData.isActive
         });
-        
+
         // Verificación adicional antes del envío
         console.log('🔍 Verificación final antes de enviar:', {
           userDataKeys: Object.keys(userData),
@@ -256,16 +259,16 @@ export function UserManagement() {
           formDataKeys: Object.keys(formData),
           formDataValues: Object.values(formData)
         });
-        
+
         // Paso 1: Crear en MongoDB Atlas
         const response = await userService.createUser(userData);
-        
+
         // Paso 2: Actualizar estado local
         dispatch({ type: 'ADD_USER', payload: response.user });
-        
+
         // Paso 3: Verificar sincronización
         await userService.verifyUserSync(response.user.id);
-        
+
         console.log('✅ Protocolo completado: Usuario creado en MongoDB Atlas y estado local');
       }
 
@@ -285,20 +288,20 @@ export function UserManagement() {
       setEditingUser(null);
       setShowPassword(false);
       setShowValidation(false); // Resetear validaciones al completar exitosamente
-      
+
       // Mostrar notificación de éxito
       setNotification({
         show: true,
         type: 'success',
         title: editingUser ? 'Usuario Actualizado' : 'Usuario Creado',
-        message: editingUser 
-          ? 'Usuario actualizado exitosamente en MongoDB Atlas' 
+        message: editingUser
+          ? 'Usuario actualizado exitosamente en MongoDB Atlas'
           : 'Usuario creado exitosamente en MongoDB Atlas'
       });
-      
+
     } catch (error) {
       console.error('❌ Error en protocolo de usuario:', error);
-      
+
       if (error instanceof ApiError) {
         if (error.status === 400) {
           // Usar el mensaje específico del backend en lugar del genérico
@@ -315,7 +318,7 @@ export function UserManagement() {
       } else {
         setError('Error de conexión con el servidor. Verifica tu conexión a internet.');
       }
-      
+
       // Mostrar notificación de error
       setNotification({
         show: true,
@@ -337,7 +340,7 @@ export function UserManagement() {
       cedulaIsNull: user.cedula === null,
       cedulaIsUndefined: user.cedula === undefined
     });
-    
+
     setEditingUser(user);
     setFormData({
       name: user.name,
@@ -388,13 +391,13 @@ export function UserManagement() {
     if (window.confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
       try {
         console.log('🗑️ Protocolo: Eliminando usuario de MongoDB Atlas...');
-        
+
         // Paso 1: Eliminar de MongoDB Atlas
         await userService.deleteUser(userId, currentUser.id);
-        
+
         // Paso 2: Actualizar estado local
         dispatch({ type: 'DELETE_USER', payload: userId });
-        
+
         console.log('✅ Protocolo completado: Usuario eliminado de MongoDB Atlas y estado local');
         setNotification({
           show: true,
@@ -402,7 +405,7 @@ export function UserManagement() {
           title: 'Usuario Eliminado',
           message: 'Usuario eliminado exitosamente de MongoDB Atlas'
         });
-        
+
       } catch (error) {
         console.error('❌ Error eliminando usuario:', error);
         setNotification({
@@ -418,25 +421,25 @@ export function UserManagement() {
   const handleToggleActive = async (user: UserType) => {
     try {
       console.log('🔄 Protocolo: Cambiando estado activo del usuario...');
-      
+
       const updatedUser = { ...user, isActive: !user.isActive };
-      
+
       // Paso 1: Actualizar en MongoDB Atlas
       await userService.updateUser(user.id, { isActive: updatedUser.isActive });
-      
+
       // Paso 2: Actualizar estado local
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
-      
+
       console.log('✅ Protocolo completado: Estado activo actualizado en MongoDB Atlas');
-      
+
     } catch (error) {
       console.error('❌ Error cambiando estado activo:', error);
-              setNotification({
-          show: true,
-          type: 'error',
-          title: 'Error al Cambiar Estado',
-          message: 'Error cambiando estado del usuario. Verifica la conexión con el servidor.'
-        });
+      setNotification({
+        show: true,
+        type: 'error',
+        title: 'Error al Cambiar Estado',
+        message: 'Error cambiando estado del usuario. Verifica la conexión con el servidor.'
+      });
     }
   };
 
@@ -475,19 +478,19 @@ export function UserManagement() {
     if (!formData.employeeId.trim()) return false; // ID de empleado es obligatorio
     if (!formData.department.trim()) return false; // Departamento es obligatorio
     if (!editingUser && !formData.password.trim()) return false; // Contraseña requerida solo para nuevos usuarios
-    
+
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) return false;
-    
+
     // Validar contraseña si se está creando un nuevo usuario y se ingresó una contraseña
     if (!editingUser && formData.password.trim() && validatePassword(formData.password)) {
       return false;
     }
-    
+
     // Verificar que el username, email y cédula no existan ya (solo para nuevos usuarios)
     if (!editingUser) {
-      const existingUser = state.users.find(user => 
+      const existingUser = state.users.find(user =>
         user.username.toLowerCase() === formData.username.toLowerCase() ||
         user.email.toLowerCase() === formData.email.toLowerCase() ||
         user.cedula === formData.cedula ||
@@ -495,13 +498,13 @@ export function UserManagement() {
       );
       if (existingUser) return false;
     }
-    
+
     return true;
   };
 
   const getValidationErrors = () => {
     const errors: string[] = [];
-    
+
     if (!formData.name.trim()) errors.push('El nombre es requerido');
     if (!formData.email.trim()) errors.push('El email es requerido');
     if (!formData.username.trim()) errors.push('El nombre de usuario es requerido');
@@ -509,21 +512,21 @@ export function UserManagement() {
     if (!formData.employeeId.trim()) errors.push('El ID de empleado es requerido');
     if (!formData.department.trim()) errors.push('El departamento es requerido');
     if (!editingUser && !formData.password.trim()) errors.push('La contraseña es requerida para nuevos usuarios');
-    
+
     // Validar email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (formData.email.trim() && !emailRegex.test(formData.email)) {
       errors.push('El email no tiene un formato válido');
     }
-    
+
     // Validar contraseña
     if (!editingUser && formData.password && validatePassword(formData.password)) {
       errors.push(validatePassword(formData.password)!);
     }
-    
+
     // Verificar duplicados
     if (!editingUser) {
-      const existingUser = state.users.find(user => 
+      const existingUser = state.users.find(user =>
         user.username.toLowerCase() === formData.username.toLowerCase() ||
         user.email.toLowerCase() === formData.email.toLowerCase() ||
         user.cedula === formData.cedula ||
@@ -533,7 +536,7 @@ export function UserManagement() {
         errors.push('El nombre de usuario, email, cédula o ID de empleado ya existe en el sistema');
       }
     }
-    
+
     return errors;
   };
 
@@ -558,455 +561,44 @@ export function UserManagement() {
       </div>
 
       {/* Search and Filters */}
-      <div className="card mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, email, usuario o cédula..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Role Filter */}
-          <select
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            <option value="all">Todos los roles</option>
-            <option value="superadmin">Super Admin</option>
-            <option value="admin">Administrador</option>
-            <option value="lider">Líder</option>
-            <option value="colaborador">Colaborador</option>
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="active">Activos</option>
-            <option value="inactive">Inactivos</option>
-          </select>
-
-          {/* Department Filter */}
-          <select
-            value={filterDepartment}
-            onChange={(e) => setFilterDepartment(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          >
-            <option value="all">Todos los departamentos</option>
-            {departments.map(dept => (
-              <option key={dept._id} value={dept.name}>{dept.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Results Counter */}
-        <div className="mt-4 text-sm text-gray-600">
-          Mostrando {filteredUsers.length} de {state.users.length} usuarios
-        </div>
-      </div>
+      <UserFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        filterRole={filterRole}
+        setFilterRole={setFilterRole}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        filterDepartment={filterDepartment}
+        setFilterDepartment={setFilterDepartment}
+        departments={departments}
+        totalUsers={state.users.length}
+        filteredCount={filteredUsers.length}
+      />
 
       {/* Users Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Usuario
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cédula
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rol
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Departamento
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Último acceso
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                    No se encontraron usuarios con los filtros seleccionados
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          user.role === 'superadmin' ? 'bg-purple-100' : user.role === 'admin' ? 'bg-warning-100' : 'bg-primary-100'
-                        }`}>
-                          {user.role === 'superadmin' || user.role === 'admin' ? (
-                            <Shield className={`w-4 h-4 ${user.role === 'superadmin' ? 'text-purple-600' : 'text-warning-600'}`} />
-                          ) : (
-                            <User className="w-4 h-4 text-primary-600" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                          <div className="text-sm text-gray-500">@{user.username}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-primary-600">{user.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.cedula || '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.role === 'superadmin' ? 'bg-purple-100 text-purple-700' :
-                        user.role === 'admin' ? 'bg-yellow-100 text-yellow-700' :
-                        user.role === 'lider' ? 'bg-blue-100 text-blue-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {user.role === 'superadmin' ? 'Super Admin' :
-                         user.role === 'admin' ? 'Admin' :
-                         user.role === 'lider' ? 'Líder' :
-                         'Colaborador'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.department || '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {user.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500">
-                        {user.lastLogin ? formatDateInBogota(user.lastLogin, 'dd/MM/yyyy') : '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleToggleActive(user)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            user.isActive
-                              ? 'text-success-600 hover:bg-success-50'
-                              : 'text-gray-400 hover:bg-gray-100'
-                          }`}
-                          title={user.isActive ? 'Desactivar usuario' : 'Activar usuario'}
-                        >
-                          <Users className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(user)}
-                          className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Editar usuario"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="p-2 text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                          title="Eliminar usuario"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <UserTable
+        filteredUsers={filteredUsers}
+        currentUser={currentUser}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onToggleActive={handleToggleActive}
+        formatDateInBogota={formatDateInBogota}
+      />
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
-                </h3>
-                <button
-                  onClick={handleCancel}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Mostrar errores de validación solo cuando se intenta enviar */}
-                {showValidation && getValidationErrors().length > 0 && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <h4 className="text-sm font-medium text-red-800 mb-2">Errores de validación:</h4>
-                    <ul className="text-sm text-red-700 space-y-1">
-                      {getValidationErrors().map((error, index) => (
-                        <li key={index}>• {error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre Completo <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={`input-field ${showValidation && !formData.name.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                    placeholder="Nombre completo"
-                    required
-                  />
-                  {showValidation && !formData.name.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El nombre es requerido</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className={`input-field ${!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'border-red-300 focus:border-red-500' : ''}`}
-                    placeholder="email@empresa.com"
-                    required
-                  />
-                  {!formData.email.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El email es requerido</p>
-                  )}
-                  {formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && (
-                    <p className="text-xs text-red-600 mt-1">El email no es válido</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre de Usuario <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                    className={`input-field ${!formData.username.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                    placeholder="usuario"
-                    required
-                  />
-                  {!formData.username.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El nombre de usuario es requerido</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Cédula <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.cedula}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cedula: e.target.value }))}
-                    className={`input-field ${!formData.cedula.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                    placeholder="12345678"
-                    required
-                  />
-                  {!formData.cedula.trim() && (
-                    <p className="text-xs text-red-600 mt-1">La cédula es requerida</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID de Empleado <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.employeeId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, employeeId: e.target.value }))}
-                    className={`input-field ${!formData.employeeId.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                    placeholder="EMP001"
-                    required
-                  />
-                  {!formData.employeeId.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El ID de empleado es requerido</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {editingUser ? (
-                      'Nueva Contraseña (dejar en blanco para mantener)'
-                    ) : (
-                      <>
-                        Contraseña <span className="text-red-500">*</span>
-                      </>
-                    )}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      className={`input-field pr-10 ${!editingUser && !formData.password.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                      placeholder={editingUser ? 'Nueva contraseña' : 'Contraseña'}
-                      required={!editingUser}
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                  {!editingUser && !formData.password.trim() && (
-                    <p className="text-xs text-red-600 mt-1">La contraseña es requerida para nuevos usuarios</p>
-                  )}
-                  {formData.password && validatePassword(formData.password) && (
-                    <p className="text-xs text-danger-600 mt-1">
-                      {validatePassword(formData.password)}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rol
-                  </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'superadmin' | 'admin' | 'lider' | 'colaborador' }))}
-                    className="input-field"
-                    required
-                  >
-                    <option value="lider">Lider</option>
-                    <option value="admin">Administrador</option>
-                    <option value="colaborador">Colaborador</option>
-                    {/* Solo superadmin puede asignar rol de Super Admin */}
-                    {currentUser?.role === 'superadmin' && (
-                      <option value="superadmin">Super Admin</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Departamento <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
-                    className={`input-field ${showValidation && !formData.department.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                    required
-                  >
-                    <option value="">Seleccione un departamento</option>
-                    {departments.map((dept) => (
-                      <option key={dept._id} value={dept.name}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </select>
-                  {showValidation && !formData.department.trim() && (
-                    <p className="text-xs text-red-600 mt-1">El departamento es requerido</p>
-                  )}
-                  {departments.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      No hay departamentos disponibles. Contacte al administrador para crear departamentos.
-                    </p>
-                  )}
-                  {departments.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Seleccione el departamento al que pertenece este usuario. Los departamentos se gestionan en el panel de administración.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                    Usuario activo
-                  </label>
-                </div>
-
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    disabled={isLoading}
-                    className={`btn-secondary flex-1 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading || !isFormValid()}
-                    onClick={() => {
-                      console.log('🔘 CLICK: Botón Crear Usuario clickeado');
-                      console.log('🔍 Estado del formulario al hacer clic:', formData);
-                      console.log('🔍 isFormValid():', isFormValid());
-                      console.log('🔍 isLoading:', isLoading);
-                    }}
-                    className={`btn-success flex-1 ${
-                      isLoading || !isFormValid() ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    {isLoading ? (
-                      <span className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Procesando...</span>
-                      </span>
-                    ) : (
-                      <span>{editingUser ? 'Actualizar' : 'Crear'} Usuario</span>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+        <UserForm
+          formData={formData}
+          setFormData={setFormData}
+          editingUser={editingUser}
+          departments={departments}
+          showPassword={showPassword}
+          setShowPassword={setShowPassword}
+          showValidation={showValidation}
+          isLoading={isLoading}
+          onSubmit={handleSubmit}
+          onClose={handleCancel}
+        />
       )}
 
       {/* Empty State */}

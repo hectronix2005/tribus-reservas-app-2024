@@ -3,7 +3,6 @@ import { Users, Eye, EyeOff, LogIn, Mail, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { LoginCredentials } from '../types';
-import { getCurrentDateString } from '../utils/dateUtils';
 import { authService, userService, ApiError } from '../services/api';
 import { saveAuthState } from '../utils/storage';
 

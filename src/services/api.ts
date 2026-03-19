@@ -46,10 +46,6 @@ const getAuthToken = (): string | null => {
   return getStoredAuthToken();
 };
 
-// 🔐 Token de seguridad de la aplicación (hardcoded)
-// Este token debe coincidir con APP_SECURITY_TOKEN en el archivo .env del backend
-const APP_SECURITY_TOKEN = 'bfd883d6ac23922f664295e1d67a5da42791969042804a37af15189b353065b1';
-
 // Función para hacer requests HTTP
 async function apiRequest<T>(
   endpoint: string,
@@ -71,7 +67,6 @@ async function apiRequest<T>(
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'X-App-Token': APP_SECURITY_TOKEN, // 🔐 Token de seguridad de la aplicación
       ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers,
     },
@@ -501,11 +496,7 @@ export const reservationService = {
 // Función para verificar si el backend está disponible
 export const checkBackendHealth = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
-      headers: {
-        'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
-      }
-    });
+    const response = await fetch(`${API_BASE_URL}/health`);
     return response.ok;
   } catch {
     return false;
@@ -521,11 +512,7 @@ export const departmentService = {
       console.log('🔄 departmentService.getDepartments() - Iniciando petición...');
       console.log('🔗 URL:', `${API_BASE_URL}/departments`);
 
-      const response = await fetch(`${API_BASE_URL}/departments`, {
-        headers: {
-          'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
-        }
-      });
+      const response = await fetch(`${API_BASE_URL}/departments`);
 
       console.log('📡 Respuesta recibida:', {
         status: response.status,
@@ -550,11 +537,7 @@ export const departmentService = {
   // Obtener todos los departamentos (incluyendo inactivos) - solo para admin/user
   async getAllDepartments(userId: string, userRole: string): Promise<Department[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/departments/all?userId=${userId}&userRole=${userRole}`, {
-        headers: {
-          'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
-        }
-      });
+      const response = await fetch(`${API_BASE_URL}/departments/all?userId=${userId}&userRole=${userRole}`);
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
@@ -572,7 +555,6 @@ export const departmentService = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
         },
         body: JSON.stringify(departmentData),
       });
@@ -596,7 +578,6 @@ export const departmentService = {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
         },
         body: JSON.stringify(departmentData),
       });
@@ -618,9 +599,6 @@ export const departmentService = {
     try {
       const response = await fetch(`${API_BASE_URL}/departments/${id}?userId=${userId}&userRole=${userRole}`, {
         method: 'DELETE',
-        headers: {
-          'X-App-Token': APP_SECURITY_TOKEN // 🔐 Token de seguridad
-        }
       });
 
       if (!response.ok) {
@@ -681,8 +659,7 @@ export const coworkingService = {
       const response = await apiRequest<any>('/coworking-settings', {
         method: 'PUT',
         headers: {
-          'x-security-token': APP_SECURITY_TOKEN,
-          'Authorization': `Bearer ${token}`, // Asegurar que el token se incluya
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(settings),
       });
