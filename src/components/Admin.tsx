@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Settings, Calendar, Users, BarChart3, Building2 } from 'lucide-react';
+import { Settings, Calendar, Users, BarChart3, Building2, ClipboardCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { User } from '../types';
 import { DepartmentManagement } from './DepartmentManagement';
 import { AdminSettingsTab } from './admin/AdminSettingsTab';
 import { AdminReservationsTab } from './admin/AdminReservationsTab';
 import { AdminReportsTab } from './admin/AdminReportsTab';
+import { AdminAttendanceTab } from './admin/AdminAttendanceTab';
 
 
 export function Admin() {
@@ -18,6 +19,7 @@ export function Admin() {
     { id: 'departments', label: 'Departamentos', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
     { id: 'reports', label: 'Reportes', icon: BarChart3 },
+    { id: 'attendance', label: 'Asistencia', icon: ClipboardCheck },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -198,6 +200,8 @@ export function Admin() {
         )}
 
         {activeTab === 'reports' && <AdminReportsTab />}
+
+        {activeTab === 'attendance' && <AdminAttendanceTab />}
       </div>
     </div>
   );
