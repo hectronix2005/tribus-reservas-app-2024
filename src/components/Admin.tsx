@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Settings, Calendar, Users, BarChart3, Building2, ClipboardCheck } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { User } from '../types';
 import { DepartmentManagement } from './DepartmentManagement';
@@ -11,7 +12,10 @@ import { AdminAttendanceTab } from './admin/AdminAttendanceTab';
 
 export function Admin() {
   const { state, dispatch } = useApp();
-  const [activeTab, setActiveTab] = useState('settings');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const VALID_TABS = ['settings', 'reservations', 'departments', 'users', 'reports', 'attendance'];
+  const activeTab = VALID_TABS.includes(searchParams.get('tab') || '') ? searchParams.get('tab')! : 'settings';
+  const setActiveTab = (tab: string) => setSearchParams({ tab });
 
   const tabs = [
     { id: 'settings', label: 'Configuración', icon: Settings },
