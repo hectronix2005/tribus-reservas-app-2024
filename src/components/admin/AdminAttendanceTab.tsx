@@ -1,690 +1,816 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, CheckCircle, XCircle, AlertCircle, Download, RefreshCw, FileSpreadsheet, Users } from 'lucide-react';
+import {
+  Upload, CheckCircle, XCircle, AlertCircle, Download,
+  RefreshCw, FileSpreadsheet, Users, Clock, BarChart3, Info
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { reservationService, userService } from '../../services/api';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ClockRecord {
-  rawDate: string;
-  date: string;          // YYYY-MM-DD normalized
-  name: string;
+interface EmployeeClockData {
   employeeId: string;
-  cedula: string;
-  checkIn: string;
-  checkOut: string;
+  name: string;
+  department: string;
+  shifts: Record<string, number | string>;          // date → shift code
+  attendance: Record<string, { events: string[]; checkIn: string; checkOut: string }>;
+  stats: {
+    horasNormal: string; horasReal: string;
+    retardosCant: number; retardosMin: number;
+    salidaTempranaCant: number; salidaTempranaMin: number;
+    diasAsistidos: string; faltaDias: number; permisoDias: number;
+  } | null;
+  exceptions: Array<{
+    date: string;
+    entrada1: string; salida1: string;
+    entrada2: string; salida2: string;
+    retardosMin: number; salidaTempranaMin: number;
+    faltaMin: number; totalMin: number;
+  }>;
 }
 
-interface ColumnMap {
+interface ValidationRow {
   date: string;
-  name: string;
   employeeId: string;
-  cedula: string;
-  checkIn: string;
-  checkOut: string;
-}
-
-type ValidationStatus = 'match' | 'attended_no_reservation' | 'reservation_no_attendance';
-
-interface ValidationResult {
-  date: string;
   name: string;
-  employeeId: string;
-  cedula: string;
   department: string;
   checkIn: string;
   checkOut: string;
+  clockEvents: string[];
   reservationArea: string;
   reservationTeam: string;
   reservationRole: string;
-  status: ValidationStatus;
+  hasReservation: boolean;
+  hasClock: boolean;
+  status: 'match' | 'attended_no_reservation' | 'reservation_no_attendance';
+  horasReal?: string;
+  faltaDias?: number;
+  retardosMin?: number;
+  salidaTempranaMin?: number;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+interface EmployeeSummary {
+  employeeId: string;
+  name: string;
+  department: string;
+  diasProgramados: number;
+  diasAsistidosClock: number;
+  diasConReserva: number;
+  coincidencias: number;
+  asistioSinReserva: number;
+  reservaSinAsistencia: number;
+  horasReal: string;
+  faltaDias: number;
+  retardosMin: number;
+  salidaTempranaMin: number;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const normalizeName = (s: string) =>
-  (s || '')
-    .toLowerCase()
-    .trim()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
+  s.toLowerCase().trim()
+   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+   .replace(/\s+/g, ' ');
 
-const parseDate = (value: any): string => {
-  if (!value) return '';
-  if (value instanceof Date) return value.toISOString().split('T')[0];
-  if (typeof value === 'number') {
-    const d = new Date((value - 25569) * 86400 * 1000);
-    return d.toISOString().split('T')[0];
+/** Parse concatenated clock events "07:5509:3217:50" → ["07:55","09:32","17:50"] */
+function parseClockEvents(cell: any): string[] {
+  const s = String(cell || '').trim();
+  const events: string[] = [];
+  for (let i = 0; i + 5 <= s.length; i += 5) {
+    const t = s.substring(i, i + 5);
+    if (/^\d{2}:\d{2}$/.test(t)) events.push(t);
   }
-  const s = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-    const [d, m, y] = s.split('/');
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-    const [m, d, y] = s.split('/');
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  try {
-    const parsed = new Date(s);
-    if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
-  } catch {}
-  return s;
+  return events;
+}
+
+function extractYearMonth(period: string): string {
+  const m = period.match(/(\d{4}-\d{2})-\d{2}/);
+  return m ? m[1] : '';
+}
+
+const SHIFT_LABELS: Record<string | number, string> = {
+  1: 'Normal', 25: 'Permiso', 26: 'Salida temprana', '': 'Vacaciones/Ausente'
 };
 
-const autoDetect = (headers: string[], keywords: string[]): string => {
-  const norm = headers.map(h =>
-    h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '')
-  );
-  for (const kw of keywords) {
-    const idx = norm.findIndex(h => h.includes(kw));
-    if (idx !== -1) return headers[idx];
+// ─── Sheet Parsers ────────────────────────────────────────────────────────────
+
+function parseTurnosSheet(ws: XLSX.WorkSheet): {
+  period: string;
+  dateColumns: string[];
+  employees: Map<string, Pick<EmployeeClockData, 'employeeId' | 'name' | 'department' | 'shifts'>>;
+} {
+  const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '', raw: true });
+  const period = String(data[1]?.[1] || '').trim();
+  const yearMonth = extractYearMonth(period);
+  const headerRow: any[] = data[2] || [];
+
+  const dateCols: Array<{ colIndex: number; date: string }> = [];
+  for (let i = 3; i < headerRow.length; i++) {
+    const day = headerRow[i];
+    if (typeof day !== 'number' || day === 0) break;
+    dateCols.push({ colIndex: i, date: `${yearMonth}-${String(day).padStart(2, '0')}` });
   }
-  return '';
-};
 
-const STATUS_CONFIG: Record<ValidationStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  match: {
-    label: 'Asistió y tenía reserva',
-    color: 'bg-green-50 text-green-800 border-green-200',
-    icon: <CheckCircle className="w-4 h-4 text-green-600" />,
-  },
-  attended_no_reservation: {
-    label: 'Asistió sin reserva',
-    color: 'bg-yellow-50 text-yellow-800 border-yellow-200',
-    icon: <AlertCircle className="w-4 h-4 text-yellow-600" />,
-  },
-  reservation_no_attendance: {
-    label: 'Reserva sin asistencia',
-    color: 'bg-red-50 text-red-800 border-red-200',
-    icon: <XCircle className="w-4 h-4 text-red-600" />,
-  },
-};
+  const employees = new Map<string, Pick<EmployeeClockData, 'employeeId' | 'name' | 'department' | 'shifts'>>();
+  for (let i = 4; i < data.length; i++) {
+    const row = data[i];
+    const empId = String(row[0] || '').trim();
+    if (!empId) continue;
+    const shifts: Record<string, number | string> = {};
+    dateCols.forEach(({ colIndex, date }) => { shifts[date] = row[colIndex] ?? ''; });
+    employees.set(empId, {
+      employeeId: empId,
+      name: String(row[1] || '').trim(),
+      department: String(row[2] || '').trim(),
+      shifts,
+    });
+  }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+  return { period, dateColumns: dateCols.map(d => d.date), employees };
+}
+
+function parseEstadisticoSheet(ws: XLSX.WorkSheet): Map<string, EmployeeClockData['stats']> {
+  const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '', raw: true });
+  const map = new Map<string, EmployeeClockData['stats']>();
+  for (let i = 4; i < data.length; i++) {
+    const row = data[i];
+    const empId = String(row[0] || '').trim();
+    if (!empId) continue;
+    map.set(empId, {
+      horasNormal: String(row[3] || ''),
+      horasReal: String(row[4] || ''),
+      retardosCant: Number(row[5] || 0),
+      retardosMin: Number(row[6] || 0),
+      salidaTempranaCant: Number(row[7] || 0),
+      salidaTempranaMin: Number(row[8] || 0),
+      diasAsistidos: String(row[11] || ''),
+      faltaDias: Number(row[13] || 0),
+      permisoDias: Number(row[14] || 0),
+    });
+  }
+  return map;
+}
+
+function parseAsistenciaSheet(ws: XLSX.WorkSheet, yearMonth: string): Map<string, EmployeeClockData['attendance']> {
+  const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '', raw: true });
+  const dateHeaderRow: any[] = data[3] || [];
+
+  const dayPositions: Array<{ colIndex: number; date: string }> = [];
+  for (let i = 0; i < dateHeaderRow.length; i++) {
+    const day = dateHeaderRow[i];
+    if (typeof day === 'number' && day >= 1 && day <= 31) {
+      dayPositions.push({ colIndex: i, date: `${yearMonth}-${String(day).padStart(2, '0')}` });
+    }
+  }
+
+  const map = new Map<string, EmployeeClockData['attendance']>();
+  for (let i = 4; i < data.length - 1; i += 2) {
+    const hRow = data[i];
+    if (String(hRow[0]).trim() !== 'ID:') continue;
+    const empId = String(hRow[2] || '').trim();
+    if (!empId) continue;
+
+    const eventsRow: any[] = data[i + 1] || [];
+    const attendance: EmployeeClockData['attendance'] = {};
+    dayPositions.forEach(({ colIndex, date }) => {
+      const events = parseClockEvents(eventsRow[colIndex]);
+      if (events.length > 0) {
+        attendance[date] = { events, checkIn: events[0], checkOut: events[events.length - 1] };
+      }
+    });
+    map.set(empId, attendance);
+  }
+  return map;
+}
+
+function parseExcepcionesSheet(ws: XLSX.WorkSheet): Map<string, EmployeeClockData['exceptions']> {
+  const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '', raw: true });
+  const map = new Map<string, EmployeeClockData['exceptions']>();
+  for (let i = 4; i < data.length; i++) {
+    const row = data[i];
+    const empId = String(row[0] || '').trim();
+    if (!empId) continue;
+    const date = String(row[3] || '').trim();
+    if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+    if (!map.has(empId)) map.set(empId, []);
+    map.get(empId)!.push({
+      date,
+      entrada1: String(row[4] || '').trim(),
+      salida1: String(row[5] || '').trim(),
+      entrada2: String(row[6] || '').trim(),
+      salida2: String(row[7] || '').trim(),
+      retardosMin: Number(row[8] || 0),
+      salidaTempranaMin: Number(row[9] || 0),
+      faltaMin: Number(row[10] || 0),
+      totalMin: Number(row[11] || 0),
+    });
+  }
+  return map;
+}
+
+// ─── Main Parser ──────────────────────────────────────────────────────────────
+
+const RELOJ_SHEETS = ['Reporte de Turnos', 'Reporte Estadístico', 'Reporte de Asistencia', 'Reporte de Excepciones'];
+
+function isRelojChecadorFormat(wb: XLSX.WorkBook): boolean {
+  return RELOJ_SHEETS.every(s => wb.SheetNames.includes(s));
+}
+
+function parseRelojChecador(wb: XLSX.WorkBook): {
+  period: string;
+  dateColumns: string[];
+  employees: EmployeeClockData[];
+} {
+  const turnos = parseTurnosSheet(wb.Sheets['Reporte de Turnos']);
+  const yearMonth = extractYearMonth(turnos.period);
+  const statsMap = parseEstadisticoSheet(wb.Sheets['Reporte Estadístico']);
+  const attendanceMap = parseAsistenciaSheet(wb.Sheets['Reporte de Asistencia'], yearMonth);
+  const excMap = parseExcepcionesSheet(wb.Sheets['Reporte de Excepciones']);
+
+  const employees: EmployeeClockData[] = [];
+  turnos.employees.forEach((emp, empId) => {
+    employees.push({
+      ...emp,
+      stats: statsMap.get(empId) || null,
+      attendance: attendanceMap.get(empId) || {},
+      exceptions: excMap.get(empId) || [],
+    });
+  });
+  return { period: turnos.period, dateColumns: turnos.dateColumns, employees };
+}
+
+// ─── Validation ───────────────────────────────────────────────────────────────
+
+function buildValidationRows(
+  employees: EmployeeClockData[],
+  dateColumns: string[],
+  allReservations: any[],
+  allUsers: any[]
+): ValidationRow[] {
+  // Build reservation lookup: date → Map<userId, {area, team, role}>
+  const resByDate = new Map<string, Map<string, { area: string; team: string; role: string }>>();
+  for (const r of allReservations) {
+    const date = r.date ? String(r.date).substring(0, 10) : '';
+    if (!date) continue;
+    if (!resByDate.has(date)) resByDate.set(date, new Map());
+    const dayMap = resByDate.get(date)!;
+    const area = r.areaName || r.area || '';
+    const team = r.teamName || r.team || '';
+
+    const userId = !r.userId ? null : typeof r.userId === 'string' ? r.userId : r.userId?._id;
+    if (userId) dayMap.set(userId, { area, team, role: 'Responsable' });
+
+    const collabs: any[] = r.colaboradores || [];
+    const attendees: string[] = r.attendees || [];
+    collabs.forEach((collab: any, idx: number) => {
+      const collabId = typeof collab === 'string' ? collab : collab?._id;
+      if (collabId) {
+        const collabUser = allUsers.find((u: any) => u._id === collabId || u.id === collabId);
+        const collabName = collabUser?.name || attendees[idx] || '';
+        dayMap.set(collabId, { area, team, role: 'Colaborador' });
+      }
+    });
+  }
+
+  // Build user lookups
+  const userByEmpId = new Map<string, any>();
+  const userByName = new Map<string, any>();
+  for (const u of allUsers) {
+    if (u.employeeId) userByEmpId.set(String(u.employeeId), u);
+    userByName.set(normalizeName(u.name || ''), u);
+  }
+
+  const matchToUser = (emp: EmployeeClockData): any => {
+    if (emp.employeeId && userByEmpId.has(emp.employeeId)) return userByEmpId.get(emp.employeeId);
+    const nn = normalizeName(emp.name);
+    if (userByName.has(nn)) return userByName.get(nn);
+    for (const [normalName, user] of Array.from(userByName.entries())) {
+      if (normalName.includes(nn) || nn.includes(normalName)) return user;
+    }
+    return null;
+  };
+
+  const rows: ValidationRow[] = [];
+
+  for (const emp of employees) {
+    const tribasUser = matchToUser(emp);
+    const tribasUserId = tribasUser?._id || tribasUser?.id;
+
+    for (const date of dateColumns) {
+      const hasClock = !!(emp.attendance[date] && emp.attendance[date].events.length > 0);
+      const dayMap = resByDate.get(date);
+      const reservationInfo = tribasUserId && dayMap ? dayMap.get(tribasUserId) || null : null;
+      const hasReservation = !!reservationInfo;
+
+      if (!hasClock && !hasReservation) continue;
+
+      const status: ValidationRow['status'] =
+        hasClock && hasReservation ? 'match' :
+        hasClock ? 'attended_no_reservation' :
+        'reservation_no_attendance';
+
+      rows.push({
+        date,
+        employeeId: emp.employeeId,
+        name: emp.name,
+        department: emp.department,
+        checkIn: emp.attendance[date]?.checkIn || '',
+        checkOut: emp.attendance[date]?.checkOut || '',
+        clockEvents: emp.attendance[date]?.events || [],
+        reservationArea: reservationInfo?.area || '',
+        reservationTeam: reservationInfo?.team || '',
+        reservationRole: reservationInfo?.role || '',
+        hasReservation,
+        hasClock,
+        status,
+        horasReal: emp.stats?.horasReal,
+        faltaDias: emp.stats?.faltaDias,
+        retardosMin: emp.stats?.retardosMin,
+        salidaTempranaMin: emp.stats?.salidaTempranaMin,
+      });
+    }
+  }
+
+  rows.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+  return rows;
+}
+
+function buildSummary(employees: EmployeeClockData[], rows: ValidationRow[]): EmployeeSummary[] {
+  return employees.map(emp => {
+    const empRows = rows.filter(r => r.employeeId === emp.employeeId);
+    return {
+      employeeId: emp.employeeId,
+      name: emp.name,
+      department: emp.department,
+      diasProgramados: Object.values(emp.shifts).filter(v => v === 1 || v === '1').length,
+      diasAsistidosClock: Object.keys(emp.attendance).length,
+      diasConReserva: empRows.filter(r => r.hasReservation).length,
+      coincidencias: empRows.filter(r => r.status === 'match').length,
+      asistioSinReserva: empRows.filter(r => r.status === 'attended_no_reservation').length,
+      reservaSinAsistencia: empRows.filter(r => r.status === 'reservation_no_attendance').length,
+      horasReal: emp.stats?.horasReal || '',
+      faltaDias: emp.stats?.faltaDias ?? 0,
+      retardosMin: emp.stats?.retardosMin ?? 0,
+      salidaTempranaMin: emp.stats?.salidaTempranaMin ?? 0,
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AdminAttendanceTab() {
-  const [step, setStep] = useState<'upload' | 'map' | 'results'>('upload');
-  const [fileName, setFileName] = useState('');
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rawRows, setRawRows] = useState<Record<string, any>[]>([]);
-  const [colMap, setColMap] = useState<ColumnMap>({
-    date: '', name: '', employeeId: '', cedula: '', checkIn: '', checkOut: '',
-  });
-  const [results, setResults] = useState<ValidationResult[]>([]);
+  const [step, setStep] = useState<1 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<ValidationStatus | 'all'>('all');
-  const [filterDate, setFilterDate] = useState('');
+  const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [period, setPeriod] = useState('');
+  const [dateColumns, setDateColumns] = useState<string[]>([]);
+  const [employees, setEmployees] = useState<EmployeeClockData[]>([]);
+  const [results, setResults] = useState<ValidationRow[]>([]);
+  const [summary, setSummary] = useState<EmployeeSummary[]>([]);
+  const [viewMode, setViewMode] = useState<'detail' | 'summary'>('detail');
+  const [activeFilter, setActiveFilter] = useState<'all' | ValidationRow['status']>('all');
+  const [dateFilter, setDateFilter] = useState('');
+  const [deptFilter, setDeptFilter] = useState('');
 
-  // ── File parsing ──────────────────────────────────────────────────────────
-
-  const parseFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target!.result as ArrayBuffer);
-      const wb = XLSX.read(data, { type: 'array', cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const json: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (json.length === 0) { alert('El archivo está vacío.'); return; }
-
-      const hdrs = Object.keys(json[0]);
-      setHeaders(hdrs);
-      setRawRows(json);
-      setFileName(file.name);
-
-      // Auto-detect columns
-      setColMap({
-        date:       autoDetect(hdrs, ['fecha', 'date', 'dia', 'fec']),
-        name:       autoDetect(hdrs, ['nombre', 'name', 'empleado', 'trabajador', 'nomempleado']),
-        employeeId: autoDetect(hdrs, ['idempleado', 'idtrabajador', 'employeeid', 'numemp', 'numeroempleado', 'noempleado', 'codEmpleado']),
-        cedula:     autoDetect(hdrs, ['cedula', 'documento', 'dni', 'cc', 'identificacion']),
-        checkIn:    autoDetect(hdrs, ['entrada', 'checkin', 'ingreso', 'horaentrada', 'horaingreso', 'timein']),
-        checkOut:   autoDetect(hdrs, ['salida', 'checkout', 'egreso', 'horasalida', 'horaegreso', 'timeout']),
-      });
-
-      setStep('map');
-    };
-    reader.readAsArrayBuffer(file);
-  }, []);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) parseFile(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) parseFile(file);
-  };
-
-  // ── Validation logic ──────────────────────────────────────────────────────
-
-  const validate = async () => {
-    if (!colMap.date) { alert('Debes mapear al menos la columna de Fecha.'); return; }
-    if (!colMap.name && !colMap.employeeId && !colMap.cedula) {
-      alert('Debes mapear al menos una columna de identificación (Nombre, ID Empleado o Cédula).');
-      return;
-    }
-
+  const processFile = useCallback(async (file: File) => {
     setIsLoading(true);
+    setError('');
     try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: false, raw: true });
+
+      if (!isRelojChecadorFormat(wb)) {
+        setError(
+          `Formato no reconocido. Se esperan las pestañas: ${RELOJ_SHEETS.join(', ')}.\n` +
+          `El archivo contiene: ${wb.SheetNames.join(', ')}.`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const parsed = parseRelojChecador(wb);
+
       const [allReservations, allUsers] = await Promise.all([
         reservationService.getAllReservations(),
         userService.getAllUsers(),
       ]);
 
-      // Parse clock records
-      const clockRecords: ClockRecord[] = rawRows.map(row => ({
-        rawDate:    String(row[colMap.date] || ''),
-        date:       parseDate(row[colMap.date]),
-        name:       String(row[colMap.name] || '').trim(),
-        employeeId: String(row[colMap.employeeId] || '').trim(),
-        cedula:     String(row[colMap.cedula] || '').trim(),
-        checkIn:    String(row[colMap.checkIn] || '').trim(),
-        checkOut:   String(row[colMap.checkOut] || '').trim(),
-      })).filter(r => r.date);
+      const validationRows = buildValidationRows(parsed.employees, parsed.dateColumns, allReservations, allUsers);
+      const summaryRows = buildSummary(parsed.employees, validationRows);
 
-      const clockDatesSet = new Set(clockRecords.map(r => r.date));
-      const clockDates = Array.from(clockDatesSet);
-
-      // Helper: find user record matching a clock entry
-      const findUser = (rec: ClockRecord) => {
-        if (rec.employeeId) {
-          const u = allUsers.find((u: any) => u.employeeId === rec.employeeId);
-          if (u) return u;
-        }
-        if (rec.cedula) {
-          const u = allUsers.find((u: any) => u.cedula === rec.cedula);
-          if (u) return u;
-        }
-        if (rec.name) {
-          const normClock = normalizeName(rec.name);
-          const u = allUsers.find((u: any) => normalizeName(u.name) === normClock);
-          if (u) return u;
-          // Partial match
-          const p = allUsers.find((u: any) => {
-            const nu = normalizeName(u.name);
-            return nu.includes(normClock) || normClock.includes(nu);
-          });
-          if (p) return p;
-        }
-        return null;
-      };
-
-      const validationRows: ValidationResult[] = [];
-
-      for (const date of clockDates) {
-        // Reservations for this date (not cancelled)
-        const dateReservations = allReservations.filter((r: any) => {
-          const d = (r.date || '').split('T')[0];
-          return d === date && r.status !== 'cancelled';
-        });
-
-        // Build expected attendees from reservations
-        interface ExpectedEntry {
-          userId: string;
-          name: string;
-          employeeId: string;
-          cedula: string;
-          department: string;
-          area: string;
-          team: string;
-          role: string;
-        }
-        const expectedMap = new Map<string, ExpectedEntry>();
-
-        const addExpected = (userId: string, name: string, area: string, team: string, role: string) => {
-          if (!userId && !name) return;
-          const user = allUsers.find((u: any) => u._id === userId || u.id === userId);
-          const key = user?._id || normalizeName(name);
-          if (!expectedMap.has(key)) {
-            expectedMap.set(key, {
-              userId: user?._id || userId || '',
-              name:   user?.name || name,
-              employeeId: user?.employeeId || '',
-              cedula:     user?.cedula || '',
-              department: user?.department || '',
-              area, team, role,
-            });
-          }
-        };
-
-        for (const res of dateReservations) {
-          // Responsable
-          const respId = !res.userId ? '' :
-            typeof res.userId === 'string' ? res.userId : res.userId._id;
-          addExpected(respId, res.userName || '', res.area, res.teamName, 'Responsable');
-
-          // Colaboradores
-          const attendees: string[] = res.attendees || [];
-          (res.colaboradores || []).forEach((c: any, idx: number) => {
-            const cId = typeof c === 'string' ? c : c._id;
-            const cName = (typeof c === 'object' ? c.name : null) || attendees[idx] || '';
-            addExpected(cId, cName, res.area, res.teamName, 'Colaborador');
-          });
-        }
-
-        // Clock records for this date
-        const dayClockRecords = clockRecords.filter(r => r.date === date);
-        const matchedExpectedKeys = new Set<string>();
-
-        // Process clock records
-        for (const rec of dayClockRecords) {
-          const user = findUser(rec);
-          const userKey = user?._id || normalizeName(rec.name);
-
-          // Find in expected
-          let expected: ExpectedEntry | undefined;
-          const expectedMapValues = Array.from(expectedMap.values());
-          const expectedMapEntries = Array.from(expectedMap.entries());
-          if (user) {
-            expected = expectedMap.get(user._id || user.id || '');
-            if (!expected) {
-              // Try by normalized name
-              expected = expectedMapValues.find(e =>
-                normalizeName(e.name) === normalizeName(user.name)
-              );
-            }
-          }
-          if (!expected && rec.name) {
-            expected = expectedMapValues.find(e =>
-              normalizeName(e.name) === normalizeName(rec.name) ||
-              normalizeName(e.name).includes(normalizeName(rec.name)) ||
-              normalizeName(rec.name).includes(normalizeName(e.name))
-            );
-          }
-
-          if (expected) {
-            matchedExpectedKeys.add(
-              expectedMapEntries.find(([, v]) => v === expected)?.[0] || ''
-            );
-          }
-
-          validationRows.push({
-            date,
-            name:            user?.name || rec.name || '(Sin nombre)',
-            employeeId:      user?.employeeId || rec.employeeId || '',
-            cedula:          user?.cedula || rec.cedula || '',
-            department:      user?.department || '',
-            checkIn:         rec.checkIn,
-            checkOut:        rec.checkOut,
-            reservationArea: expected?.area || '',
-            reservationTeam: expected?.team || '',
-            reservationRole: expected?.role || '',
-            status: expected ? 'match' : 'attended_no_reservation',
-          });
-
-          if (expected) {
-            const expKey = expectedMapEntries.find(([, v]) => v === expected)?.[0] || '';
-            if (expKey) matchedExpectedKeys.add(expKey);
-          }
-        }
-
-        // Collect matched keys properly
-        const matchedNames = new Set(
-          validationRows
-            .filter(r => r.date === date && r.status === 'match')
-            .map(r => normalizeName(r.name))
-        );
-
-        // Expected with no clock entry
-        for (const [, exp] of Array.from(expectedMap)) {
-          const normExp = normalizeName(exp.name);
-          if (!matchedNames.has(normExp)) {
-            validationRows.push({
-              date,
-              name:            exp.name,
-              employeeId:      exp.employeeId,
-              cedula:          exp.cedula,
-              department:      exp.department,
-              checkIn:         '',
-              checkOut:        '',
-              reservationArea: exp.area,
-              reservationTeam: exp.team,
-              reservationRole: exp.role,
-              status:          'reservation_no_attendance',
-            });
-          }
-        }
-      }
-
-      // Sort by date, then status priority, then name
-      const statusOrder: Record<ValidationStatus, number> = {
-        reservation_no_attendance: 0,
-        attended_no_reservation: 1,
-        match: 2,
-      };
-      validationRows.sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
-        return a.name.localeCompare(b.name);
-      });
-
+      setPeriod(parsed.period);
+      setDateColumns(parsed.dateColumns);
+      setEmployees(parsed.employees);
       setResults(validationRows);
-      setStep('results');
-    } catch (err: any) {
-      alert('Error al validar: ' + (err?.message || err));
+      setSummary(summaryRows);
+      setStep(3);
+    } catch (e: any) {
+      setError(`Error procesando el archivo: ${e.message || e}`);
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const handleFile = useCallback((file: File) => {
+    if (!file.name.match(/\.(xlsx?|csv)$/i)) {
+      setError('Solo se aceptan archivos .xlsx, .xls o .csv');
+      return;
+    }
+    processFile(file);
+  }, [processFile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }, [handleFile]);
+
+  const handleReset = () => {
+    setStep(1);
+    setResults([]);
+    setSummary([]);
+    setEmployees([]);
+    setPeriod('');
+    setDateColumns([]);
+    setError('');
+    setActiveFilter('all');
+    setDateFilter('');
+    setDeptFilter('');
   };
 
-  // ── Export results ────────────────────────────────────────────────────────
+  // ── Filtered results ──
+  const filteredResults = results.filter(r => {
+    if (activeFilter !== 'all' && r.status !== activeFilter) return false;
+    if (dateFilter && r.date !== dateFilter) return false;
+    if (deptFilter && !normalizeName(r.department).includes(normalizeName(deptFilter))) return false;
+    return true;
+  });
 
-  const exportResults = () => {
-    const rows = [
-      ['Fecha', 'Nombre', 'ID Empleado', 'Cédula', 'Departamento',
-       'Hora Entrada', 'Hora Salida', 'Área Reservada', 'Equipo', 'Rol en Reserva', 'Estado'],
-      ...filtered.map(r => [
-        r.date, r.name, r.employeeId, r.cedula, r.department,
-        r.checkIn, r.checkOut, r.reservationArea, r.reservationTeam,
-        r.reservationRole, STATUS_CONFIG[r.status].label,
-      ]),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [
-      {wch:12},{wch:28},{wch:14},{wch:14},{wch:22},
-      {wch:13},{wch:13},{wch:24},{wch:20},{wch:16},{wch:28},
-    ];
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-    ws['!autofilter'] = { ref: ws['!ref'] as string };
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Validación Asistencia');
-    XLSX.writeFile(wb, `validacion_asistencia_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  // ── Filtered results ──────────────────────────────────────────────────────
-
-  const filtered = results.filter(r => {
-    if (filterStatus !== 'all' && r.status !== filterStatus) return false;
-    if (filterDate && r.date !== filterDate) return false;
+  const filteredSummary = summary.filter(r => {
+    if (deptFilter && !normalizeName(r.department).includes(normalizeName(deptFilter))) return false;
     return true;
   });
 
   const counts = {
-    match:                      results.filter(r => r.status === 'match').length,
-    attended_no_reservation:    results.filter(r => r.status === 'attended_no_reservation').length,
-    reservation_no_attendance:  results.filter(r => r.status === 'reservation_no_attendance').length,
+    match: results.filter(r => r.status === 'match').length,
+    attended_no_reservation: results.filter(r => r.status === 'attended_no_reservation').length,
+    reservation_no_attendance: results.filter(r => r.status === 'reservation_no_attendance').length,
   };
 
   const uniqueDates = Array.from(new Set(results.map(r => r.date))).sort();
+  const uniqueDepts = Array.from(new Set(employees.map(e => e.department))).sort();
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Export ──
+  const handleExport = () => {
+    const wb2 = XLSX.utils.book_new();
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900">Validación de Asistencia</h3>
-        <p className="text-sm text-gray-600">
-          Carga el reporte del reloj checador y compara con las reservas registradas en el sistema.
-        </p>
-      </div>
+    // Sheet 1: Detail
+    const detailData = [
+      ['Fecha', 'ID Empleado', 'Nombre', 'Departamento', 'Entrada', 'Salida',
+       'Eventos Reloj', 'Reserva TRIBUS', 'Área', 'Equipo', 'Rol', 'Estado',
+       'Horas Reales', 'Días Falta', 'Retardos (min)', 'Salida Temprana (min)'],
+      ...results.map(r => [
+        r.date, r.employeeId, r.name, r.department, r.checkIn, r.checkOut,
+        r.clockEvents.join(' | '),
+        r.hasReservation ? 'Sí' : 'No',
+        r.reservationArea, r.reservationTeam, r.reservationRole,
+        r.status === 'match' ? 'Coincidencia' :
+        r.status === 'attended_no_reservation' ? 'Asistió sin reserva' : 'Reserva sin asistencia',
+        r.horasReal || '', r.faltaDias ?? '', r.retardosMin ?? '', r.salidaTempranaMin ?? '',
+      ]),
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(detailData);
+    ws1['!cols'] = [8,10,22,18,8,8,20,12,16,14,12,22,10,8,12,16].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb2, ws1, 'Detalle');
 
-      {/* Steps indicator */}
-      <div className="flex items-center space-x-4 text-sm">
-        {(['upload', 'map', 'results'] as const).map((s, i) => {
-          const labels = ['1. Cargar archivo', '2. Mapear columnas', '3. Resultados'];
-          const active = step === s;
-          const done = (step === 'map' && i === 0) || (step === 'results' && i <= 1);
-          return (
-            <React.Fragment key={s}>
-              {i > 0 && <div className="w-8 h-px bg-gray-300" />}
-              <span className={`font-medium ${active ? 'text-primary-600' : done ? 'text-green-600' : 'text-gray-400'}`}>
-                {labels[i]}
-              </span>
-            </React.Fragment>
-          );
-        })}
-      </div>
+    // Sheet 2: Summary
+    const summaryData = [
+      ['ID', 'Nombre', 'Departamento', 'Días Programados', 'Días Asistidos (Reloj)',
+       'Días con Reserva', 'Coincidencias', 'Asistió sin Reserva', 'Reserva sin Asistencia',
+       'Horas Reales', 'Días Falta', 'Retardos (min)', 'Salida Temprana (min)'],
+      ...summary.map(r => [
+        r.employeeId, r.name, r.department, r.diasProgramados, r.diasAsistidosClock,
+        r.diasConReserva, r.coincidencias, r.asistioSinReserva, r.reservaSinAsistencia,
+        r.horasReal, r.faltaDias, r.retardosMin, r.salidaTempranaMin,
+      ]),
+    ];
+    const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws2['!cols'] = [8,22,18,14,18,14,12,18,18,10,10,12,16].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb2, ws2, 'Resumen');
 
-      {/* ── STEP 1: Upload ── */}
-      {step === 'upload' && (
-        <div className="card">
-          <h4 className="font-medium text-gray-900 mb-4">Cargar reporte del reloj checador</h4>
-          <p className="text-sm text-gray-500 mb-4">
-            Soporta archivos <strong>.xlsx</strong>, <strong>.xls</strong> y <strong>.csv</strong>.
-            El archivo debe tener una fila de encabezados con el nombre de cada columna.
+    const filename = `validacion_asistencia_${period.replace(' ~ ', '_').replace(/-/g, '')}.xlsx`;
+    XLSX.writeFile(wb2, filename);
+  };
+
+  // ── Status helpers ──
+  const statusBg = (s: ValidationRow['status']) =>
+    s === 'match' ? 'bg-green-50' :
+    s === 'attended_no_reservation' ? 'bg-yellow-50' : 'bg-red-50';
+
+  const statusBadge = (s: ValidationRow['status']) =>
+    s === 'match'
+      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle className="w-3 h-3" />Coincidencia</span>
+      : s === 'attended_no_reservation'
+      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><AlertCircle className="w-3 h-3" />Sin reserva</span>
+      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3" />Sin asistencia</span>;
+
+  const formatDate = (d: string) => {
+    const [y, m, day] = d.split('-');
+    const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const dow = days[new Date(d).getDay()];
+    return `${dow} ${day}/${m}`;
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STEP 1 — Upload
+  // ════════════════════════════════════════════════════════════════════════════
+  if (step === 1) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Validación de Asistencia</h3>
+          <p className="text-sm text-gray-600">
+            Carga el informe del reloj checador para cruzarlo con las reservas en el sistema.
           </p>
+        </div>
+
+        {/* Info box */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex gap-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-blue-800 space-y-1">
+              <p className="font-medium">Formato compatible detectado automáticamente</p>
+              <p>Se reconoce el informe con las pestañas:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-blue-700">
+                <li><strong>Reporte de Turnos</strong> — asignación de turno por día</li>
+                <li><strong>Reporte Estadístico</strong> — resumen de horas, faltas y retardos</li>
+                <li><strong>Reporte de Asistencia</strong> — eventos de entrada/salida por día</li>
+                <li><strong>Reporte de Excepciones</strong> — detalle de anomalías por día</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-sm text-red-800 whitespace-pre-wrap">{error}</p>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <RefreshCw className="w-10 h-10 text-primary-500 animate-spin" />
+            <p className="text-gray-600">Procesando archivo y cruzando datos con el sistema...</p>
+          </div>
+        ) : (
           <div
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer ${
-              isDragging ? 'border-primary-400 bg-primary-50' : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
+            onClick={() => document.getElementById('att-file-input')?.click()}
+            className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-colors ${
+              isDragging ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
             }`}
-            onClick={() => document.getElementById('clock-file-input')?.click()}
           >
-            <FileSpreadsheet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600 font-medium">Arrastra el archivo aquí o haz clic para seleccionar</p>
-            <p className="text-xs text-gray-400 mt-1">Excel (.xlsx, .xls) o CSV</p>
+            <FileSpreadsheet className="w-14 h-14 mx-auto mb-4 text-gray-400" />
+            <p className="text-lg font-medium text-gray-700 mb-1">
+              Arrastra el archivo aquí o haz clic para seleccionar
+            </p>
+            <p className="text-sm text-gray-500">Archivos .xlsx, .xls o .csv del reloj checador</p>
             <input
-              id="clock-file-input"
+              id="att-file-input"
               type="file"
               accept=".xlsx,.xls,.csv"
               className="hidden"
-              onChange={handleFileInput}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
             />
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // STEP 3 — Results
+  // ════════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Resultado de Validación</h3>
+          <p className="text-sm text-gray-500">
+            Período: <strong>{period}</strong> · {employees.length} empleados · {dateColumns.length} días
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setViewMode(viewMode === 'detail' ? 'summary' : 'detail')}
+            className="btn btn-secondary text-sm flex items-center gap-2"
+          >
+            {viewMode === 'detail' ? <BarChart3 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+            {viewMode === 'detail' ? 'Ver resumen' : 'Ver detalle'}
+          </button>
+          <button onClick={handleExport} className="btn btn-primary text-sm flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Exportar Excel
+          </button>
+          <button onClick={handleReset} className="btn btn-secondary text-sm flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" />
+            Nuevo archivo
+          </button>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { key: 'match', label: 'Coincidencias', icon: CheckCircle, color: 'green', desc: 'Asistió y tenía reserva' },
+          { key: 'attended_no_reservation', label: 'Sin reserva en TRIBUS', icon: AlertCircle, color: 'yellow', desc: 'Asistió pero sin reserva registrada' },
+          { key: 'reservation_no_attendance', label: 'Sin asistencia', icon: XCircle, color: 'red', desc: 'Tenía reserva pero no marcó en reloj' },
+        ].map(({ key, label, icon: Icon, color, desc }) => (
+          <button
+            key={key}
+            onClick={() => setActiveFilter(activeFilter === key ? 'all' : key as any)}
+            className={`text-left p-4 rounded-xl border-2 transition-all ${
+              activeFilter === key
+                ? `border-${color}-400 bg-${color}-50`
+                : `border-gray-200 bg-white hover:border-${color}-300`
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <Icon className={`w-5 h-5 text-${color}-600`} />
+              <span className={`text-2xl font-bold text-${color}-700`}>
+                {counts[key as keyof typeof counts]}
+              </span>
+            </div>
+            <p className="text-sm font-medium text-gray-900">{label}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        {viewMode === 'detail' && (
+          <select
+            value={dateFilter}
+            onChange={e => setDateFilter(e.target.value)}
+            className="text-sm border border-gray-300 rounded-lg px-3 py-1.5"
+          >
+            <option value="">Todos los días</option>
+            {uniqueDates.map(d => (
+              <option key={d} value={d}>{formatDate(d)}</option>
+            ))}
+          </select>
+        )}
+        <input
+          type="text"
+          placeholder="Filtrar por departamento..."
+          value={deptFilter}
+          onChange={e => setDeptFilter(e.target.value)}
+          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 min-w-[200px]"
+        />
+        {(activeFilter !== 'all' || dateFilter || deptFilter) && (
+          <button
+            onClick={() => { setActiveFilter('all'); setDateFilter(''); setDeptFilter(''); }}
+            className="text-sm text-primary-600 hover:underline"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
+      {/* ── SUMMARY VIEW ── */}
+      {viewMode === 'summary' && (
+        <div className="card overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {['ID', 'Nombre', 'Departamento', 'Programados', 'Asistidos (reloj)', 'Con reserva',
+                  'Coincidencias', 'Sin reserva', 'Sin asistencia',
+                  'Horas reales', 'Faltas', 'Retardos', 'Salida temp.'].map(h => (
+                  <th key={h} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredSummary.map(r => (
+                <tr key={r.employeeId} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 text-gray-500">{r.employeeId}</td>
+                  <td className="px-3 py-2 font-medium text-gray-900">{r.name}</td>
+                  <td className="px-3 py-2 text-gray-600">{r.department}</td>
+                  <td className="px-3 py-2 text-center">{r.diasProgramados}</td>
+                  <td className="px-3 py-2 text-center">
+                    <span className={r.diasAsistidosClock > 0 ? 'text-green-700 font-medium' : 'text-red-600'}>
+                      {r.diasAsistidosClock}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-center">{r.diasConReserva}</td>
+                  <td className="px-3 py-2 text-center">
+                    {r.coincidencias > 0
+                      ? <span className="text-green-700 font-medium">{r.coincidencias}</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {r.asistioSinReserva > 0
+                      ? <span className="text-yellow-700 font-medium">{r.asistioSinReserva}</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {r.reservaSinAsistencia > 0
+                      ? <span className="text-red-700 font-medium">{r.reservaSinAsistencia}</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center font-mono text-xs">{r.horasReal || '—'}</td>
+                  <td className="px-3 py-2 text-center">
+                    {r.faltaDias > 0
+                      ? <span className="text-red-600 font-medium">{r.faltaDias}</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {r.retardosMin > 0
+                      ? <span className="text-yellow-700">{r.retardosMin} min</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {r.salidaTempranaMin > 0
+                      ? <span className="text-yellow-700">{r.salidaTempranaMin} min</span>
+                      : <span className="text-gray-400">0</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredSummary.length === 0 && (
+            <div className="text-center py-10 text-gray-500">No hay empleados para mostrar</div>
+          )}
         </div>
       )}
 
-      {/* ── STEP 2: Column mapping ── */}
-      {step === 'map' && (
-        <div className="card space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-gray-900">Mapear columnas</h4>
-              <p className="text-sm text-gray-500">
-                Archivo: <strong>{fileName}</strong> — {rawRows.length} registros detectados
-              </p>
+      {/* ── DETAIL VIEW ── */}
+      {viewMode === 'detail' && (
+        <div className="card overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {['Fecha', 'ID', 'Nombre', 'Departamento', 'Entrada', 'Salida',
+                  'Eventos reloj', 'Reserva TRIBUS', 'Área / Equipo', 'Estado'].map(h => (
+                  <th key={h} className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredResults.map((r, i) => (
+                <tr key={i} className={`hover:brightness-95 ${statusBg(r.status)}`}>
+                  <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">{formatDate(r.date)}</td>
+                  <td className="px-3 py-2 text-gray-500">{r.employeeId}</td>
+                  <td className="px-3 py-2 font-medium text-gray-900">{r.name}</td>
+                  <td className="px-3 py-2 text-gray-600">{r.department}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-gray-700">
+                    {r.checkIn || <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs text-gray-700">
+                    {r.checkOut || <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs text-gray-500 max-w-[140px] truncate" title={r.clockEvents.join(' · ')}>
+                    {r.clockEvents.length > 0
+                      ? r.clockEvents.join(' · ')
+                      : <span className="text-gray-400">Sin eventos</span>}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {r.hasReservation
+                      ? <span className="text-green-700 font-medium">Sí</span>
+                      : <span className="text-gray-400">No</span>}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-600">
+                    {r.reservationArea && (
+                      <span>{r.reservationArea}{r.reservationTeam ? ` · ${r.reservationTeam}` : ''}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap">{statusBadge(r.status)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredResults.length === 0 && (
+            <div className="text-center py-10 text-gray-500">
+              {results.length === 0
+                ? 'No se encontraron registros para cruzar'
+                : 'No hay registros con los filtros seleccionados'}
             </div>
-            <button onClick={() => setStep('upload')} className="btn-secondary text-sm">
-              Cambiar archivo
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(
-              [
-                { key: 'date',       label: 'Fecha *',           required: true  },
-                { key: 'name',       label: 'Nombre empleado',   required: false },
-                { key: 'employeeId', label: 'ID de Empleado',    required: false },
-                { key: 'cedula',     label: 'Cédula / Documento',required: false },
-                { key: 'checkIn',    label: 'Hora de entrada',   required: false },
-                { key: 'checkOut',   label: 'Hora de salida',    required: false },
-              ] as { key: keyof ColumnMap; label: string; required: boolean }[]
-            ).map(({ key, label, required }) => (
-              <div key={key}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {label}
-                  {required && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                <select
-                  value={colMap[key]}
-                  onChange={e => setColMap(prev => ({ ...prev, [key]: e.target.value }))}
-                  className="input-field"
-                >
-                  <option value="">— No mapear —</option>
-                  {headers.map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-
-          {/* Preview */}
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Vista previa (primeras 3 filas):</p>
-            <div className="overflow-x-auto border border-gray-200 rounded text-xs">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {headers.map(h => (
-                      <th key={h} className="px-3 py-2 text-left font-medium text-gray-600 whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rawRows.slice(0, 3).map((row, i) => (
-                    <tr key={i} className="border-t border-gray-100">
-                      {headers.map(h => (
-                        <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-xs truncate">
-                          {String(row[h] ?? '')}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          )}
+          {filteredResults.length > 0 && (
+            <div className="px-4 py-2 bg-gray-50 border-t text-xs text-gray-500">
+              Mostrando {filteredResults.length} de {results.length} registros
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={validate}
-              disabled={isLoading || !colMap.date}
-              className="btn-primary flex items-center space-x-2 disabled:opacity-50"
-            >
-              {isLoading
-                ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Validando...</span></>
-                : <><CheckCircle className="w-4 h-4" /><span>Validar asistencia</span></>
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 3: Results ── */}
-      {step === 'results' && (
-        <div className="space-y-4">
-          {/* Summary cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(
-              [
-                { key: 'match',                     bg: 'bg-green-50',  border: 'border-green-200', text: 'text-green-800',  count: counts.match },
-                { key: 'attended_no_reservation',   bg: 'bg-yellow-50', border: 'border-yellow-200',text: 'text-yellow-800', count: counts.attended_no_reservation },
-                { key: 'reservation_no_attendance', bg: 'bg-red-50',    border: 'border-red-200',   text: 'text-red-800',    count: counts.reservation_no_attendance },
-              ] as { key: ValidationStatus; bg: string; border: string; text: string; count: number }[]
-            ).map(({ key, bg, border, text, count }) => (
-              <button
-                key={key}
-                onClick={() => setFilterStatus(filterStatus === key ? 'all' : key)}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${bg} ${border} ${filterStatus === key ? 'ring-2 ring-offset-1 ring-primary-400' : ''}`}
-              >
-                <div className="flex items-center space-x-2 mb-1">
-                  {STATUS_CONFIG[key].icon}
-                  <span className={`text-2xl font-bold ${text}`}>{count}</span>
-                </div>
-                <p className={`text-sm font-medium ${text}`}>{STATUS_CONFIG[key].label}</p>
-              </button>
-            ))}
-          </div>
-
-          {/* Filters + actions */}
-          <div className="card">
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value as any)}
-                className="input-field w-auto"
-              >
-                <option value="all">Todos los estados ({results.length})</option>
-                <option value="match">Asistió y tenía reserva ({counts.match})</option>
-                <option value="attended_no_reservation">Asistió sin reserva ({counts.attended_no_reservation})</option>
-                <option value="reservation_no_attendance">Reserva sin asistencia ({counts.reservation_no_attendance})</option>
-              </select>
-
-              <select
-                value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-                className="input-field w-auto"
-              >
-                <option value="">Todas las fechas</option>
-                {uniqueDates.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-
-              <div className="ml-auto flex items-center space-x-2">
-                <button
-                  onClick={() => { setStep('upload'); setResults([]); setRawRows([]); setFileName(''); }}
-                  className="btn-secondary flex items-center space-x-2 text-sm"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Nuevo archivo</span>
-                </button>
-                <button
-                  onClick={exportResults}
-                  className="btn-primary flex items-center space-x-2 text-sm"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Exportar Excel</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Results table */}
-          <div className="card p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {['Fecha','Nombre','ID Emp.','Cédula','Departamento','Entrada','Salida','Área Reservada','Equipo','Rol','Estado'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="px-4 py-10 text-center text-gray-400">
-                        <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                        No hay resultados para los filtros seleccionados
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map((r, i) => {
-                      const cfg = STATUS_CONFIG[r.status];
-                      return (
-                        <tr key={i} className={`hover:bg-gray-50 ${r.status === 'reservation_no_attendance' ? 'bg-red-50/30' : r.status === 'attended_no_reservation' ? 'bg-yellow-50/30' : ''}`}>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-700">{r.date}</td>
-                          <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">{r.name}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.employeeId || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.cedula || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.department || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.checkIn || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.checkOut || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-600">{r.reservationArea || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-600">{r.reservationTeam || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap text-gray-500">{r.reservationRole || '—'}</td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${cfg.color}`}>
-                              {cfg.icon}
-                              <span>{cfg.label}</span>
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {filtered.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-100 text-xs text-gray-500 bg-gray-50">
-                Mostrando {filtered.length} de {results.length} registros
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>
