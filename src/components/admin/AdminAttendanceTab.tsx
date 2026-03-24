@@ -412,11 +412,6 @@ export function AdminAttendanceTab() {
   const [deptFilter, setDeptFilter] = useState('');
   const [currentFilename, setCurrentFilename] = useState('');
   const [saveError, setSaveError] = useState('');
-  // pendingSave: set after processing a NEW file (not when loading from history)
-  const [pendingSave, setPendingSave] = useState<{
-    filename: string; period: string; employeeCount: number;
-    dateColumns: string[]; results: ValidationRow[]; summary: EmployeeSummary[];
-  } | null>(null);
 
   // History
   const [history, setHistory] = useState<ReportHistoryItem[]>([]);
@@ -440,31 +435,6 @@ export function AdminAttendanceTab() {
     if (isAdminOrSuper) loadHistory();
   }, [isAdminOrSuper, loadHistory]);
 
-  // Save to history whenever pendingSave is set (after processing a new file)
-  useEffect(() => {
-    if (!pendingSave) return;
-    const data = pendingSave;
-    setPendingSave(null);  // clear immediately to avoid double-save on re-render
-
-    const doSave = async () => {
-      setSaveError('');
-      setIsSaving(true);
-      try {
-        await apiFetch('/attendance-reports', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        });
-        loadHistory();
-      } catch (e: any) {
-        const msg = e.message || 'Error desconocido';
-        console.error('Error guardando reporte en historial:', msg);
-        setSaveError(`No se pudo guardar en historial: ${msg}`);
-      } finally {
-        setIsSaving(false);
-      }
-    };
-    doSave();
-  }, [pendingSave, loadHistory]);
 
   const handleViewFromHistory = async (item: ReportHistoryItem) => {
     setLoadingId(item._id);
@@ -526,6 +496,7 @@ export function AdminAttendanceTab() {
       const validationRows = buildValidationRows(parsed.employees, parsed.dateColumns, allReservations, allUsers);
       const summaryRows = buildSummary(parsed.employees, validationRows);
 
+      // Show results immediately
       setPeriod(parsed.period);
       setDateColumns(parsed.dateColumns);
       setEmployees(parsed.employees);
@@ -534,15 +505,40 @@ export function AdminAttendanceTab() {
       setCurrentFilename(file.name);
       setStep(3);
 
-      // Trigger auto-save via useEffect (avoids stale closure)
-      setPendingSave({
-        filename: file.name,
-        period: parsed.period,
-        employeeCount: parsed.employees.length,
-        dateColumns: parsed.dateColumns,
-        results: validationRows,
-        summary: summaryRows,
-      });
+      // Save to history — inline await, same function scope, no closure issues
+      setIsSaving(true);
+      const token = getAuthToken();
+      try {
+        const res = await fetch('/api/attendance-reports', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            period: parsed.period,
+            employeeCount: parsed.employees.length,
+            dateColumns: parsed.dateColumns,
+            results: validationRows,
+            summary: summaryRows,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        // Refresh history list
+        const histRes = await fetch('/api/attendance-reports', {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (histRes.ok) setHistory(await histRes.json());
+      } catch (saveErr: any) {
+        console.error('[SAVE]', saveErr.message);
+        setSaveError(`No se pudo guardar en historial: ${saveErr.message}`);
+      } finally {
+        setIsSaving(false);
+      }
     } catch (e: any) {
       setError(`Error procesando el archivo: ${e.message || e}`);
     } finally {
@@ -574,7 +570,6 @@ export function AdminAttendanceTab() {
     setDateColumns([]);
     setError('');
     setSaveError('');
-    setPendingSave(null);
     setActiveFilter('all');
     setDateFilter('');
     setDeptFilter('');
