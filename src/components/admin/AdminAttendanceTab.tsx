@@ -411,6 +411,12 @@ export function AdminAttendanceTab() {
   const [dateFilter, setDateFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [currentFilename, setCurrentFilename] = useState('');
+  const [saveError, setSaveError] = useState('');
+  // pendingSave: set after processing a NEW file (not when loading from history)
+  const [pendingSave, setPendingSave] = useState<{
+    filename: string; period: string; employeeCount: number;
+    dateColumns: string[]; results: ValidationRow[]; summary: EmployeeSummary[];
+  } | null>(null);
 
   // History
   const [history, setHistory] = useState<ReportHistoryItem[]>([]);
@@ -418,11 +424,7 @@ export function AdminAttendanceTab() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isAdminOrSuper) loadHistory();
-  }, [isAdminOrSuper]);  // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
       const data = await apiFetch('/attendance-reports');
@@ -432,30 +434,37 @@ export function AdminAttendanceTab() {
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, []);
 
-  const saveReport = async (filename: string, p: string, emps: EmployeeClockData[], dateCols: string[], res: ValidationRow[], sum: EmployeeSummary[]) => {
-    setIsSaving(true);
-    try {
-      await apiFetch('/attendance-reports', {
-        method: 'POST',
-        body: JSON.stringify({
-          filename,
-          period: p,
-          employeeCount: emps.length,
-          dateColumns: dateCols,
-          results: res,
-          summary: sum,
-        }),
-      });
-      loadHistory();
-    } catch (e: any) {
-      console.error('Error guardando reporte en historial:', e.message);
-      // No bloquear al usuario, el reporte ya se muestra en pantalla
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  useEffect(() => {
+    if (isAdminOrSuper) loadHistory();
+  }, [isAdminOrSuper, loadHistory]);
+
+  // Save to history whenever pendingSave is set (after processing a new file)
+  useEffect(() => {
+    if (!pendingSave) return;
+    const data = pendingSave;
+    setPendingSave(null);  // clear immediately to avoid double-save on re-render
+
+    const doSave = async () => {
+      setSaveError('');
+      setIsSaving(true);
+      try {
+        await apiFetch('/attendance-reports', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+        loadHistory();
+      } catch (e: any) {
+        const msg = e.message || 'Error desconocido';
+        console.error('Error guardando reporte en historial:', msg);
+        setSaveError(`No se pudo guardar en historial: ${msg}`);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    doSave();
+  }, [pendingSave, loadHistory]);
 
   const handleViewFromHistory = async (item: ReportHistoryItem) => {
     setLoadingId(item._id);
@@ -491,9 +500,10 @@ export function AdminAttendanceTab() {
     }
   };
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = async (file: File) => {
     setIsLoading(true);
     setError('');
+    setSaveError('');
     try {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array', cellDates: false, raw: true });
@@ -503,7 +513,6 @@ export function AdminAttendanceTab() {
           `Formato no reconocido. Se esperan las pestañas: ${RELOJ_SHEETS.join(', ')}.\n` +
           `El archivo contiene: ${wb.SheetNames.join(', ')}.`
         );
-        setIsLoading(false);
         return;
       }
 
@@ -525,29 +534,36 @@ export function AdminAttendanceTab() {
       setCurrentFilename(file.name);
       setStep(3);
 
-      // Auto-save to history
-      saveReport(file.name, parsed.period, parsed.employees, parsed.dateColumns, validationRows, summaryRows);
+      // Trigger auto-save via useEffect (avoids stale closure)
+      setPendingSave({
+        filename: file.name,
+        period: parsed.period,
+        employeeCount: parsed.employees.length,
+        dateColumns: parsed.dateColumns,
+        results: validationRows,
+        summary: summaryRows,
+      });
     } catch (e: any) {
       setError(`Error procesando el archivo: ${e.message || e}`);
     } finally {
       setIsLoading(false);
     }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
-  const handleFile = useCallback((file: File) => {
+  const handleFile = (file: File) => {
     if (!file.name.match(/\.(xlsx?|csv)$/i)) {
       setError('Solo se aceptan archivos .xlsx, .xls o .csv');
       return;
     }
     processFile(file);
-  }, [processFile]);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) handleFile(file);
-  }, [handleFile]);
+  };
 
   const handleReset = () => {
     setStep(1);
@@ -557,6 +573,8 @@ export function AdminAttendanceTab() {
     setPeriod('');
     setDateColumns([]);
     setError('');
+    setSaveError('');
+    setPendingSave(null);
     setActiveFilter('all');
     setDateFilter('');
     setDeptFilter('');
@@ -803,6 +821,9 @@ export function AdminAttendanceTab() {
             <p className="text-xs text-primary-600 flex items-center gap-1 mt-0.5">
               <RefreshCw className="w-3 h-3 animate-spin" /> Guardando en historial...
             </p>
+          )}
+          {saveError && (
+            <p className="text-xs text-red-600 mt-0.5">⚠ {saveError}</p>
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
