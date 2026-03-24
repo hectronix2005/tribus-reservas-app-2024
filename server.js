@@ -96,6 +96,7 @@ app.use('/api/coworking-settings', require('./server/routes/coworking'));
 app.use('/api/blog-posts', require('./server/routes/blog'));
 app.use('/api/contact-forms', require('./server/routes/contactForms'));
 app.use('/api/messages', require('./server/routes/messages'));
+app.use('/api/attendance-reports', require('./server/routes/attendanceReports'));
 
 // Servir archivos estáticos en producción (SPA fallback)
 if (process.env.NODE_ENV === 'production') {

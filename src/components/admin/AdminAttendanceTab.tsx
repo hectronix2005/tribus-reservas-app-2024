@@ -1,12 +1,45 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Upload, CheckCircle, XCircle, AlertCircle, Download,
-  RefreshCw, FileSpreadsheet, Users, Clock, BarChart3, Info
+  RefreshCw, FileSpreadsheet, Users, Clock, BarChart3, Info,
+  Trash2, Eye, History
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { reservationService, userService } from '../../services/api';
+import { useApp } from '../../context/AppContext';
+import { getAuthToken } from '../../utils/storage';
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+
+async function apiFetch(path: string, options: RequestInit = {}) {
+  const token = getAuthToken();
+  const res = await fetch(`/api${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { msg = (await res.json()).error || msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ReportHistoryItem {
+  _id: string;
+  filename: string;
+  period: string;
+  uploadedByName: string;
+  uploadedAt: string;
+  employeeCount: number;
+  dateColumns: string[];
+}
 
 interface EmployeeClockData {
   employeeId: string;
@@ -359,8 +392,13 @@ function buildSummary(employees: EmployeeClockData[], rows: ValidationRow[]): Em
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AdminAttendanceTab() {
+  const { state } = useApp();
+  const currentUser = state.auth?.currentUser;
+  const isAdminOrSuper = ['admin', 'superadmin'].includes(currentUser?.role || '');
+
   const [step, setStep] = useState<1 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [period, setPeriod] = useState('');
@@ -372,6 +410,85 @@ export function AdminAttendanceTab() {
   const [activeFilter, setActiveFilter] = useState<'all' | ValidationRow['status']>('all');
   const [dateFilter, setDateFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
+  const [currentFilename, setCurrentFilename] = useState('');
+
+  // History
+  const [history, setHistory] = useState<ReportHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAdminOrSuper) loadHistory();
+  }, [isAdminOrSuper]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const data = await apiFetch('/attendance-reports');
+      setHistory(data);
+    } catch {
+      // silently ignore — history is optional
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const saveReport = async (filename: string, p: string, emps: EmployeeClockData[], dateCols: string[], res: ValidationRow[], sum: EmployeeSummary[]) => {
+    setIsSaving(true);
+    try {
+      await apiFetch('/attendance-reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          filename,
+          period: p,
+          employeeCount: emps.length,
+          dateColumns: dateCols,
+          results: res,
+          summary: sum,
+        }),
+      });
+      loadHistory();
+    } catch (e: any) {
+      console.warn('No se pudo guardar el reporte en el historial:', e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleViewFromHistory = async (item: ReportHistoryItem) => {
+    setLoadingId(item._id);
+    try {
+      const report = await apiFetch(`/attendance-reports/${item._id}`);
+      setPeriod(report.period);
+      setDateColumns(report.dateColumns || []);
+      setEmployees([]);
+      setResults(report.results || []);
+      setSummary(report.summary || []);
+      setCurrentFilename(report.filename);
+      setStep(3);
+      setActiveFilter('all');
+      setDateFilter('');
+      setDeptFilter('');
+    } catch (e: any) {
+      alert(`Error cargando reporte: ${e.message}`);
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleDeleteFromHistory = async (item: ReportHistoryItem) => {
+    if (!window.confirm(`¿Eliminar el reporte "${item.filename}" (${item.period})?`)) return;
+    setDeletingId(item._id);
+    try {
+      await apiFetch(`/attendance-reports/${item._id}`, { method: 'DELETE' });
+      setHistory(h => h.filter(r => r._id !== item._id));
+    } catch (e: any) {
+      alert(`Error eliminando reporte: ${e.message}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const processFile = useCallback(async (file: File) => {
     setIsLoading(true);
@@ -404,13 +521,17 @@ export function AdminAttendanceTab() {
       setEmployees(parsed.employees);
       setResults(validationRows);
       setSummary(summaryRows);
+      setCurrentFilename(file.name);
       setStep(3);
+
+      // Auto-save to history
+      saveReport(file.name, parsed.period, parsed.employees, parsed.dateColumns, validationRows, summaryRows);
     } catch (e: any) {
       setError(`Error procesando el archivo: ${e.message || e}`);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFile = useCallback((file: File) => {
     if (!file.name.match(/\.(xlsx?|csv)$/i)) {
@@ -588,6 +709,76 @@ export function AdminAttendanceTab() {
             />
           </div>
         )}
+
+        {/* ── Historial de reportes ── */}
+        {isAdminOrSuper && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-gray-700">
+              <History className="w-5 h-5" />
+              <h4 className="font-semibold">Historial de reportes cargados</h4>
+              {historyLoading && <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />}
+            </div>
+
+            {!historyLoading && history.length === 0 && (
+              <p className="text-sm text-gray-500 italic">No hay reportes guardados aún.</p>
+            )}
+
+            {history.length > 0 && (
+              <div className="rounded-xl border border-gray-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {['Archivo', 'Período', 'Empleados', 'Cargado por', 'Fecha', 'Acciones'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {history.map(item => (
+                      <tr key={item._id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2.5 max-w-[200px] truncate text-gray-900 font-medium" title={item.filename}>
+                          {item.filename}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">{item.period}</td>
+                        <td className="px-4 py-2.5 text-center text-gray-600">{item.employeeCount}</td>
+                        <td className="px-4 py-2.5 text-gray-600">{item.uploadedByName || '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap text-xs">
+                          {new Date(item.uploadedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleViewFromHistory(item)}
+                              disabled={loadingId === item._id}
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors disabled:opacity-50"
+                            >
+                              {loadingId === item._id
+                                ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                : <Eye className="w-3 h-3" />}
+                              Ver
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFromHistory(item)}
+                              disabled={deletingId === item._id}
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+                            >
+                              {deletingId === item._id
+                                ? <RefreshCw className="w-3 h-3 animate-spin" />
+                                : <Trash2 className="w-3 h-3" />}
+                              Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -602,8 +793,16 @@ export function AdminAttendanceTab() {
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Resultado de Validación</h3>
           <p className="text-sm text-gray-500">
-            Período: <strong>{period}</strong> · {employees.length} empleados · {dateColumns.length} días
+            Período: <strong>{period}</strong>
+            {employees.length > 0 && ` · ${employees.length} empleados`}
+            {` · ${dateColumns.length} días`}
+            {currentFilename && <span className="ml-2 text-gray-400">— {currentFilename}</span>}
           </p>
+          {isSaving && (
+            <p className="text-xs text-primary-600 flex items-center gap-1 mt-0.5">
+              <RefreshCw className="w-3 h-3 animate-spin" /> Guardando en historial...
+            </p>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
