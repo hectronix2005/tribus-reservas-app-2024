@@ -450,7 +450,8 @@ export function AdminAttendanceTab() {
       });
       loadHistory();
     } catch (e: any) {
-      console.warn('No se pudo guardar el reporte en el historial:', e.message);
+      console.error('Error guardando reporte en historial:', e.message);
+      // No bloquear al usuario, el reporte ya se muestra en pantalla
     } finally {
       setIsSaving(false);
     }
