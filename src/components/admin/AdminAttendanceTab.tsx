@@ -11,9 +11,13 @@ import { getAuthToken } from '../../utils/storage';
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
+// In development the CRA proxy can silently drop large POST bodies.
+// Use the backend port directly to bypass it. In production (same-origin) keep the relative URL.
+const API_ORIGIN = process.env.NODE_ENV === 'development' ? 'http://localhost:3004' : '';
+
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getAuthToken();
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_ORIGIN}/api${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -505,16 +509,11 @@ export function AdminAttendanceTab() {
       setCurrentFilename(file.name);
       setStep(3);
 
-      // Save to history — inline await, same function scope, no closure issues
+      // Save to history — use API_ORIGIN to bypass CRA proxy for large POST bodies
       setIsSaving(true);
-      const token = getAuthToken();
       try {
-        const res = await fetch('/api/attendance-reports', {
+        await apiFetch('/attendance-reports', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
           body: JSON.stringify({
             filename: file.name,
             period: parsed.period,
@@ -524,15 +523,9 @@ export function AdminAttendanceTab() {
             summary: summaryRows,
           }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-          throw new Error(err.error || `HTTP ${res.status}`);
-        }
         // Refresh history list
-        const histRes = await fetch('/api/attendance-reports', {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        });
-        if (histRes.ok) setHistory(await histRes.json());
+        const data = await apiFetch('/attendance-reports');
+        setHistory(data);
       } catch (saveErr: any) {
         console.error('[SAVE]', saveErr.message);
         setSaveError(`No se pudo guardar en historial: ${saveErr.message}`);
@@ -688,6 +681,13 @@ export function AdminAttendanceTab() {
           </div>
         </div>
 
+        {saveError && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-800">{saveError}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-sm text-red-800 whitespace-pre-wrap">{error}</p>
@@ -802,6 +802,13 @@ export function AdminAttendanceTab() {
   // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
+      {saveError && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-sm text-amber-800">{saveError}</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -816,9 +823,6 @@ export function AdminAttendanceTab() {
             <p className="text-xs text-primary-600 flex items-center gap-1 mt-0.5">
               <RefreshCw className="w-3 h-3 animate-spin" /> Guardando en historial...
             </p>
-          )}
-          {saveError && (
-            <p className="text-xs text-red-600 mt-0.5">⚠ {saveError}</p>
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
