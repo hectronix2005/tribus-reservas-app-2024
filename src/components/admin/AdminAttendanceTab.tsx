@@ -28,6 +28,9 @@ async function apiFetch(path: string, options: RequestInit = {}) {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { msg = (await res.json()).error || msg; } catch { /* ignore */ }
+    if (res.status === 401) {
+      msg = 'Sesión expirada. Cierra sesión, vuelve a iniciar sesión e intenta de nuevo.';
+    }
     throw new Error(msg);
   }
   return res.json();
