@@ -17,13 +17,18 @@ export function Admin() {
   const activeTab = VALID_TABS.includes(searchParams.get('tab') || '') ? searchParams.get('tab')! : 'settings';
   const setActiveTab = (tab: string) => setSearchParams({ tab });
 
+  const currentRole = state.auth.currentUser?.role;
+  const isAdminOrSuperAdmin = currentRole === 'admin' || currentRole === 'superadmin';
+
   const tabs = [
     { id: 'settings', label: 'Configuración', icon: Settings },
     { id: 'reservations', label: 'Gestión de Reservas', icon: Calendar },
     { id: 'departments', label: 'Departamentos', icon: Building2 },
     { id: 'users', label: 'Usuarios', icon: Users },
-    { id: 'reports', label: 'Reportes', icon: BarChart3 },
-    { id: 'attendance', label: 'Asistencia', icon: ClipboardCheck },
+    ...(isAdminOrSuperAdmin ? [
+      { id: 'reports', label: 'Reportes', icon: BarChart3 },
+      { id: 'attendance', label: 'Asistencia', icon: ClipboardCheck },
+    ] : []),
   ];
 
   const getStatusBadge = (status: string) => {
@@ -203,9 +208,9 @@ export function Admin() {
           </div>
         )}
 
-        {activeTab === 'reports' && <AdminReportsTab />}
+        {activeTab === 'reports' && isAdminOrSuperAdmin && <AdminReportsTab />}
 
-        {activeTab === 'attendance' && <AdminAttendanceTab />}
+        {activeTab === 'attendance' && isAdminOrSuperAdmin && <AdminAttendanceTab />}
       </div>
     </div>
   );
