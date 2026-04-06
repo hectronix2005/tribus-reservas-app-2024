@@ -29,7 +29,8 @@ export function ReservationFilters({
   const [endDate, setEndDate] = useState('');
   const [selectedArea, setSelectedArea] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(''); // SIN FILTRO DE ESTADO POR DEFECTO
-  const [internalShowMyReservations, setInternalShowMyReservations] = useState(true); // ACTIVADO POR DEFECTO
+  const isAdminRole = currentUser?.role === 'superadmin' || currentUser?.role === 'admin';
+  const [internalShowMyReservations, setInternalShowMyReservations] = useState(!isAdminRole); // Admins ven todas por defecto
   const [showFilters, setShowFilters] = useState(false);
   const [filtersApplied, setFiltersApplied] = useState(false);
 
