@@ -136,13 +136,107 @@ router.post('/users/login', async (req, res) => {
       createdAt: user.createdAt
     };
 
+    // Verificar expiracion de contraseña
+    const passwordExpired = user.mustChangePassword || user.isPasswordExpired();
+    const daysRemaining = user.passwordDaysRemaining();
+
     res.json({
       user: userResponse,
-      token
+      token,
+      passwordExpired,
+      daysRemaining,
+      ...(passwordExpired && {
+        passwordMessage: 'Tu contraseña ha expirado. Debes cambiarla para continuar.'
+      }),
+      ...(daysRemaining <= 15 && !passwordExpired && {
+        passwordWarning: `Tu contraseña expira en ${daysRemaining} dias. Cambiala pronto.`
+      }),
     });
 
   } catch (error) {
     console.error('Error en login:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ============================================
+// CAMBIO DE CONTRASEÑA (expiracion cada 6 meses)
+// ============================================
+
+router.post('/users/change-password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' });
+    }
+
+    // Validar complejidad minima
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    if (!hasUpper || !hasLower || !hasNumber) {
+      return res.status(400).json({
+        error: 'La contraseña debe contener al menos una mayuscula, una minuscula y un numero'
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña actual
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    }
+
+    // Verificar que no sea igual a la actual
+    const isSame = await bcrypt.compare(newPassword, user.password);
+    if (isSame) {
+      return res.status(400).json({ error: 'La nueva contraseña no puede ser igual a la actual' });
+    }
+
+    // Verificar que no sea una de las ultimas 3 contraseñas
+    const history = user.passwordHistory || [];
+    for (const prev of history.slice(-3)) {
+      const isReused = await bcrypt.compare(newPassword, prev.hash);
+      if (isReused) {
+        return res.status(400).json({
+          error: 'No puedes reutilizar tus ultimas 3 contraseñas'
+        });
+      }
+    }
+
+    // Guardar contraseña actual en historial
+    history.push({ hash: user.password, changedAt: new Date() });
+    // Mantener solo las ultimas 5
+    if (history.length > 5) history.splice(0, history.length - 5);
+
+    // Hashear nueva contraseña
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashedPassword;
+    user.passwordChangedAt = new Date();
+    user.mustChangePassword = false;
+    user.passwordHistory = history;
+    await user.save();
+
+    console.log(`✅ Contraseña cambiada para: ${user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada exitosamente',
+      nextExpiry: new Date(Date.now() + User.PASSWORD_MAX_AGE_DAYS * 24 * 60 * 60 * 1000),
+    });
+  } catch (error) {
+    console.error('Error cambiando contraseña:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -333,8 +427,16 @@ router.post('/reset-password', async (req, res) => {
     // Hash de la nueva contraseña
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
+    // Guardar contraseña actual en historial
+    const history = user.passwordHistory || [];
+    history.push({ hash: user.password, changedAt: new Date() });
+    if (history.length > 5) history.splice(0, history.length - 5);
+
     // Actualizar contraseña del usuario
     user.password = hashedPassword;
+    user.passwordChangedAt = new Date();
+    user.mustChangePassword = false;
+    user.passwordHistory = history;
     await user.save();
 
     // Marcar token como usado
@@ -435,6 +537,8 @@ router.put('/users/:id', async (req, res) => {
     if (password) {
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(password, salt);
+      updateData.passwordChangedAt = new Date();
+      updateData.mustChangePassword = true; // Forzar cambio en proximo login
     }
 
     const user = await User.findByIdAndUpdate(

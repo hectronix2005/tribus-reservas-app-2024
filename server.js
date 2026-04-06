@@ -30,7 +30,7 @@ const rateLimit = require('express-rate-limit');
 require('./server/config/cloudinary');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3007;
 
 app.set('trust proxy', 1);
 
@@ -84,6 +84,10 @@ app.use(express.json({ limit: '10mb' }));
 // Connect to MongoDB
 const connectDatabase = require('./server/config/database');
 connectDatabase();
+
+// Middleware de expiracion de contraseña (despues de auth, antes de rutas protegidas)
+const checkPasswordExpiry = require('./server/middleware/passwordExpiry');
+app.use(checkPasswordExpiry);
 
 // Routes
 app.use('/api/health', require('./server/routes/health'));
