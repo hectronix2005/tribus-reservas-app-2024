@@ -7,6 +7,7 @@ const User = require('../models/User');
 const AdminSettings = require('../models/AdminSettings');
 const DeletionLog = require('../models/DeletionLog');
 const emailService = require('../../services/emailService-improved');
+const { backupBeforeDelete } = require('../../middleware/backupMiddleware');
 
 // ===== ENDPOINTS DE RESERVACIONES =====
 
@@ -1161,7 +1162,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Eliminar TODAS las reservaciones (solo para administradores)
-router.delete('/', async (req, res) => {
+router.delete('/', backupBeforeDelete, async (req, res) => {
   try {
     const { userId } = req.body;
 
@@ -1217,7 +1218,7 @@ router.delete('/', async (req, res) => {
 });
 
 // Eliminar reservación (solo administradores)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', backupBeforeDelete, async (req, res) => {
   try {
     const { userId } = req.body;
 

@@ -89,6 +89,10 @@ connectDatabase();
 const checkPasswordExpiry = require('./server/middleware/passwordExpiry');
 app.use(checkPasswordExpiry);
 
+// Backup automatico periodico (cada hora, en background)
+const { periodicBackup, backupBeforeDelete } = require('./middleware/backupMiddleware');
+app.use(periodicBackup);
+
 // Routes
 app.use('/api/health', require('./server/routes/health'));
 app.use('/api/areas', require('./server/routes/areas'));

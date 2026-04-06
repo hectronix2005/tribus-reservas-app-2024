@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const AdminSettings = require('../models/AdminSettings');
+const backupSystem = require('../../utils/backupSystem');
 
 // Endpoints para configuración de admin
 // Obtener configuración de admin
@@ -72,6 +73,44 @@ router.post('/settings', async (req, res) => {
   } catch (error) {
     console.error('Error guardando configuración de admin:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// ============================================
+// ENDPOINTS DE BACKUP
+// ============================================
+
+// Listar backups disponibles
+router.get('/backups', async (req, res) => {
+  try {
+    const backups = await backupSystem.listBackups();
+    res.json({ backups, total: backups.length });
+  } catch (error) {
+    console.error('Error listando backups:', error);
+    res.status(500).json({ error: 'Error obteniendo lista de backups' });
+  }
+});
+
+// Crear backup completo manual
+router.post('/backups', async (req, res) => {
+  try {
+    const userId = req.body.userId || 'admin';
+    const result = await backupSystem.createFullBackup('manual', userId);
+    res.json({ message: 'Backup creado exitosamente', ...result });
+  } catch (error) {
+    console.error('Error creando backup:', error);
+    res.status(500).json({ error: 'Error creando backup' });
+  }
+});
+
+// Restaurar desde un backup
+router.post('/backups/:id/restore', async (req, res) => {
+  try {
+    const result = await backupSystem.restoreFromBackup(req.params.id);
+    res.json({ message: 'Restauracion completada', ...result });
+  } catch (error) {
+    console.error('Error restaurando backup:', error);
+    res.status(500).json({ error: error.message || 'Error restaurando backup' });
   }
 });
 

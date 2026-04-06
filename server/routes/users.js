@@ -7,6 +7,7 @@ const User = require('../models/User');
 const PasswordReset = require('../../models/PasswordReset');
 const emailService = require('../../services/emailService-improved');
 const { passwordResetTemplate, passwordResetTextTemplate } = require('../../services/emailTemplates');
+const { backupBeforeDelete } = require('../../middleware/backupMiddleware');
 
 // Endpoint para crear usuarios sin autenticación
 router.post('/users/register', async (req, res) => {
@@ -558,8 +559,8 @@ router.put('/users/:id', async (req, res) => {
   }
 });
 
-// Endpoint para eliminar usuario (sin autenticación para facilitar el desarrollo)
-router.delete('/users/:id', async (req, res) => {
+// Endpoint para eliminar usuario
+router.delete('/users/:id', backupBeforeDelete, async (req, res) => {
   try {
     const { adminUserId } = req.body;
 
